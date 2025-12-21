@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { DataTable, type TableData } from "../components/data-table";
+import { DataTable, type TableData } from "../../../components/data-table";
 import { Settings, Edit, Lock } from "lucide-react";
+import Image from "next/image";
 
 const ROLES = ["Administrador", "Editor", "Visualizador", "Moderador"];
 
@@ -83,14 +84,16 @@ export default function DashboardPage() {
   };
 
   return (
-    <div >
+    <div>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Top section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Perfil usuario */}
           <section className="bg-white rounded-xl border border-neutral-200 p-6 flex flex-col items-center text-center">
             <div className="w-24 h-24 rounded-full bg-neutral-300 mb-4 overflow-hidden">
-              <img
+              <Image
+                width={300}
+                height={300}
                 src="/placeholder-user.png"
                 alt="Usuario"
                 className="w-full h-full object-cover"

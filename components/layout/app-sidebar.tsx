@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -57,28 +58,19 @@ export default function AppSidebar({
           "lg:translate-x-0 lg:static",
         ].join(" ")}
       >
-        <div className="px-4 flex items-center justify-between gap-2 min-h-[32px]">
+        <div
+          className="px-4 flex items-center justify-between gap-2 min-h-8 cursor-pointer"
+          onClick={onToggle}
+          aria-label="Alternar sidebar"
+        >
           <div className="flex items-center gap-3">
-            <span className="inline-flex w-8 h-8 items-center justify-center rounded-md bg-neutral-100 text-neutral-900">
-              <LogoMark />
-            </span>
-            {isOpen && (
-              <div className="text-xs font-semibold tracking-[0.35em] text-neutral-800 whitespace-nowrap">
-                LOGO
-                <br />
-                EXAMPLE
-              </div>
-            )}
+            <Image
+              src={"/icons/logo_ayuntamiento_hermosillo.png"}
+              alt={""}
+              width={200}
+              height={100}
+            />
           </div>
-
-          {/* Botón para desktop - oculto en mobile */}
-          <button
-            className="text-neutral-700 hover:text-neutral-900 hidden lg:block"
-            onClick={onToggle}
-            aria-label="Alternar sidebar"
-          >
-            <ChevronLeftIcon isOpen={isOpen} />
-          </button>
         </div>
 
         <div className="mt-8 px-4 text-[10px] uppercase tracking-[0.25em] text-neutral-500">
@@ -128,21 +120,6 @@ export default function AppSidebar({
         />
       )}
     </>
-  );
-}
-
-// Iconos actualizados
-function MenuIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-5 h-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path d="M4 6h16M4 12h16M4 18h10" />
-    </svg>
   );
 }
 
@@ -204,20 +181,6 @@ function PinIcon() {
     >
       <circle cx="12" cy="10" r="3" />
       <path d="M12 21s6-5.25 6-10a6 6 0 1 0-12 0c0 4.75 6 10 6 10z" />
-    </svg>
-  );
-}
-
-function LogoMark() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-5 h-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path d="M4 6h12M4 12h16M4 18h10" />
     </svg>
   );
 }
