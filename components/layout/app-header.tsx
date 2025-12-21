@@ -7,10 +7,7 @@ type HeaderProps = {
   onOpenMobile: () => void;
 };
 
-export default function AppHeader({
-  isSidebarOpen = true,
-  onOpenMobile,
-}: HeaderProps) {
+export default function AppHeader({ onOpenMobile }: HeaderProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -29,23 +26,6 @@ export default function AppHeader({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Obtener título basado en la ruta actual
-  const getPageTitle = () => {
-    const path = window.location.pathname;
-    switch (path) {
-      case "/dashboard":
-        return "Tablero";
-      case "/bienes-inmuebles":
-        return "Bienes Inmuebles";
-      case "/archivos":
-        return "Archivos";
-      case "/mapa":
-        return "Mapa";
-      default:
-        return "Tablero";
-    }
-  };
-
   return (
     <header
       className={[
@@ -62,13 +42,6 @@ export default function AppHeader({
         >
           <MenuIcon />
         </button>
-
-        <div className="hidden lg:block">
-          <h1 className="text-lg font-semibold text-neutral-900">
-            {getPageTitle()}
-          </h1>
-          <p className="text-xs text-neutral-500">Gestión de activos</p>
-        </div>
       </div>
 
       {/* Menú de usuario */}
@@ -79,7 +52,7 @@ export default function AppHeader({
           aria-expanded={isUserMenuOpen}
           aria-label="Menú de usuario"
         >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-medium">
+          <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-medium">
             U
           </div>
           <div className="hidden lg:block text-left">
