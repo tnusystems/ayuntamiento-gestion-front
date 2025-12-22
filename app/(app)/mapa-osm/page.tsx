@@ -1,7 +1,6 @@
 "use client";
 
-import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Search,
   X,
@@ -11,6 +10,7 @@ import {
   Navigation,
 } from "lucide-react";
 import Image from "next/image";
+import "leaflet/dist/leaflet.css";
 
 const center = {
   lat: 29.072967,
@@ -64,8 +64,8 @@ const propiedades = [
   },
   {
     id: "PUB-003",
-    nombre: "Cárcamo de Hermosillo",
-    direccion: "Callejón del Cárcamo, Centro",
+    nombre: "Carcamo de Hermosillo",
+    direccion: "Callejon del Carcamo, Centro",
     lat: 29.068889,
     lng: -110.958611,
     imagenes: [
@@ -76,7 +76,7 @@ const propiedades = [
   },
   {
     id: "PUB-004",
-    nombre: "Catedral de la Asunción",
+    nombre: "Catedral de la Asuncion",
     direccion: "Blvd. Hidalgo s/n, Centro",
     lat: 29.073611,
     lng: -110.956389,
@@ -100,11 +100,43 @@ const propiedades = [
   },
 ];
 
-export default function MapaPage() {
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
-  });
+const toRadians = (value: number) => (value * Math.PI) / 180;
 
+const getDistanceMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+  const earthRadius = 6371000;
+  const deltaLat = toRadians(b.lat - a.lat);
+  const deltaLng = toRadians(b.lng - a.lng);
+  const lat1 = toRadians(a.lat);
+  const lat2 = toRadians(b.lat);
+
+  const sinLat = Math.sin(deltaLat / 2);
+  const sinLng = Math.sin(deltaLng / 2);
+  const h =
+    sinLat * sinLat +
+    Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  return earthRadius * c;
+};
+
+const findNearestPropiedad = (lat: number, lng: number) => {
+  let nearest: (typeof propiedades)[0] | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  for (const propiedad of propiedades) {
+    const distance = getDistanceMeters(
+      { lat, lng },
+      { lat: propiedad.lat, lng: propiedad.lng }
+    );
+    if (distance < nearestDistance) {
+      nearest = propiedad;
+      nearestDistance = distance;
+    }
+  }
+
+  return nearest ? { propiedad: nearest, distance: nearestDistance } : null;
+};
+
+export default function MapaOsmPage() {
   const [selected, setSelected] = useState<(typeof propiedades)[0] | null>(
     null
   );
@@ -115,6 +147,92 @@ export default function MapaPage() {
   const [filteredSuggestions, setFilteredSuggestions] = useState<
     typeof propiedades
   >([]);
+
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<import("leaflet").Map | null>(null);
+  const markersRef = useRef<import("leaflet").Marker[]>([]);
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const initMap = async () => {
+      const L = await import("leaflet");
+      if (!isMounted || !mapContainerRef.current || mapRef.current) {
+        return;
+      }
+
+      const markerIcon = L.divIcon({
+        className: "osm-marker",
+        html: `<span style="display:block;width:18px;height:18px;border-radius:9999px;background:#111827;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.4)"></span>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      });
+
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: true,
+        attributionControl: true,
+      }).setView([center.lat, center.lng], 13);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map);
+
+      markersRef.current = propiedades.map((propiedad) =>
+        L.marker([propiedad.lat, propiedad.lng], {
+          icon: markerIcon,
+          interactive: true,
+          riseOnHover: true,
+        })
+          .addTo(map)
+          .on("click", () => {
+            setSelected(propiedad);
+            setCurrentImageIndex(0);
+          })
+      );
+
+      map.on("click", (event: import("leaflet").LeafletMouseEvent) => {
+        const nearest = findNearestPropiedad(
+          event.latlng.lat,
+          event.latlng.lng
+        );
+        if (nearest) {
+          setSelected(nearest.propiedad);
+          setCurrentImageIndex(0);
+        }
+      });
+
+      mapRef.current = map;
+    };
+
+    initMap();
+
+    return () => {
+      isMounted = false;
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    const target = selected
+      ? ([selected.lat, selected.lng] as [number, number])
+      : ([center.lat, center.lng] as [number, number]);
+    const zoom = selected ? 16 : 13;
+
+    mapRef.current.setView(target, zoom, { animate: true });
+  }, [selected]);
 
   const handleInputChange = (value: string) => {
     setQuery(value);
@@ -155,13 +273,6 @@ export default function MapaPage() {
     }
   };
 
-  if (!isLoaded)
-    return (
-      <div className="flex items-center justify-center h-screen bg-neutral-50">
-        <p className="text-neutral-600">Cargando mapa...</p>
-      </div>
-    );
-
   return (
     <div className="relative h-screen w-full overflow-hidden">
       {/* Buscador flotante arriba del mapa */}
@@ -171,7 +282,7 @@ export default function MapaPage() {
             <Search className="w-5 h-5 text-neutral-400 ml-1" />
             <input
               type="text"
-              placeholder="Buscar por código, nombre o dirección..."
+              placeholder="Buscar por codigo, nombre o direccion..."
               className="flex-1 outline-none text-sm text-neutral-700 placeholder:text-neutral-400"
               value={query}
               onChange={(e) => handleInputChange(e.target.value)}
@@ -224,7 +335,7 @@ export default function MapaPage() {
       {selected && (
         <div className="absolute top-24 left-4 z-20 w-full max-w-sm">
           <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 overflow-hidden">
-            {/* Carrusel de imágenes */}
+            {/* Carrusel de imagenes */}
             <div className="relative aspect-video bg-neutral-100">
               <Image
                 src={
@@ -267,7 +378,7 @@ export default function MapaPage() {
               </div>
             </div>
 
-            {/* Información */}
+            {/* Informacion */}
             <div className="p-5">
               <div className="flex items-start justify-between mb-3">
                 <div>
@@ -292,7 +403,7 @@ export default function MapaPage() {
                 {selected.lat.toFixed(6)}, {selected.lng.toFixed(6)}
               </div>
 
-              {/* Botones de acción */}
+              {/* Botones de accion */}
               <div className="space-y-2">
                 <button
                   className="w-full flex items-center justify-center gap-2 bg-neutral-900 text-white py-3 px-4 rounded-xl hover:bg-neutral-800 transition-colors font-medium text-sm"
@@ -308,13 +419,13 @@ export default function MapaPage() {
                   className="w-full flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-3 px-4 rounded-xl hover:bg-neutral-200 transition-colors font-medium text-sm"
                   onClick={() =>
                     window.open(
-                      `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${selected.lat},${selected.lng}`,
+                      `https://www.openstreetmap.org/?mlat=${selected.lat}&mlon=${selected.lng}#map=18/${selected.lat}/${selected.lng}`,
                       "_blank"
                     )
                   }
                 >
                   <Navigation className="w-4 h-4" />
-                  Abrir vista de calle
+                  Abrir vista del mapa
                 </button>
               </div>
             </div>
@@ -366,7 +477,7 @@ export default function MapaPage() {
                 </button>
               </div>
 
-              {/* Contador de imágenes */}
+              {/* Contador de imagenes */}
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/60 text-white text-sm rounded-full">
                 {currentImageIndex + 1} / {selected.imagenes.length}
               </div>
@@ -376,22 +487,7 @@ export default function MapaPage() {
       )}
 
       {/* Mapa */}
-      <GoogleMap
-        zoom={13}
-        center={selected ? { lat: selected.lat, lng: selected.lng } : center}
-        mapContainerClassName="w-full h-full"
-      >
-        {propiedades.map((p) => (
-          <Marker
-            key={p.id}
-            position={{ lat: p.lat, lng: p.lng }}
-            onClick={() => {
-              setSelected(p);
-              setCurrentImageIndex(0);
-            }}
-          />
-        ))}
-      </GoogleMap>
+      <div ref={mapContainerRef} className="absolute inset-0 z-0 w-full h-full" />
     </div>
   );
 }

@@ -336,9 +336,13 @@ export default function BienesInmueblesPage() {
   const [tableData, setTableData] = useState(TABLE_DATA);
   const [editRow, setEditRow] = useState<BienesInmueblesTableRow | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [attachRow, setAttachRow] = useState<BienesInmueblesTableRow | null>(null);
+  const [attachRow, setAttachRow] = useState<BienesInmueblesTableRow | null>(
+    null
+  );
   const [attachment, setAttachment] = useState<File | null>(null);
-  const [deleteRow, setDeleteRow] = useState<BienesInmueblesTableRow | null>(null);
+  const [deleteRow, setDeleteRow] = useState<BienesInmueblesTableRow | null>(
+    null
+  );
   const [deleteReason, setDeleteReason] = useState("");
   const form = useForm<BienesInmueblesFormValues>({
     defaultValues: EMPTY_FORM_VALUES,
@@ -478,7 +482,7 @@ export default function BienesInmueblesPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <AppCard
-        title="CRUD"
+        title="Bienes Inmuebles"
         description="Gestion de bienes inmuebles conforme a los lineamientos del sistema."
       >
         <form

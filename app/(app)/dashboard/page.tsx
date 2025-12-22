@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { DataTable, type TableData } from "../../../components/data-table";
 import { Settings, Edit, Lock } from "lucide-react";
 import Image from "next/image";
@@ -148,23 +149,20 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
-                "Alta de bienes",
-                "Buscar bienes",
-                "Baja bien",
-                "Comprometer bien",
+                { label: "Bienes", path: "/bienes-inmuebles" },
+                { label: "Archivos", path: "/archivos" },
+                { label: "Mapa", path: "/mapa-osm" },
               ].map((action) => (
-                <button
-                  key={action}
-                  onClick={() => alert(`Acción: ${action}`)}
+                <Link
+                  key={action.label}
+                  href={action.path}
                   className="flex items-center gap-4 rounded-lg border border-neutral-200 p-4 hover:bg-neutral-100 transition-colors text-left"
                 >
-                  <div className="w-10 h-10 rounded-md bg-neutral-200 flex items-center justify-center text-xl shrink-0">
-                    📌
-                  </div>
+                  <div className="w-10 h-10 rounded-md bg-neutral-200 flex items-center justify-center text-xl shrink-0"></div>
                   <span className="text-sm font-medium text-neutral-800">
-                    {action}
+                    {action.label}
                   </span>
-                </button>
+                </Link>
               ))}
             </div>
           </section>

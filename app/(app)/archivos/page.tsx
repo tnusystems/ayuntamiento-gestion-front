@@ -2,7 +2,12 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+import Modal from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const INITIAL_FILES = [
   {
@@ -79,14 +84,96 @@ const INITIAL_FILES = [
   },
 ];
 
+const BIENES = [
+  {
+    id: "BI-001",
+    nombre: "Terreno urbano",
+    rpp: "RPP-124-2024",
+    claveCatastral: "HMO-001-0001",
+    ubicacion: "Centro",
+  },
+  {
+    id: "BI-002",
+    nombre: "Casa habitacion",
+    rpp: "RPP-215-2024",
+    claveCatastral: "HMO-002-0105",
+    ubicacion: "Colonia Norte",
+  },
+  {
+    id: "BI-003",
+    nombre: "Local comercial",
+    rpp: "RPP-318-2024",
+    claveCatastral: "HMO-003-0042",
+    ubicacion: "Zona Industrial",
+  },
+  {
+    id: "BI-004",
+    nombre: "Predio rural",
+    rpp: "RPP-402-2024",
+    claveCatastral: "HMO-004-0201",
+    ubicacion: "Ejido Norte",
+  },
+  {
+    id: "BI-005",
+    nombre: "Bodega municipal",
+    rpp: "RPP-512-2024",
+    claveCatastral: "HMO-005-0088",
+    ubicacion: "Parque Sur",
+  },
+];
+
 export default function ArchivosPage() {
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isAttachOpen, setIsAttachOpen] = useState(false);
+  const [attachFile, setAttachFile] = useState<File | null>(null);
+  const [bienQuery, setBienQuery] = useState("");
+  const [selectedBienId, setSelectedBienId] = useState<string | null>(null);
 
   const filteredFiles = INITIAL_FILES.filter((file) =>
     file.nombre.toLowerCase().includes(search.toLowerCase())
   );
+
+  const filteredBienes = useMemo(() => {
+    const normalized = bienQuery.trim().toLowerCase();
+    if (!normalized) {
+      return BIENES;
+    }
+    return BIENES.filter((bien) =>
+      `${bien.rpp} ${bien.claveCatastral} ${bien.nombre}`
+        .toLowerCase()
+        .includes(normalized)
+    );
+  }, [bienQuery]);
+
+  const selectedBien = selectedBienId
+    ? BIENES.find((bien) => bien.id === selectedBienId) ?? null
+    : null;
+
+  const handleOpenAttach = () => {
+    setAttachFile(null);
+    setBienQuery("");
+    setSelectedBienId(null);
+    setIsAttachOpen(true);
+  };
+
+  const handleCloseAttach = () => {
+    setIsAttachOpen(false);
+    setAttachFile(null);
+    setBienQuery("");
+    setSelectedBienId(null);
+  };
+
+  const handleConfirmAttach = () => {
+    if (!attachFile || !selectedBien) {
+      return;
+    }
+    alert(
+      `Archivo: ${attachFile.name}\nAsignado a: ${selectedBien.nombre} (${selectedBien.id})`
+    );
+    handleCloseAttach();
+  };
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -120,7 +207,7 @@ export default function ArchivosPage() {
               title="Adjuntar Archivo"
               description="Sube un nuevo archivo desde tu equipo local"
               icon={<UploadIcon />}
-              onClick={() => alert("Adjuntar archivo desde equipo")}
+              onClick={handleOpenAttach}
             />
             <ActionCard
               title="Escanear Documento"
@@ -308,6 +395,98 @@ export default function ArchivosPage() {
           </div>
         </section>
       </div>
+
+      <Modal
+        open={isAttachOpen}
+        title="Adjuntar archivo"
+        description="Selecciona un archivo y el bien inmueble al que se asignara."
+        onClose={handleCloseAttach}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={handleCloseAttach}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmAttach}
+              disabled={!attachFile || !selectedBien}
+            >
+              Adjuntar
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="archivo-adjunto">Archivo</Label>
+            <Input
+              id="archivo-adjunto"
+              type="file"
+              onChange={(event) =>
+                setAttachFile(event.target.files?.[0] ?? null)
+              }
+            />
+            {attachFile ? (
+              <p className="text-xs text-muted-foreground">
+                Archivo seleccionado: {attachFile.name}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bien-search">
+              Buscar bien por RPP o clave catastral
+            </Label>
+            <Input
+              id="bien-search"
+              placeholder="Ej. RPP-124-2024 o HMO-001-0001"
+              value={bienQuery}
+              onChange={(event) => setBienQuery(event.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              Bienes encontrados
+            </div>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-border/60">
+              {filteredBienes.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-muted-foreground">
+                  Sin resultados.
+                </div>
+              ) : (
+                filteredBienes.map((bien) => (
+                  <button
+                    key={bien.id}
+                    type="button"
+                    onClick={() => setSelectedBienId(bien.id)}
+                    className={`w-full text-left px-4 py-3 border-b border-border/60 last:border-b-0 transition-colors ${
+                      selectedBienId === bien.id
+                        ? "bg-neutral-100"
+                        : "hover:bg-neutral-50"
+                    }`}
+                  >
+                    <div className="text-sm font-medium text-neutral-900">
+                      {bien.nombre}
+                    </div>
+                    <div className="text-xs text-neutral-500">
+                      RPP: {bien.rpp} · Clave: {bien.claveCatastral}
+                    </div>
+                    <div className="text-xs text-neutral-500">
+                      {bien.ubicacion}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+            {selectedBien ? (
+              <div className="text-xs text-neutral-600">
+                Seleccionado: {selectedBien.nombre} ({selectedBien.id})
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

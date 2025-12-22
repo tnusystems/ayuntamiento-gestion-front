@@ -31,7 +31,7 @@ const navItems = [
   {
     label: "Mapa",
     icon: PinIcon,
-    path: "/mapa",
+    path: "/mapa-osm",
   },
 ];
 

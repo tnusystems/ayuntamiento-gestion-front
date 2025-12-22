@@ -1,3 +1,5 @@
+"use client";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import Image from "next/image";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   return (
     <main className="relative min-h-svh overflow-hidden bg-muted/30">
       <div className="pointer-events-none absolute -top-40 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-amber-200/30 blur-3xl" />
@@ -36,7 +40,13 @@ export default function LoginPage() {
             </CardHeader>
 
             <CardContent>
-              <form className="space-y-5">
+              <form
+                className="space-y-5"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  router.push("/dashboard");
+                }}
+              >
                 <div className="space-y-2">
                   <Label htmlFor="username">Usuario</Label>
                   <Input
