@@ -108,12 +108,10 @@ export default function ArchivosPage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 p-4 md:p-6 lg:p-8">
+    <div className="max-w-7xl mx-auto space-y-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Title */}
-        <h1 className="text-2xl font-bold text-neutral-900">
-          Digitalización de Archivos
-        </h1>
+        
 
         {/* Action Cards */}
         <section className="bg-white border border-neutral-200 rounded-xl p-6">
