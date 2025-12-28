@@ -1,5 +1,7 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,6 +15,9 @@ import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   return (
     <main className="relative min-h-svh overflow-hidden bg-muted/30">
@@ -42,18 +47,46 @@ export default function LoginPage() {
             <CardContent>
               <form
                 className="space-y-5"
-                onSubmit={(event) => {
+                onSubmit={async (event) => {
                   event.preventDefault();
-                  router.push("/dashboard");
+                  setErrorMessage(null);
+                  setIsSubmitting(true);
+
+                  const formData = new FormData(event.currentTarget);
+                  const email = String(formData.get("email") || "").trim();
+                  const password = String(formData.get("password") || "");
+                  const callbackUrl =
+                    searchParams.get("callbackUrl") || "/dashboard";
+
+                  if (!email || !password) {
+                    setErrorMessage("Ingresa tu correo y contrasena.");
+                    setIsSubmitting(false);
+                    return;
+                  }
+
+                  const result = await signIn("credentials", {
+                    email,
+                    password,
+                    redirect: false,
+                    callbackUrl,
+                  });
+
+                  if (result?.error) {
+                    setErrorMessage("Credenciales invalidas.");
+                    setIsSubmitting(false);
+                    return;
+                  }
+
+                  router.push(result?.url || callbackUrl);
                 }}
               >
                 <div className="space-y-2">
-                  <Label htmlFor="username">Usuario</Label>
+                  <Label htmlFor="email">Correo</Label>
                   <Input
-                    id="username"
-                    name="username"
-                    autoComplete="username"
-                    placeholder="Usuario"
+                    id="email"
+                    name="email"
+                    autoComplete="email"
+                    placeholder="correo@ejemplo.com"
                   />
                 </div>
 
@@ -68,8 +101,12 @@ export default function LoginPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full">
-                  Iniciar sesion
+                {errorMessage ? (
+                  <p className="text-sm text-destructive">{errorMessage}</p>
+                ) : null}
+
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? "Ingresando..." : "Iniciar sesion"}
                 </Button>
               </form>
             </CardContent>
