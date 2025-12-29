@@ -97,8 +97,6 @@ export const authOptions: NextAuthOptions = {
             user: {
               email,
               password,
-              password_confirmation: password,
-              name: email,
             },
           }),
         });
