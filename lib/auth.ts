@@ -11,6 +11,7 @@ type LoginResponse = {
   access_token: string;
   refresh_token?: string;
   expires_in?: number;
+  token: string;
   user: {
     id: number;
     email: string;
@@ -92,7 +93,14 @@ export const authOptions: NextAuthOptions = {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({
+            user: {
+              email,
+              password,
+              password_confirmation: password,
+              name: email,
+            },
+          }),
         });
 
         if (!response.ok) {
@@ -101,7 +109,7 @@ export const authOptions: NextAuthOptions = {
 
         const data = (await response.json()) as LoginResponse;
 
-        if (!data?.access_token || !data?.user) {
+        if (!data?.token || !data?.user) {
           return null;
         }
 
@@ -110,7 +118,7 @@ export const authOptions: NextAuthOptions = {
           email: data.user.email,
           name: data.user.name,
           role: data.user.role,
-          accessToken: data.access_token,
+          accessToken: data.token,
           refreshToken: data.refresh_token,
           expiresIn: data.expires_in,
         };
