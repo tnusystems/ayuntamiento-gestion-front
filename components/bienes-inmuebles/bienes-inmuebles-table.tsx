@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 type BienesInmueblesTableProps = {
   data: BienesInmueblesTableRow[];
   pageSize?: number;
+  isLoading?: boolean;
   onEdit: (row: BienesInmueblesTableRow) => void;
   onDelete: (row: BienesInmueblesTableRow) => void;
   onAttach: (row: BienesInmueblesTableRow) => void;
@@ -18,6 +19,7 @@ type BienesInmueblesTableProps = {
 export default function BienesInmueblesTable({
   data,
   pageSize = 6,
+  isLoading = false,
   onEdit,
   onDelete,
   onAttach,
@@ -52,7 +54,16 @@ export default function BienesInmueblesTable({
             </tr>
           </thead>
           <tbody>
-            {pagedData.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td
+                  colSpan={7}
+                  className="px-4 py-6 text-center text-muted-foreground"
+                >
+                  Cargando bienes...
+                </td>
+              </tr>
+            ) : pagedData.length === 0 ? (
               <tr>
                 <td
                   colSpan={7}
@@ -135,7 +146,7 @@ export default function BienesInmueblesTable({
             variant="outline"
             size="sm"
             onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-            disabled={page === 1}
+            disabled={page === 1 || isLoading}
           >
             Anterior
           </Button>
@@ -144,7 +155,7 @@ export default function BienesInmueblesTable({
             variant="outline"
             size="sm"
             onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-            disabled={page === totalPages}
+            disabled={page === totalPages || isLoading}
           >
             Siguiente
           </Button>

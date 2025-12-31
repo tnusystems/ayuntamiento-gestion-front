@@ -26,4 +26,10 @@ export type BienesInmueblesTableRow = BienesInmueblesFormValues & {
   estado: "Activo" | "Inactivo";
   fecha: string;
   responsable: string;
+  apiId?: number;
+  rppNumber?: string;
+  cNumber?: string;
+  inventoryStatus?: "active" | "maintenance" | "baja";
+  operationTypeId?: number;
+  operationTypeName?: string;
 };

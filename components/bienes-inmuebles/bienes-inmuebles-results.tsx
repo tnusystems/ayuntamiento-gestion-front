@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 
 type BienesInmueblesResultsProps = {
   data: BienesInmueblesTableRow[];
+  isLoading?: boolean;
   onEdit: (row: BienesInmueblesTableRow) => void;
   onDelete: (row: BienesInmueblesTableRow) => void;
   onAttach: (row: BienesInmueblesTableRow) => void;
@@ -17,6 +18,7 @@ type BienesInmueblesResultsProps = {
 
 export default function BienesInmueblesResults({
   data,
+  isLoading = false,
   onEdit,
   onDelete,
   onAttach,
@@ -54,9 +56,11 @@ export default function BienesInmueblesResults({
           placeholder="Buscar por clave, descripcion, ubicacion o responsable..."
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          disabled={isLoading}
         />
         <BienesInmueblesTable
           data={filteredData}
+          isLoading={isLoading}
           onEdit={onEdit}
           onDelete={onDelete}
           onAttach={onAttach}

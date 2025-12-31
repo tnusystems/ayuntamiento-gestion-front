@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import AppCard from "@/components/app-card";
@@ -15,6 +15,9 @@ import type {
   BienesInmueblesFormValues,
   BienesInmueblesTableRow,
 } from "@/components/bienes-inmuebles/types";
+import { createAsset, fetchAssets, updateAsset } from "@/lib/api/assets";
+import { ApiError } from "@/lib/api/errors";
+import { BienFormSchema } from "@/types";
 
 type SectionCardConfig = {
   title: string;
@@ -81,261 +84,17 @@ const SECTION_CARDS: SectionCardConfig[] = [
   },
 ];
 
-const buildRow = (
-  id: string,
-  overrides: Partial<BienesInmueblesTableRow>
-): BienesInmueblesTableRow => ({
-  ...EMPTY_FORM_VALUES,
-  id,
-  clave: "",
-  descripcion: "",
-  ubicacion: "",
-  estado: "Activo",
-  fecha: "",
-  responsable: "",
-  ...overrides,
-});
-
-const TABLE_DATA: BienesInmueblesTableRow[] = [
-  buildRow("1", {
-    clave: "BI-001",
-    descripcion: "Terreno urbano",
-    ubicacion: "Centro",
-    fecha: "12/01/2024",
-    responsable: "Juan Perez",
-    operation: "Compra",
-    nombre: "Terreno urbano",
-    antecedente: "BI-001",
-    registroNumero: "124",
-    registroVolumen: "II",
-    registroSeccion: "Centro",
-    registroFecha: "12/01/2024",
-    escriturasNumero: "56",
-    escriturasNotaria: "Juan Perez",
-    escriturasFecha: "10/01/2024",
-    boletinNumero: "33",
-    boletinVolumen: "A",
-    boletinFecha: "11/01/2024",
-    convenioNumero: "12",
-    convenioVolumen: "III",
-    convenioFecha: "12/01/2024",
-  }),
-  buildRow("2", {
-    clave: "BI-002",
-    descripcion: "Casa habitacion",
-    ubicacion: "Colonia Norte",
-    fecha: "15/01/2024",
-    responsable: "Ana Lopez",
-    operation: "Adjudicacion",
-    nombre: "Casa habitacion",
-    antecedente: "BI-002",
-    registroNumero: "215",
-    registroVolumen: "I",
-    registroSeccion: "Colonia Norte",
-    registroFecha: "15/01/2024",
-    escriturasNumero: "89",
-    escriturasNotaria: "Ana Lopez",
-    escriturasFecha: "14/01/2024",
-    boletinNumero: "40",
-    boletinVolumen: "B",
-    boletinFecha: "14/01/2024",
-    convenioNumero: "7",
-    convenioVolumen: "II",
-    convenioFecha: "13/01/2024",
-  }),
-  buildRow("3", {
-    clave: "BI-003",
-    descripcion: "Local comercial",
-    ubicacion: "Zona Industrial",
-    estado: "Inactivo",
-    fecha: "18/01/2024",
-    responsable: "Carlos Medina",
-    operation: "Arrendamiento",
-    nombre: "Local comercial",
-    antecedente: "BI-003",
-    registroNumero: "318",
-    registroVolumen: "III",
-    registroSeccion: "Zona Industrial",
-    registroFecha: "18/01/2024",
-    escriturasNumero: "102",
-    escriturasNotaria: "Carlos Medina",
-    escriturasFecha: "17/01/2024",
-    boletinNumero: "45",
-    boletinVolumen: "C",
-    boletinFecha: "17/01/2024",
-    convenioNumero: "21",
-    convenioVolumen: "I",
-    convenioFecha: "16/01/2024",
-  }),
-  buildRow("4", {
-    clave: "BI-004",
-    descripcion: "Predio rural",
-    ubicacion: "Ejido Norte",
-    fecha: "22/01/2024",
-    responsable: "Maria Ruiz",
-    operation: "Comodato",
-    nombre: "Predio rural",
-    antecedente: "BI-004",
-    registroNumero: "402",
-    registroVolumen: "IV",
-    registroSeccion: "Ejido Norte",
-    registroFecha: "22/01/2024",
-    escriturasNumero: "130",
-    escriturasNotaria: "Maria Ruiz",
-    escriturasFecha: "20/01/2024",
-    boletinNumero: "50",
-    boletinVolumen: "A",
-    boletinFecha: "21/01/2024",
-    convenioNumero: "9",
-    convenioVolumen: "III",
-    convenioFecha: "21/01/2024",
-  }),
-  buildRow("5", {
-    clave: "BI-005",
-    descripcion: "Bodega municipal",
-    ubicacion: "Parque Sur",
-    fecha: "02/02/2024",
-    responsable: "Rafael Diaz",
-    operation: "Concesion",
-    nombre: "Bodega municipal",
-    antecedente: "BI-005",
-    registroNumero: "512",
-    registroVolumen: "I",
-    registroSeccion: "Parque Sur",
-    registroFecha: "02/02/2024",
-    escriturasNumero: "145",
-    escriturasNotaria: "Rafael Diaz",
-    escriturasFecha: "01/02/2024",
-    boletinNumero: "62",
-    boletinVolumen: "B",
-    boletinFecha: "01/02/2024",
-    convenioNumero: "18",
-    convenioVolumen: "II",
-    convenioFecha: "01/02/2024",
-  }),
-  buildRow("6", {
-    clave: "BI-006",
-    descripcion: "Oficinas administrativas",
-    ubicacion: "Centro",
-    estado: "Inactivo",
-    fecha: "05/02/2024",
-    responsable: "Laura Vega",
-    operation: "Dacion",
-    nombre: "Oficinas administrativas",
-    antecedente: "BI-006",
-    registroNumero: "602",
-    registroVolumen: "V",
-    registroSeccion: "Centro",
-    registroFecha: "05/02/2024",
-    escriturasNumero: "161",
-    escriturasNotaria: "Laura Vega",
-    escriturasFecha: "04/02/2024",
-    boletinNumero: "70",
-    boletinVolumen: "C",
-    boletinFecha: "04/02/2024",
-    convenioNumero: "25",
-    convenioVolumen: "IV",
-    convenioFecha: "04/02/2024",
-  }),
-  buildRow("7", {
-    clave: "BI-007",
-    descripcion: "Terreno baldia",
-    ubicacion: "Colonia Sur",
-    fecha: "07/02/2024",
-    responsable: "Hector Ramos",
-    operation: "Fraccionamiento",
-    nombre: "Terreno baldia",
-    antecedente: "BI-007",
-    registroNumero: "701",
-    registroVolumen: "II",
-    registroSeccion: "Colonia Sur",
-    registroFecha: "07/02/2024",
-    escriturasNumero: "172",
-    escriturasNotaria: "Hector Ramos",
-    escriturasFecha: "06/02/2024",
-    boletinNumero: "75",
-    boletinVolumen: "A",
-    boletinFecha: "06/02/2024",
-    convenioNumero: "13",
-    convenioVolumen: "I",
-    convenioFecha: "06/02/2024",
-  }),
-  buildRow("8", {
-    clave: "BI-008",
-    descripcion: "Parque publico",
-    ubicacion: "Las Palmas",
-    fecha: "10/02/2024",
-    responsable: "Sofia Luna",
-    operation: "Permuta",
-    nombre: "Parque publico",
-    antecedente: "BI-008",
-    registroNumero: "805",
-    registroVolumen: "III",
-    registroSeccion: "Las Palmas",
-    registroFecha: "10/02/2024",
-    escriturasNumero: "183",
-    escriturasNotaria: "Sofia Luna",
-    escriturasFecha: "09/02/2024",
-    boletinNumero: "82",
-    boletinVolumen: "B",
-    boletinFecha: "09/02/2024",
-    convenioNumero: "17",
-    convenioVolumen: "II",
-    convenioFecha: "09/02/2024",
-  }),
-  buildRow("9", {
-    clave: "BI-009",
-    descripcion: "Almacen general",
-    ubicacion: "Zona Norte",
-    estado: "Inactivo",
-    fecha: "12/02/2024",
-    responsable: "Diego Torres",
-    operation: "Regularizacion",
-    nombre: "Almacen general",
-    antecedente: "BI-009",
-    registroNumero: "914",
-    registroVolumen: "IV",
-    registroSeccion: "Zona Norte",
-    registroFecha: "12/02/2024",
-    escriturasNumero: "194",
-    escriturasNotaria: "Diego Torres",
-    escriturasFecha: "11/02/2024",
-    boletinNumero: "90",
-    boletinVolumen: "C",
-    boletinFecha: "11/02/2024",
-    convenioNumero: "22",
-    convenioVolumen: "III",
-    convenioFecha: "11/02/2024",
-  }),
-  buildRow("10", {
-    clave: "BI-010",
-    descripcion: "Centro comunitario",
-    ubicacion: "Colonia Oeste",
-    fecha: "15/02/2024",
-    responsable: "Paula Mendez",
-    operation: "Venta",
-    nombre: "Centro comunitario",
-    antecedente: "BI-010",
-    registroNumero: "1001",
-    registroVolumen: "V",
-    registroSeccion: "Colonia Oeste",
-    registroFecha: "15/02/2024",
-    escriturasNumero: "205",
-    escriturasNotaria: "Paula Mendez",
-    escriturasFecha: "14/02/2024",
-    boletinNumero: "95",
-    boletinVolumen: "A",
-    boletinFecha: "14/02/2024",
-    convenioNumero: "30",
-    convenioVolumen: "IV",
-    convenioFecha: "14/02/2024",
-  }),
-];
 
 export default function BienesInmueblesPage() {
-  const [tableData, setTableData] = useState(TABLE_DATA);
+  const [tableData, setTableData] = useState<BienesInmueblesTableRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [editRow, setEditRow] = useState<BienesInmueblesTableRow | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingRow, setEditingRow] =
+    useState<BienesInmueblesTableRow | null>(null);
   const [attachRow, setAttachRow] = useState<BienesInmueblesTableRow | null>(
     null
   );
@@ -348,22 +107,49 @@ export default function BienesInmueblesPage() {
     defaultValues: EMPTY_FORM_VALUES,
   });
 
-  const formatDate = (date: Date) => {
-    const day = `${date.getDate()}`.padStart(2, "0");
-    const month = `${date.getMonth() + 1}`.padStart(2, "0");
-    return `${day}/${month}/${date.getFullYear()}`;
+  const mapAssetToRow = (
+    asset: Awaited<ReturnType<typeof fetchAssets>>[number]
+  ): BienesInmueblesTableRow => {
+    const status = asset.inventory_status ?? "active";
+    const estado = status === "active" ? "Activo" : "Inactivo";
+    const ubicacion =
+      asset.location?.name ?? asset.location?.address ?? "";
+    const descripcion = asset.description ?? "";
+    const clave = asset.rpp_number || asset.c_number || `${asset.id}`;
+
+    return {
+      ...EMPTY_FORM_VALUES,
+      id: `${asset.id}`,
+      clave,
+      descripcion: descripcion || asset.operation_type_name || "",
+      ubicacion,
+      estado,
+      fecha: "",
+      responsable: "",
+      apiId: asset.id,
+      rppNumber: asset.rpp_number,
+      cNumber: asset.c_number,
+      inventoryStatus: asset.inventory_status,
+      operationTypeId: asset.operation_type_id,
+      operationTypeName: asset.operation_type_name,
+      operation: asset.operation_type_name ?? "",
+      registroNumero: asset.rpp_number ?? "",
+      escriturasNumero: asset.c_number ?? "",
+      nombre: asset.description ?? "",
+      antecedente: "",
+    };
   };
 
   const toFormValues = (
     row: BienesInmueblesTableRow
   ): BienesInmueblesFormValues => ({
-    operation: row.operation,
+    operation: row.operation || row.operationTypeName || "",
     dateFilter: row.dateFilter,
-    registroNumero: row.registroNumero,
+    registroNumero: row.registroNumero || row.rppNumber || "",
     registroVolumen: row.registroVolumen,
     registroSeccion: row.registroSeccion,
     registroFecha: row.registroFecha,
-    escriturasNumero: row.escriturasNumero,
+    escriturasNumero: row.escriturasNumero || row.cNumber || "",
     escriturasNotaria: row.escriturasNotaria,
     escriturasFecha: row.escriturasFecha,
     boletinNumero: row.boletinNumero,
@@ -372,67 +158,85 @@ export default function BienesInmueblesPage() {
     convenioNumero: row.convenioNumero,
     convenioVolumen: row.convenioVolumen,
     convenioFecha: row.convenioFecha,
-    nombre: row.nombre,
+    nombre: row.nombre || row.descripcion,
     antecedente: row.antecedente,
   });
 
-  const buildRowFromForm = (
-    values: BienesInmueblesFormValues,
-    options?: {
-      base?: BienesInmueblesTableRow;
-      id?: string;
-      fallbackClave?: string;
-      fallbackFecha?: string;
-    }
-  ): BienesInmueblesTableRow => ({
-    ...(options?.base ?? EMPTY_FORM_VALUES),
-    ...values,
-    id: options?.id ?? options?.base?.id ?? "",
-    estado: options?.base?.estado ?? "Activo",
-    clave:
-      values.antecedente ||
-      options?.base?.clave ||
-      options?.fallbackClave ||
-      "BI-000",
-    descripcion:
-      values.nombre || options?.base?.descripcion || "Nuevo bien inmueble",
-    ubicacion:
-      values.registroSeccion || options?.base?.ubicacion || "Sin ubicacion",
-    fecha:
-      values.registroFecha ||
-      options?.base?.fecha ||
-      options?.fallbackFecha ||
-      "",
-    responsable:
-      values.escriturasNotaria ||
-      options?.base?.responsable ||
-      "Sin responsable",
-  });
-
-  const onSubmit = (values: BienesInmueblesFormValues) => {
-    if (editingId) {
-      setTableData((prev) =>
-        prev.map((item) =>
-          item.id === editingId
-            ? buildRowFromForm(values, { base: item })
-            : item
-        )
+  const loadAssets = async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const assets = await fetchAssets();
+      setTableData(assets.map(mapAssetToRow));
+    } catch (error) {
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cargar el listado."
       );
-    } else {
-      const now = new Date();
-      const nextId = `${now.getTime()}`;
-      setTableData((prev) => [
-        buildRowFromForm(values, {
-          id: nextId,
-          fallbackClave: `BI-${nextId.slice(-3)}`,
-          fallbackFecha: formatDate(now),
-        }),
-        ...prev,
-      ]);
+      setTableData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadAssets();
+  }, []);
+
+  const onSubmit = async (values: BienesInmueblesFormValues) => {
+    form.clearErrors();
+    setSubmitError(null);
+    setSuccessMessage(null);
+
+    const parsed = BienFormSchema.safeParse(values);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const field = issue.path[0];
+        if (field) {
+          form.setError(field as keyof BienesInmueblesFormValues, {
+            type: "manual",
+            message: issue.message,
+          });
+        }
+      }
+      return;
     }
 
-    setEditingId(null);
-    form.reset(EMPTY_FORM_VALUES);
+    setIsSaving(true);
+    try {
+      const inventoryStatus = editingRow?.inventoryStatus ?? "active";
+      const payload = {
+        rpp_number: values.registroNumero.trim(),
+        c_number: values.escriturasNumero.trim(),
+        inventory_status: inventoryStatus,
+        status: inventoryStatus,
+        operation_type_id: editingRow?.operationTypeId,
+        description: values.nombre.trim() || undefined,
+      };
+
+      if (editingRow?.apiId) {
+        await updateAsset(editingRow.apiId, payload);
+        setSuccessMessage("Bien actualizado correctamente.");
+      } else {
+        await createAsset(payload);
+        setSuccessMessage("Bien creado correctamente.");
+      }
+
+      setEditingRow(null);
+      form.reset(EMPTY_FORM_VALUES);
+      await loadAssets();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setSubmitError(error.message);
+      } else if (error instanceof Error) {
+        setSubmitError(error.message);
+      } else {
+        setSubmitError("No se pudo guardar el bien.");
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleEditRequest = (row: BienesInmueblesTableRow) => {
@@ -442,13 +246,17 @@ export default function BienesInmueblesPage() {
   const handleConfirmEdit = () => {
     if (editRow) {
       form.reset(toFormValues(editRow));
-      setEditingId(editRow.id);
+      setEditingRow(editRow);
+      setSuccessMessage(null);
+      setSubmitError(null);
     }
     setEditRow(null);
   };
 
   const handleCancelEdit = () => {
-    setEditingId(null);
+    setEditingRow(null);
+    setSuccessMessage(null);
+    setSubmitError(null);
     form.reset(EMPTY_FORM_VALUES);
   };
 
@@ -467,16 +275,47 @@ export default function BienesInmueblesPage() {
     setAttachment(null);
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteRow) {
-      setTableData((prev) =>
-        prev.map((item) =>
-          item.id === deleteRow.id ? { ...item, estado: "Inactivo" } : item
-        )
-      );
+  const handleConfirmDelete = async () => {
+    if (!deleteRow?.apiId) {
+      setDeleteRow(null);
+      setDeleteReason("");
+      return;
     }
-    setDeleteRow(null);
-    setDeleteReason("");
+
+    setIsSaving(true);
+    setSubmitError(null);
+    setSuccessMessage(null);
+
+    try {
+      const rpp = deleteRow.rppNumber || deleteRow.registroNumero || "";
+      const cNumber = deleteRow.cNumber || deleteRow.escriturasNumero || "";
+
+      if (!rpp || !cNumber) {
+        throw new Error("Faltan datos para dar de baja el bien.");
+      }
+
+      await updateAsset(deleteRow.apiId, {
+        rpp_number: rpp,
+        c_number: cNumber,
+        inventory_status: "baja",
+        status: "baja",
+        operation_type_id: deleteRow.operationTypeId,
+      });
+      setSuccessMessage("Bien dado de baja correctamente.");
+      await loadAssets();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setSubmitError(error.message);
+      } else if (error instanceof Error) {
+        setSubmitError(error.message);
+      } else {
+        setSubmitError("No se pudo dar de baja el bien.");
+      }
+    } finally {
+      setIsSaving(false);
+      setDeleteRow(null);
+      setDeleteReason("");
+    }
   };
 
   return (
@@ -485,12 +324,30 @@ export default function BienesInmueblesPage() {
         title="Bienes Inmuebles"
         description="Gestion de bienes inmuebles conforme a los lineamientos del sistema."
       >
+        {loadError ? (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {loadError}
+          </div>
+        ) : null}
+        {submitError ? (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {submitError}
+          </div>
+        ) : null}
+        {successMessage ? (
+          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            {successMessage}
+          </div>
+        ) : null}
         <form
           id="bienes-inmuebles-form"
           className="space-y-6"
           onSubmit={form.handleSubmit(onSubmit)}
         >
-          <BienesInmueblesFilters register={form.register} />
+          <BienesInmueblesFilters
+            register={form.register}
+            errors={form.formState.errors}
+          />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {SECTION_CARDS.map((card) => (
@@ -499,14 +356,17 @@ export default function BienesInmueblesPage() {
                 title={card.title}
                 fields={card.fields}
                 register={form.register}
+                errors={form.formState.errors}
               />
             ))}
           </div>
 
           <BienesInmueblesSummary
             register={form.register}
-            submitLabel={editingId ? "Actualizar" : "Guardar"}
-            showCancel={!!editingId}
+            errors={form.formState.errors}
+            isSubmitting={isSaving}
+            submitLabel={editingRow ? "Actualizar" : "Guardar"}
+            showCancel={!!editingRow}
             onCancel={handleCancelEdit}
           />
         </form>
@@ -514,6 +374,7 @@ export default function BienesInmueblesPage() {
 
       <BienesInmueblesResults
         data={tableData}
+        isLoading={isLoading}
         onEdit={handleEditRequest}
         onDelete={handleDelete}
         onAttach={handleAttachRequest}
