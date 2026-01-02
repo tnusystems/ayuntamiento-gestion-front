@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { signOut } from "next-auth/react";
 
 type HeaderProps = {
   isSidebarOpen?: boolean;
@@ -25,6 +26,11 @@ export default function AppHeader({ onOpenMobile }: HeaderProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleSignOut = async () => {
+    setIsUserMenuOpen(false);
+    await signOut({ callbackUrl: "/login" });
+  };
 
   return (
     <header
@@ -73,7 +79,10 @@ export default function AppHeader({ onOpenMobile }: HeaderProps) {
             <button className="w-full px-4 py-3 text-left text-sm text-neutral-700 hover:bg-neutral-100 border-b border-neutral-100">
               Mi perfil
             </button>
-            <button className="w-full px-4 py-3 text-left text-sm text-neutral-700 hover:bg-neutral-100">
+            <button
+              className="w-full px-4 py-3 text-left text-sm text-neutral-700 hover:bg-neutral-100"
+              onClick={handleSignOut}
+            >
               Cerrar sesión
             </button>
           </div>

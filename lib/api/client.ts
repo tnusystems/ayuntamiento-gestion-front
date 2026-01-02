@@ -1,4 +1,4 @@
-import { getAuthToken } from "./authToken";
+import { getAuthToken } from "./authToken.client";
 import { getApiBaseUrl } from "./baseUrl";
 import { ApiError, getErrorMessage } from "./errors";
 import { parseResponse } from "./response";
