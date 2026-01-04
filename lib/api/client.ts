@@ -24,7 +24,6 @@ export async function api<T>(
   if (!headers.has("Accept")) {
     headers.set("Accept", "application/json");
   }
-
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }

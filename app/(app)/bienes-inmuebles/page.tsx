@@ -15,7 +15,12 @@ import type {
   BienesInmueblesFormValues,
   BienesInmueblesTableRow,
 } from "@/components/bienes-inmuebles/types";
-import { createAsset, fetchAssets, updateAsset } from "@/lib/api/assets";
+import {
+  createAsset,
+  fetchAssets,
+  updateAsset,
+  type AssetListParams,
+} from "@/lib/api/assets";
 import { ApiError } from "@/lib/api/errors";
 import { BienFormSchema } from "@/types";
 
@@ -92,6 +97,10 @@ export default function BienesInmueblesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [assetFilters, setAssetFilters] = useState<AssetListParams>({
+    page: 1,
+    per_page: 10,
+  });
   const [editRow, setEditRow] = useState<BienesInmueblesTableRow | null>(null);
   const [editingRow, setEditingRow] =
     useState<BienesInmueblesTableRow | null>(null);
@@ -162,11 +171,11 @@ export default function BienesInmueblesPage() {
     antecedente: row.antecedente,
   });
 
-  const loadAssets = async () => {
+  const loadAssets = async (params: AssetListParams) => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const assets = await fetchAssets();
+      const assets = await fetchAssets(params);
       setTableData(assets.map(mapAssetToRow));
     } catch (error) {
       setLoadError(
@@ -181,8 +190,18 @@ export default function BienesInmueblesPage() {
   };
 
   useEffect(() => {
-    void loadAssets();
-  }, []);
+    void loadAssets(assetFilters);
+  }, [assetFilters]);
+
+  const handleSearch = (query: string) => {
+    const operationTypeName = form.getValues("operation").trim();
+    setAssetFilters((prev) => ({
+      ...prev,
+      page: 1,
+      q: query || undefined,
+      operation_type_name: operationTypeName || undefined,
+    }));
+  };
 
   const onSubmit = async (values: BienesInmueblesFormValues) => {
     form.clearErrors();
@@ -225,7 +244,7 @@ export default function BienesInmueblesPage() {
 
       setEditingRow(null);
       form.reset(EMPTY_FORM_VALUES);
-      await loadAssets();
+      await loadAssets(assetFilters);
     } catch (error) {
       if (error instanceof ApiError) {
         setSubmitError(error.message);
@@ -302,7 +321,7 @@ export default function BienesInmueblesPage() {
         operation_type_id: deleteRow.operationTypeId,
       });
       setSuccessMessage("Bien dado de baja correctamente.");
-      await loadAssets();
+      await loadAssets(assetFilters);
     } catch (error) {
       if (error instanceof ApiError) {
         setSubmitError(error.message);
@@ -378,6 +397,7 @@ export default function BienesInmueblesPage() {
         onEdit={handleEditRequest}
         onDelete={handleDelete}
         onAttach={handleAttachRequest}
+        onSearch={handleSearch}
       />
 
       <EditConfirmModal

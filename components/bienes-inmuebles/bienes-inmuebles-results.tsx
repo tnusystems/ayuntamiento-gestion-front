@@ -14,6 +14,7 @@ type BienesInmueblesResultsProps = {
   onEdit: (row: BienesInmueblesTableRow) => void;
   onDelete: (row: BienesInmueblesTableRow) => void;
   onAttach: (row: BienesInmueblesTableRow) => void;
+  onSearch: (query: string) => void;
 };
 
 export default function BienesInmueblesResults({
@@ -22,6 +23,7 @@ export default function BienesInmueblesResults({
   onEdit,
   onDelete,
   onAttach,
+  onSearch,
 }: BienesInmueblesResultsProps) {
   const [query, setQuery] = useState("");
 
@@ -49,13 +51,23 @@ export default function BienesInmueblesResults({
     <AppCard
       title="Resultados"
       description="Busqueda de bienes inmuebles."
-      headerAction={<Button type="button">Buscar</Button>}
+      headerAction={
+        <Button type="button" onClick={() => onSearch(query.trim())}>
+          Buscar
+        </Button>
+      }
     >
       <div className="space-y-4">
         <Input
           placeholder="Buscar por clave, descripcion, ubicacion o responsable..."
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              onSearch(query.trim());
+            }
+          }}
           disabled={isLoading}
         />
         <BienesInmueblesTable
