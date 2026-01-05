@@ -13,6 +13,21 @@ export const RolSchema = z
 
 export type Rol = z.infer<typeof RolSchema>;
 
+export const OperationTypeSchema = z
+  .object({
+    id: z.number().int(),
+    name: z.string().optional(),
+    key: z.string().optional(),
+    kind: z.string().optional(),
+    position: z.number().int().nullable().optional(),
+    active: z.boolean().nullable().optional(),
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
+  })
+  .passthrough();
+
+export type OperationType = z.infer<typeof OperationTypeSchema>;
+
 export const UbicacionSchema = z
   .object({
     id: z.number().int().optional(),
@@ -199,6 +214,7 @@ export const ArchivoFormSchema = z.object({
 export type ArchivoFormValues = z.infer<typeof ArchivoFormSchema>;
 
 export const RolListSchema = z.array(RolSchema);
+export const OperationTypeListSchema = z.array(OperationTypeSchema);
 export const UbicacionListSchema = z.array(UbicacionSchema);
 export const UsuarioListSchema = z.array(UsuarioSchema);
 export const BienListSchema = z.array(BienSchema);

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
+import { useState } from "react";
 import {
   Search,
   X,
@@ -10,7 +11,6 @@ import {
   Navigation,
 } from "lucide-react";
 import Image from "next/image";
-import "leaflet/dist/leaflet.css";
 
 const center = {
   lat: 29.072967,
@@ -102,7 +102,10 @@ const propiedades = [
 
 const toRadians = (value: number) => (value * Math.PI) / 180;
 
-const getDistanceMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+const getDistanceMeters = (
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number }
+) => {
   const earthRadius = 6371000;
   const deltaLat = toRadians(b.lat - a.lat);
   const deltaLng = toRadians(b.lng - a.lng);
@@ -137,6 +140,10 @@ const findNearestPropiedad = (lat: number, lng: number) => {
 };
 
 export default function MapaOsmPage() {
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
+  });
+
   const [selected, setSelected] = useState<(typeof propiedades)[0] | null>(
     null
   );
@@ -147,92 +154,6 @@ export default function MapaOsmPage() {
   const [filteredSuggestions, setFilteredSuggestions] = useState<
     typeof propiedades
   >([]);
-
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<import("leaflet").Map | null>(null);
-  const markersRef = useRef<import("leaflet").Marker[]>([]);
-
-  useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) {
-      return;
-    }
-
-    let isMounted = true;
-
-    const initMap = async () => {
-      const L = await import("leaflet");
-      if (!isMounted || !mapContainerRef.current || mapRef.current) {
-        return;
-      }
-
-      const markerIcon = L.divIcon({
-        className: "osm-marker",
-        html: `<span style="display:block;width:18px;height:18px;border-radius:9999px;background:#111827;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.4)"></span>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
-      });
-
-      const map = L.map(mapContainerRef.current, {
-        zoomControl: true,
-        attributionControl: true,
-      }).setView([center.lat, center.lng], 13);
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(map);
-
-      markersRef.current = propiedades.map((propiedad) =>
-        L.marker([propiedad.lat, propiedad.lng], {
-          icon: markerIcon,
-          interactive: true,
-          riseOnHover: true,
-        })
-          .addTo(map)
-          .on("click", () => {
-            setSelected(propiedad);
-            setCurrentImageIndex(0);
-          })
-      );
-
-      map.on("click", (event: import("leaflet").LeafletMouseEvent) => {
-        const nearest = findNearestPropiedad(
-          event.latlng.lat,
-          event.latlng.lng
-        );
-        if (nearest) {
-          setSelected(nearest.propiedad);
-          setCurrentImageIndex(0);
-        }
-      });
-
-      mapRef.current = map;
-    };
-
-    initMap();
-
-    return () => {
-      isMounted = false;
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-      mapRef.current?.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!mapRef.current) {
-      return;
-    }
-
-    const target = selected
-      ? ([selected.lat, selected.lng] as [number, number])
-      : ([center.lat, center.lng] as [number, number]);
-    const zoom = selected ? 16 : 13;
-
-    mapRef.current.setView(target, zoom, { animate: true });
-  }, [selected]);
 
   const handleInputChange = (value: string) => {
     setQuery(value);
@@ -272,6 +193,14 @@ export default function MapaOsmPage() {
       );
     }
   };
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-neutral-50">
+        <p className="text-neutral-600">Cargando mapa...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -419,13 +348,13 @@ export default function MapaOsmPage() {
                   className="w-full flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-3 px-4 rounded-xl hover:bg-neutral-200 transition-colors font-medium text-sm"
                   onClick={() =>
                     window.open(
-                      `https://www.openstreetmap.org/?mlat=${selected.lat}&mlon=${selected.lng}#map=18/${selected.lat}/${selected.lng}`,
+                      `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${selected.lat},${selected.lng}`,
                       "_blank"
                     )
                   }
                 >
                   <Navigation className="w-4 h-4" />
-                  Abrir vista del mapa
+                  Abrir vista de calle
                 </button>
               </div>
             </div>
@@ -487,7 +416,35 @@ export default function MapaOsmPage() {
       )}
 
       {/* Mapa */}
-      <div ref={mapContainerRef} className="absolute inset-0 z-0 w-full h-full" />
+      <GoogleMap
+        zoom={selected ? 16 : 13}
+        center={selected ? { lat: selected.lat, lng: selected.lng } : center}
+        mapContainerClassName="absolute inset-0 z-0 w-full h-full"
+        onClick={(event) => {
+          if (!event.latLng) {
+            return;
+          }
+          const nearest = findNearestPropiedad(
+            event.latLng.lat(),
+            event.latLng.lng()
+          );
+          if (nearest) {
+            setSelected(nearest.propiedad);
+            setCurrentImageIndex(0);
+          }
+        }}
+      >
+        {propiedades.map((propiedad) => (
+          <Marker
+            key={propiedad.id}
+            position={{ lat: propiedad.lat, lng: propiedad.lng }}
+            onClick={() => {
+              setSelected(propiedad);
+              setCurrentImageIndex(0);
+            }}
+          />
+        ))}
+      </GoogleMap>
     </div>
   );
 }

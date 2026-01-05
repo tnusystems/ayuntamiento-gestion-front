@@ -1,34 +1,20 @@
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
 
 import type { BienesInmueblesFormValues } from "@/components/bienes-inmuebles/types";
+import type { OperationType } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const OPERATIONS = [
-  "Adjudicacion",
-  "Arrendamiento",
-  "Comodato",
-  "Compra",
-  "Concesion",
-  "Dacion",
-  "Demasia",
-  "Doancion",
-  "Fraccionamiento",
-  "Incorporacion",
-  "Permuta",
-  "Regularizacion",
-  "Subdivision",
-  "Venta",
-];
 
 type BienesInmueblesFiltersProps = {
   register: UseFormRegister<BienesInmueblesFormValues>;
   errors?: FieldErrors<BienesInmueblesFormValues>;
+  operationOptions: OperationType[];
 };
 
 export default function BienesInmueblesFilters({
   register,
   errors,
+  operationOptions,
 }: BienesInmueblesFiltersProps) {
   return (
     <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
@@ -44,11 +30,13 @@ export default function BienesInmueblesFilters({
               aria-invalid={!!errors?.operation}
             >
               <option value="">Seleccionar operacion</option>
-              {OPERATIONS.map((operation) => (
-                <option key={operation} value={operation}>
-                  {operation}
-                </option>
-              ))}
+              {operationOptions
+                .filter((operation) => operation.name)
+                .map((operation) => (
+                  <option key={operation.id} value={String(operation.id)}>
+                    {operation.name}
+                  </option>
+                ))}
             </select>
           </div>
           {errors?.operation?.message ? (

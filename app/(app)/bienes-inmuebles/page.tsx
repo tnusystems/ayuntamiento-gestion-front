@@ -19,11 +19,12 @@ import {
   createAsset,
   deleteAsset,
   fetchAssets,
-  updateAsset,
   type AssetListParams,
+  updateAsset,
 } from "@/lib/api/assets";
+import { fetchOperationTypes } from "@/lib/api/operation-types";
 import { ApiError } from "@/lib/api/errors";
-import { BienFormSchema } from "@/types";
+import { BienFormSchema, type OperationType } from "@/types";
 
 type SectionCardConfig = {
   title: string;
@@ -152,6 +153,7 @@ export default function BienesInmueblesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -163,8 +165,9 @@ export default function BienesInmueblesPage() {
     per_page: 10,
   });
   const [editRow, setEditRow] = useState<BienesInmueblesTableRow | null>(null);
-  const [editingRow, setEditingRow] =
-    useState<BienesInmueblesTableRow | null>(null);
+  const [editingRow, setEditingRow] = useState<BienesInmueblesTableRow | null>(
+    null
+  );
   const [attachRow, setAttachRow] = useState<BienesInmueblesTableRow | null>(
     null
   );
@@ -176,6 +179,15 @@ export default function BienesInmueblesPage() {
   const form = useForm<BienesInmueblesFormValues>({
     defaultValues: EMPTY_FORM_VALUES,
   });
+
+  const parseInventoryStatus = (
+    value?: string | null
+  ): "active" | "maintenance" | "baja" | undefined => {
+    if (!value || value === "NULL") return undefined;
+    if (value === "active" || value === "maintenance" || value === "baja")
+      return value;
+    return undefined;
+  };
 
   const mapAssetToRow = (
     asset: Awaited<ReturnType<typeof fetchAssets>>["data"][number]
@@ -214,15 +226,12 @@ export default function BienesInmueblesPage() {
       fecha: formatDate(asset.created_at),
       responsable: "",
       apiId: asset.id,
-      rppNumber: asset.rpp_number,
-      cNumber: asset.c_number,
-      inventoryStatus:
-        asset.inventory_status && asset.inventory_status !== "NULL"
-          ? asset.inventory_status
-          : undefined,
+      rppNumber: asset.rpp_number ?? undefined,
+      cNumber: asset.c_number ?? "",
+      inventoryStatus: parseInventoryStatus(asset.inventory_status),
       operationTypeId: asset.operation_type_id,
       operationTypeName: asset.operation_type_name,
-      operation: asset.operation_type_name ?? "",
+      operation: asset.operation_type_id ? String(asset.operation_type_id) : "",
       registroNumero: asset.rpp_number ?? "",
       escriturasNumero: asset.c_number ?? "",
       nombre: asset.description ?? asset.colony ?? "",
@@ -261,7 +270,10 @@ export default function BienesInmueblesPage() {
   const toFormValues = (
     row: BienesInmueblesTableRow
   ): BienesInmueblesFormValues => ({
-    operation: row.operation || row.operationTypeName || "",
+    operation:
+      row.operationTypeId !== undefined
+        ? String(row.operationTypeId)
+        : row.operation || "",
     dateFilter: row.dateFilter,
     registroNumero: row.registroNumero || row.rppNumber || "",
     registroVolumen: row.registroVolumen,
@@ -304,9 +316,7 @@ export default function BienesInmueblesPage() {
       });
     } catch (error) {
       setLoadError(
-        error instanceof Error
-          ? error.message
-          : "No se pudo cargar el listado."
+        error instanceof Error ? error.message : "No se pudo cargar el listado."
       );
       setTableData([]);
       setPagination({
@@ -324,15 +334,38 @@ export default function BienesInmueblesPage() {
     void loadAssets(assetFilters);
   }, [assetFilters]);
 
-  const handleSearch = useCallback((query: string) => {
-    const operationTypeName = form.getValues("operation").trim();
-    setAssetFilters((prev) => ({
-      ...prev,
-      page: 1,
-      q: query || undefined,
-      operation_type_name: operationTypeName || undefined,
-    }));
-  }, [form]);
+  useEffect(() => {
+    let isMounted = true;
+    const loadOperationTypes = async () => {
+      try {
+        const data = await fetchOperationTypes();
+        if (isMounted) {
+          setOperationTypes(data);
+        }
+      } catch {
+        if (isMounted) {
+          setOperationTypes([]);
+        }
+      }
+    };
+    void loadOperationTypes();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSearch = useCallback(
+    (query: string) => {
+      const operationTypeId = toOptionalNumber(form.getValues("operation"));
+      setAssetFilters((prev) => ({
+        ...prev,
+        page: 1,
+        q: query || undefined,
+        operation_type_id: operationTypeId,
+      }));
+    },
+    [form]
+  );
 
   const handlePageChange = useCallback((nextPage: number) => {
     setAssetFilters((prev) => ({
@@ -363,12 +396,13 @@ export default function BienesInmueblesPage() {
     setIsSaving(true);
     try {
       const inventoryStatus = editingRow?.inventoryStatus ?? "active";
+      const operationTypeId = toOptionalNumber(values.operation);
       const payload = {
         rpp_number: values.registroNumero.trim(),
         c_number: values.escriturasNumero.trim(),
         inventory_status: inventoryStatus,
         status: inventoryStatus,
-        operation_type_id: editingRow?.operationTypeId,
+        operation_type_id: operationTypeId,
         description: values.nombre.trim() || undefined,
         colony: values.colony.trim() || undefined,
         street: values.street.trim() || undefined,
@@ -501,6 +535,7 @@ export default function BienesInmueblesPage() {
           <BienesInmueblesFilters
             register={form.register}
             errors={form.formState.errors}
+            operationOptions={operationTypes}
           />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
