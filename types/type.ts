@@ -80,14 +80,26 @@ export type Bien = z.infer<typeof BienSchema>;
 export const BienApiSchema = z
   .object({
     id: z.number().int(),
-    rpp_number: z.string(),
-    c_number: z.string(),
+    rpp_number: z.string().nullable().optional(),
+    c_number: z.string().nullable().optional(),
     description: z.string().optional(),
-    inventory_status: z.enum(["active", "maintenance", "baja"]).optional(),
+    inventory_status: z.string().nullable().optional(),
     category: z.record(z.string(), z.unknown()).optional(),
     location: UbicacionSchema.optional(),
     operation_type_id: z.number().int().optional(),
     operation_type_name: z.string().optional(),
+    lot: z.string().nullable().optional(),
+    block: z.string().nullable().optional(),
+    colony: z.string().nullable().optional(),
+    street: z.string().nullable().optional(),
+    total_area: z.union([z.string(), z.number()]).nullable().optional(),
+    built_area: z.union([z.string(), z.number()]).nullable().optional(),
+    cadastral_value: z.union([z.string(), z.number()]).nullable().optional(),
+    commercial_value: z.union([z.string(), z.number()]).nullable().optional(),
+    latitude: z.union([z.string(), z.number()]).nullable().optional(),
+    longitude: z.union([z.string(), z.number()]).nullable().optional(),
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
   })
   .passthrough();
 
@@ -111,6 +123,16 @@ export const BienFormSchema = z.object({
   convenioFecha: z.string().optional(),
   nombre: z.string().min(1, "Nombre requerido"),
   antecedente: z.string().optional(),
+  colony: z.string().optional(),
+  street: z.string().optional(),
+  block: z.string().optional(),
+  lot: z.string().optional(),
+  totalArea: z.string().optional(),
+  builtArea: z.string().optional(),
+  cadastralValue: z.string().optional(),
+  commercialValue: z.string().optional(),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
 });
 
 export type BienFormValues = z.infer<typeof BienFormSchema>;
@@ -182,3 +204,21 @@ export const UsuarioListSchema = z.array(UsuarioSchema);
 export const BienListSchema = z.array(BienSchema);
 export const BienApiListSchema = z.array(BienApiSchema);
 export const ArchivoApiListSchema = z.array(ArchivoApiSchema);
+
+export const PaginationSchema = z
+  .object({
+    current_page: z.number().int().optional(),
+    next_page: z.number().int().nullable().optional(),
+    prev_page: z.number().int().nullable().optional(),
+    total_pages: z.number().int().optional(),
+    total_count: z.number().int().optional(),
+    per_page: z.number().int().optional(),
+  })
+  .passthrough();
+
+export const BienApiListResponseSchema = z
+  .object({
+    data: BienApiListSchema,
+    pagination: PaginationSchema.optional(),
+  })
+  .passthrough();

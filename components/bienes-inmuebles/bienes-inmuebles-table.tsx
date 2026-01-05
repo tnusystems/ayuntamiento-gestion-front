@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { Paperclip, Pencil, Trash2 } from "lucide-react";
 
@@ -9,34 +9,33 @@ import { Button } from "@/components/ui/button";
 
 type BienesInmueblesTableProps = {
   data: BienesInmueblesTableRow[];
-  pageSize?: number;
   isLoading?: boolean;
   onEdit: (row: BienesInmueblesTableRow) => void;
   onDelete: (row: BienesInmueblesTableRow) => void;
   onAttach: (row: BienesInmueblesTableRow) => void;
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  onPageChange: (page: number) => void;
 };
 
 export default function BienesInmueblesTable({
   data,
-  pageSize = 6,
   isLoading = false,
   onEdit,
   onDelete,
   onAttach,
+  page,
+  totalPages,
+  totalCount,
+  onPageChange,
 }: BienesInmueblesTableProps) {
-  const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
-
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
+  const pageLabel = useMemo(() => {
+    if (totalCount <= 0) {
+      return `Pagina ${page} de ${totalPages}`;
     }
-  }, [page, totalPages]);
-
-  const pagedData = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return data.slice(start, start + pageSize);
-  }, [data, page, pageSize]);
+    return `Pagina ${page} de ${totalPages} - ${totalCount} bienes`;
+  }, [page, totalCount, totalPages]);
 
   return (
     <div className="space-y-4">
@@ -54,7 +53,7 @@ export default function BienesInmueblesTable({
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+            {isLoading && data.length === 0 ? (
               <tr>
                 <td
                   colSpan={7}
@@ -63,7 +62,7 @@ export default function BienesInmueblesTable({
                   Cargando bienes...
                 </td>
               </tr>
-            ) : pagedData.length === 0 ? (
+            ) : data.length === 0 ? (
               <tr>
                 <td
                   colSpan={7}
@@ -73,7 +72,7 @@ export default function BienesInmueblesTable({
                 </td>
               </tr>
             ) : (
-              pagedData.map((row) => (
+              data.map((row) => (
                 <tr
                   key={row.id}
                   className="border-b border-border/40 last:border-b-0 hover:bg-muted/30"
@@ -137,15 +136,14 @@ export default function BienesInmueblesTable({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-        <div>
-          Pagina {page} de {totalPages}
-        </div>
+        <div>{pageLabel}</div>
         <div className="flex items-center gap-2">
+          {isLoading ? <span className="text-xs">Cargando...</span> : null}
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            onClick={() => onPageChange(Math.max(1, page - 1))}
             disabled={page === 1 || isLoading}
           >
             Anterior
@@ -154,7 +152,7 @@ export default function BienesInmueblesTable({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            onClick={() => onPageChange(Math.min(totalPages, page + 1))}
             disabled={page === totalPages || isLoading}
           >
             Siguiente

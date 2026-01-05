@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { BienesInmueblesTableRow } from "@/components/bienes-inmuebles/types";
 import AppCard from "@/components/app-card";
@@ -15,6 +15,10 @@ type BienesInmueblesResultsProps = {
   onDelete: (row: BienesInmueblesTableRow) => void;
   onAttach: (row: BienesInmueblesTableRow) => void;
   onSearch: (query: string) => void;
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  onPageChange: (page: number) => void;
 };
 
 export default function BienesInmueblesResults({
@@ -24,28 +28,30 @@ export default function BienesInmueblesResults({
   onDelete,
   onAttach,
   onSearch,
+  page,
+  totalPages,
+  totalCount,
+  onPageChange,
 }: BienesInmueblesResultsProps) {
   const [query, setQuery] = useState("");
+  const initialSearchDone = useRef(false);
+  const onSearchRef = useRef(onSearch);
 
-  const filteredData = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) {
-      return data;
+  useEffect(() => {
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
+
+  useEffect(() => {
+    if (!initialSearchDone.current) {
+      initialSearchDone.current = true;
+      return;
     }
-    return data.filter((row) =>
-      [
-        row.clave,
-        row.descripcion,
-        row.ubicacion,
-        row.estado,
-        row.fecha,
-        row.responsable,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalized)
-    );
-  }, [data, query]);
+    const timeoutId = setTimeout(() => {
+      onSearchRef.current(query.trim());
+    }, 400);
+
+    return () => clearTimeout(timeoutId);
+  }, [query]);
 
   return (
     <AppCard
@@ -71,11 +77,15 @@ export default function BienesInmueblesResults({
           disabled={isLoading}
         />
         <BienesInmueblesTable
-          data={filteredData}
+          data={data}
           isLoading={isLoading}
           onEdit={onEdit}
           onDelete={onDelete}
           onAttach={onAttach}
+          page={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          onPageChange={onPageChange}
         />
       </div>
     </AppCard>

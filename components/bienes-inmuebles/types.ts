@@ -16,6 +16,16 @@ export type BienesInmueblesFormValues = {
   convenioFecha: string;
   nombre: string;
   antecedente: string;
+  colony: string;
+  street: string;
+  block: string;
+  lot: string;
+  totalArea: string;
+  builtArea: string;
+  cadastralValue: string;
+  commercialValue: string;
+  latitude: string;
+  longitude: string;
 };
 
 export type BienesInmueblesTableRow = BienesInmueblesFormValues & {

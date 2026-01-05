@@ -1,4 +1,4 @@
-import { BienApiListSchema, BienApiSchema } from "@/types";
+import { BienApiListResponseSchema, BienApiSchema } from "@/types";
 import { api } from "./client";
 
 type AssetPayload = {
@@ -8,6 +8,16 @@ type AssetPayload = {
   operation_type_id?: number;
   status?: "active" | "maintenance" | "baja";
   description?: string;
+  colony?: string;
+  street?: string;
+  block?: string;
+  lot?: string;
+  total_area?: string | number;
+  built_area?: string | number;
+  cadastral_value?: string | number;
+  commercial_value?: string | number;
+  latitude?: string | number;
+  longitude?: string | number;
 };
 
 export type AssetListParams = {
@@ -22,7 +32,7 @@ export type AssetListParams = {
 };
 
 function parseAssetList(data: unknown) {
-  const parsed = BienApiListSchema.safeParse(data);
+  const parsed = BienApiListResponseSchema.safeParse(data);
   if (!parsed.success) {
     throw new Error("Respuesta invalida del listado de bienes.");
   }
@@ -101,4 +111,10 @@ export async function updateAsset(id: number, payload: AssetPayload) {
     body: JSON.stringify(payload),
   });
   return parseAsset(data);
+}
+
+export async function deleteAsset(id: number) {
+  await api<unknown>(`/assets/${id}`, {
+    method: "DELETE",
+  });
 }
