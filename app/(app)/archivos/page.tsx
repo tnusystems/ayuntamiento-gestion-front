@@ -9,118 +9,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const INITIAL_FILES = [
-  {
-    id: "1",
-    nombre: "documento-fiscal-2024.pdf",
-    tipo: "PDF",
-    fecha: "15/01/2024",
-    tamano: "2.4 MB",
-    usuario: "Juan Pérez",
-    departamento: "Contabilidad",
-  },
-  {
-    id: "2",
-    nombre: "inventario-enero.xlsx",
-    tipo: "Excel",
-    fecha: "14/01/2024",
-    tamano: "1.8 MB",
-    usuario: "María García",
-    departamento: "Almacén",
-  },
-  {
-    id: "3",
-    nombre: "reporte-ventas-q1.docx",
-    tipo: "Word",
-    fecha: "13/01/2024",
-    tamano: "856 KB",
-    usuario: "Carlos López",
-    departamento: "Ventas",
-  },
-  {
-    id: "4",
-    nombre: "presentacion-corporativa.pptx",
-    tipo: "PowerPoint",
-    fecha: "12/01/2024",
-    tamano: "5.2 MB",
-    usuario: "Ana Martínez",
-    departamento: "Marketing",
-  },
-  {
-    id: "5",
-    nombre: "base-datos-clientes.csv",
-    tipo: "CSV",
-    fecha: "11/01/2024",
-    tamano: "3.1 MB",
-    usuario: "Roberto Sánchez",
-    departamento: "IT",
-  },
-  {
-    id: "6",
-    nombre: "contrato-proveedor-001.pdf",
-    tipo: "PDF",
-    fecha: "10/01/2024",
-    tamano: "1.2 MB",
-    usuario: "Laura Gómez",
-    departamento: "Legal",
-  },
-  {
-    id: "7",
-    nombre: "factura-diciembre-2023.pdf",
-    tipo: "PDF",
-    fecha: "09/01/2024",
-    tamano: "450 KB",
-    usuario: "Pedro Ramírez",
-    departamento: "Contabilidad",
-  },
-  {
-    id: "8",
-    nombre: "nomina-enero-2024.xlsx",
-    tipo: "Excel",
-    fecha: "08/01/2024",
-    tamano: "2.1 MB",
-    usuario: "Carmen Silva",
-    departamento: "Recursos Humanos",
-  },
-];
+type ArchivoItem = {
+  id: string;
+  nombre: string;
+  tipo: string;
+  fecha: string;
+  tamano: string;
+  usuario: string;
+  departamento: string;
+};
 
-const BIENES = [
-  {
-    id: "BI-001",
-    nombre: "Terreno urbano",
-    rpp: "RPP-124-2024",
-    claveCatastral: "HMO-001-0001",
-    ubicacion: "Centro",
-  },
-  {
-    id: "BI-002",
-    nombre: "Casa habitacion",
-    rpp: "RPP-215-2024",
-    claveCatastral: "HMO-002-0105",
-    ubicacion: "Colonia Norte",
-  },
-  {
-    id: "BI-003",
-    nombre: "Local comercial",
-    rpp: "RPP-318-2024",
-    claveCatastral: "HMO-003-0042",
-    ubicacion: "Zona Industrial",
-  },
-  {
-    id: "BI-004",
-    nombre: "Predio rural",
-    rpp: "RPP-402-2024",
-    claveCatastral: "HMO-004-0201",
-    ubicacion: "Ejido Norte",
-  },
-  {
-    id: "BI-005",
-    nombre: "Bodega municipal",
-    rpp: "RPP-512-2024",
-    claveCatastral: "HMO-005-0088",
-    ubicacion: "Parque Sur",
-  },
-];
+const INITIAL_FILES: ArchivoItem[] = [];
+
+
+
+type BienItem = {
+  id: string;
+  nombre: string;
+  rpp: string;
+  claveCatastral: string;
+  ubicacion: string;
+};
+
+const BIENES: BienItem[] = [];
+
+
 
 export default function ArchivosPage() {
   const [search, setSearch] = useState("");
@@ -383,16 +296,6 @@ export default function ArchivosPage() {
             </div>
           </div>
 
-          {/* View More Button */}
-          <div className="flex justify-center pt-4">
-            <button
-              onClick={() => alert("Ver todos los archivos")}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 rounded-lg transition-colors"
-            >
-              Ver todos los archivos
-              <ChevronDownIcon />
-            </button>
-          </div>
         </section>
       </div>
 

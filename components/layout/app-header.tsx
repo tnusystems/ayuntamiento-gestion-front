@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 type HeaderProps = {
   isSidebarOpen?: boolean;
@@ -11,6 +11,11 @@ type HeaderProps = {
 export default function AppHeader({ onOpenMobile }: HeaderProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const { data: session } = useSession();
+  const userName = session?.user?.name || "Usuario";
+  const userEmail = session?.user?.email || "Sin correo";
+  const userRole = session?.user?.role || "Sin rol";
+  const userInitial = userName.trim().charAt(0).toUpperCase() || "U";
 
   // Cerrar menú al hacer clic fuera
   useEffect(() => {
@@ -59,11 +64,11 @@ export default function AppHeader({ onOpenMobile }: HeaderProps) {
           aria-label="Menú de usuario"
         >
           <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-medium">
-            U
+            {userInitial}
           </div>
           <div className="hidden lg:block text-left">
-            <span className="text-sm font-medium block">Usuario Demo</span>
-            <span className="text-xs text-neutral-500">Administrador</span>
+            <span className="text-sm font-medium block">{userName}</span>
+            <span className="text-xs text-neutral-500">{userRole}</span>
           </div>
           <ChevronDown isOpen={isUserMenuOpen} />
         </button>
@@ -72,13 +77,10 @@ export default function AppHeader({ onOpenMobile }: HeaderProps) {
           <div className="absolute right-0 mt-2 w-48 rounded-md border border-neutral-200 bg-white shadow-lg z-50">
             <div className="px-4 py-3 border-b border-neutral-100">
               <p className="text-sm font-medium text-neutral-900">
-                Usuario Demo
+                {userName}
               </p>
-              <p className="text-xs text-neutral-500">demo@empresa.com</p>
+              <p className="text-xs text-neutral-500">{userEmail}</p>
             </div>
-            <button className="w-full px-4 py-3 text-left text-sm text-neutral-700 hover:bg-neutral-100 border-b border-neutral-100">
-              Mi perfil
-            </button>
             <button
               className="w-full px-4 py-3 text-left text-sm text-neutral-700 hover:bg-neutral-100"
               onClick={handleSignOut}

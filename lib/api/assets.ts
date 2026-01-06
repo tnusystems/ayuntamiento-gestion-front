@@ -1,4 +1,4 @@
-import { BienApiListResponseSchema, BienApiSchema } from "@/types";
+import { ArchivoApiSchema, BienApiListResponseSchema, BienApiSchema } from "@/types";
 import { api } from "./client";
 
 type AssetPayload = {
@@ -18,6 +18,14 @@ type AssetPayload = {
   commercial_value?: string | number;
   latitude?: string | number;
   longitude?: string | number;
+};
+
+type AssetDocumentPayload = {
+  file: File;
+  name?: string;
+  document_type_id?: number;
+  position?: number;
+  metadata?: Record<string, unknown>;
 };
 
 export type AssetListParams = {
@@ -46,6 +54,14 @@ function parseAsset(data: unknown) {
   const parsed = BienApiSchema.safeParse(data);
   if (!parsed.success) {
     throw new Error("Respuesta invalida del bien.");
+  }
+  return parsed.data;
+}
+
+function parseAssetDocument(data: unknown) {
+  const parsed = ArchivoApiSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error("Respuesta invalida del documento.");
   }
   return parsed.data;
 }
@@ -105,6 +121,8 @@ export async function createAsset(payload: AssetPayload) {
 }
 
 export async function updateAsset(id: number, payload: AssetPayload) {
+  //console.log("updateAsset not implemented yet", { id, payload });
+
   const data = await api<unknown>(`/assets/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -117,4 +135,33 @@ export async function deleteAsset(id: number) {
   await api<unknown>(`/assets/${id}`, {
     method: "DELETE",
   });
+}
+
+export async function createAssetDocument(
+  assetId: number,
+  payload: AssetDocumentPayload
+) {
+  const formData = new FormData();
+  formData.append("document[file]", payload.file);
+  if (payload.name) {
+    formData.append("document[name]", payload.name);
+  }
+  if (payload.document_type_id !== undefined) {
+    formData.append(
+      "document[document_type_id]",
+      String(payload.document_type_id)
+    );
+  }
+  if (payload.position !== undefined) {
+    formData.append("document[position]", String(payload.position));
+  }
+  if (payload.metadata) {
+    formData.append("document[metadata]", JSON.stringify(payload.metadata));
+  }
+
+  const data = await api<unknown>(`/assets/${assetId}/documents`, {
+    method: "POST",
+    body: formData,
+  });
+  return parseAssetDocument(data);
 }

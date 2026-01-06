@@ -5,65 +5,17 @@ import Link from "next/link";
 import { DataTable, type TableData } from "../../../components/data-table";
 import { Settings, Edit, Lock } from "lucide-react";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 
 const ROLES = ["Administrador", "Editor", "Visualizador", "Moderador"];
 
-const INITIAL_TABLE_DATA: TableData[] = [
-  {
-    id: "1",
-    col1: "documento-fiscal-2024.pdf",
-    col2: "PDF",
-    col3: "15/01/2024",
-    col4: "2.4 MB",
-    col5: "Juan Pérez",
-    col6: "Completado",
-    isActive: true,
-  },
-  {
-    id: "2",
-    col1: "inventario-enero.xlsx",
-    col2: "Excel",
-    col3: "14/01/2024",
-    col4: "1.8 MB",
-    col5: "María García",
-    col6: "En revisión",
-    isActive: true,
-  },
-  {
-    id: "3",
-    col1: "reporte-mensual.docx",
-    col2: "Word",
-    col3: "13/01/2024",
-    col4: "856 KB",
-    col5: "Carlos López",
-    col6: "Pendiente",
-    isActive: false,
-  },
-  {
-    id: "4",
-    col1: "presentacion-q1.pptx",
-    col2: "PowerPoint",
-    col3: "12/01/2024",
-    col4: "5.2 MB",
-    col5: "Ana Martínez",
-    col6: "Completado",
-    isActive: true,
-  },
-  {
-    id: "5",
-    col1: "base-datos-clientes.csv",
-    col2: "CSV",
-    col3: "11/01/2024",
-    col4: "3.1 MB",
-    col5: "Roberto Sánchez",
-    col6: "Archivado",
-    isActive: false,
-  },
-];
+const INITIAL_TABLE_DATA: TableData[] = [];
+
 
 export default function DashboardPage() {
   const [tableData, setTableData] = useState<TableData[]>(INITIAL_TABLE_DATA);
   const [userRole, setUserRole] = useState(ROLES[0]);
+  const { data: session } = useSession();
 
   const handleEdit = (id: string) => {
     const item = tableData.find((row) => row.id === id);
@@ -102,7 +54,7 @@ export default function DashboardPage() {
             </div>
 
             <h2 className="text-lg font-semibold text-neutral-900">
-              Nombre de Usuario
+              {session?.user?.name || "Usuario"}
             </h2>
             <select
               value={userRole}
