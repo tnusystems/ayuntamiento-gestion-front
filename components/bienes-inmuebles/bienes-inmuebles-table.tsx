@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 
-import { Paperclip, Pencil, Trash2 } from "lucide-react";
+import { FolderClosed, Paperclip, Pencil, Trash2 } from "lucide-react";
 
 import type { BienesInmueblesTableRow } from "@/components/bienes-inmuebles/types";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,8 @@ export default function BienesInmueblesTable({
     return `Pagina ${page} de ${totalPages} - ${totalCount} bienes`;
   }, [page, totalCount, totalPages]);
 
+  const router = useRouter();
+
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto rounded-lg border border-border/60 bg-background">
@@ -48,7 +51,6 @@ export default function BienesInmueblesTable({
               <th className="px-4 py-3 text-left font-medium">Ubicacion</th>
               <th className="px-4 py-3 text-left font-medium">Estado</th>
               <th className="px-4 py-3 text-left font-medium">Fecha</th>
-              <th className="px-4 py-3 text-left font-medium">Responsable</th>
               <th className="px-4 py-3 text-left font-medium">Acciones</th>
             </tr>
           </thead>
@@ -94,9 +96,6 @@ export default function BienesInmueblesTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-foreground">{row.fecha}</td>
-                  <td className="px-4 py-3 text-foreground">
-                    {row.responsable}
-                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Button
@@ -125,6 +124,17 @@ export default function BienesInmueblesTable({
                         aria-label="Adjuntar documento"
                       >
                         <Paperclip className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => {
+                          router.push(`/archivos/${row.id}/assets`);
+                        }}
+                        aria-label="Ver documentos"
+                      >
+                        <FolderClosed className="h-4 w-4" />
                       </Button>
                     </div>
                   </td>

@@ -23,7 +23,6 @@ type AssetPayload = {
 type AssetDocumentPayload = {
   file: File;
   name?: string;
-  document_type_id?: number;
   position?: number;
   metadata?: Record<string, unknown>;
 };
@@ -146,12 +145,7 @@ export async function createAssetDocument(
   if (payload.name) {
     formData.append("document[name]", payload.name);
   }
-  if (payload.document_type_id !== undefined) {
-    formData.append(
-      "document[document_type_id]",
-      String(payload.document_type_id)
-    );
-  }
+  formData.append("document[document_type_id]", "171");
   if (payload.position !== undefined) {
     formData.append("document[position]", String(payload.position));
   }

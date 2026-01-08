@@ -21,8 +21,6 @@ type ArchivoItem = {
 
 const INITIAL_FILES: ArchivoItem[] = [];
 
-
-
 type BienItem = {
   id: string;
   nombre: string;
@@ -32,8 +30,6 @@ type BienItem = {
 };
 
 const BIENES: BienItem[] = [];
-
-
 
 export default function ArchivosPage() {
   const [search, setSearch] = useState("");
@@ -110,10 +106,6 @@ export default function ArchivosPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Title */}
-        
-
-        {/* Action Cards */}
         <section className="bg-white border border-neutral-200 rounded-xl p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <ActionCard
@@ -136,15 +128,11 @@ export default function ArchivosPage() {
             />
           </div>
         </section>
-
-        {/* Table Section */}
         <section className="bg-white border border-neutral-200 rounded-xl p-4 md:p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h2 className="text-lg font-semibold text-neutral-900">
               Archivos subidos recientemente
             </h2>
-
-            {/* Search with Autocomplete */}
             <div className="relative w-full sm:w-80">
               <div className="relative">
                 <input
@@ -169,8 +157,6 @@ export default function ArchivosPage() {
                   <SearchIcon />
                 </div>
               </div>
-
-              {/* Autocomplete Suggestions */}
               {showSuggestions && suggestions.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {suggestions.map((suggestion, index) => (
@@ -186,8 +172,6 @@ export default function ArchivosPage() {
               )}
             </div>
           </div>
-
-          {/* Responsive Table */}
           <div className="overflow-x-auto -mx-4 md:mx-0">
             <div className="inline-block min-w-full align-middle">
               <table className="min-w-full divide-y divide-neutral-200">
@@ -295,7 +279,6 @@ export default function ArchivosPage() {
               </table>
             </div>
           </div>
-
         </section>
       </div>
 
@@ -306,7 +289,11 @@ export default function ArchivosPage() {
         onClose={handleCloseAttach}
         footer={
           <>
-            <Button type="button" variant="secondary" onClick={handleCloseAttach}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleCloseAttach}
+            >
               Cancelar
             </Button>
             <Button

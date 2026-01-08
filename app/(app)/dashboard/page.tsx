@@ -11,7 +11,6 @@ const ROLES = ["Administrador", "Editor", "Visualizador", "Moderador"];
 
 const INITIAL_TABLE_DATA: TableData[] = [];
 
-
 export default function DashboardPage() {
   const [tableData, setTableData] = useState<TableData[]>(INITIAL_TABLE_DATA);
   const [userRole, setUserRole] = useState(ROLES[0]);
@@ -119,20 +118,6 @@ export default function DashboardPage() {
             </div>
           </section>
         </div>
-
-        {/* Tabla */}
-        <section className="bg-white rounded-xl border border-neutral-200 p-4 md:p-6">
-          <h3 className="text-base font-semibold text-neutral-900 mb-4">
-            Archivos subidos recientemente
-          </h3>
-
-          <DataTable
-            data={tableData}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onToggleStatus={handleToggleStatus}
-          />
-        </section>
       </div>
     </div>
   );
