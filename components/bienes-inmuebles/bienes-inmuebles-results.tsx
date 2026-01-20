@@ -7,6 +7,8 @@ import AppCard from "@/components/app-card";
 import BienesInmueblesTable from "@/components/bienes-inmuebles/bienes-inmuebles-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { icon } from "leaflet";
+import { useRouter } from "next/navigation";
 
 type BienesInmueblesResultsProps = {
   data: BienesInmueblesTableRow[];
@@ -33,6 +35,8 @@ export default function BienesInmueblesResults({
   totalCount,
   onPageChange,
 }: BienesInmueblesResultsProps) {
+  const router = useRouter();
+
   const [query, setQuery] = useState("");
   const initialSearchDone = useRef(false);
   const onSearchRef = useRef(onSearch);
@@ -55,17 +59,20 @@ export default function BienesInmueblesResults({
 
   return (
     <AppCard
-      title="Resultados"
-      description="Busqueda de bienes inmuebles."
+      title="Gestion de bienes inmuebles"
+      description="Administra los bienes muebles e inmuebles del Ayuntamiento"
       headerAction={
-        <Button type="button" onClick={() => onSearch(query.trim())}>
-          Buscar
+        <Button
+          type="button"
+          onClick={() => router.push("/bienes-inmuebles/new")}
+        >
+          Registrar Nuevo Bien
         </Button>
       }
     >
       <div className="space-y-4">
         <Input
-          placeholder="Buscar por clave, descripcion, ubicacion o responsable..."
+          placeholder="Busca por RPP, Clave catastral"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {

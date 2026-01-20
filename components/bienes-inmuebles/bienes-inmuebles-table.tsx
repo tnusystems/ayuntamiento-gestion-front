@@ -3,10 +3,29 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 
-import { FolderClosed, Paperclip, Pencil, Trash2 } from "lucide-react";
+import {
+  BookDown,
+  Building2,
+  Download,
+  FolderClosed,
+  MoveDown,
+  Paperclip,
+  Pencil,
+  Plus,
+  PlusCircle,
+  Trash2,
+} from "lucide-react";
 
 import type { BienesInmueblesTableRow } from "@/components/bienes-inmuebles/types";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
 
 type BienesInmueblesTableProps = {
   data: BienesInmueblesTableRow[];
@@ -38,53 +57,71 @@ export default function BienesInmueblesTable({
     return `Pagina ${page} de ${totalPages} - ${totalCount} bienes`;
   }, [page, totalCount, totalPages]);
 
-  const router = useRouter();
-
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto rounded-lg border border-border/60 bg-background">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-border/60 text-muted-foreground">
-              <th className="px-4 py-3 text-left font-medium">Clave</th>
-              <th className="px-4 py-3 text-left font-medium">Descripcion</th>
-              <th className="px-4 py-3 text-left font-medium">Ubicacion</th>
-              <th className="px-4 py-3 text-left font-medium">Estado</th>
-              <th className="px-4 py-3 text-left font-medium">Fecha</th>
-              <th className="px-4 py-3 text-left font-medium">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="w-full text-sm border-collapse">
+          <TableHeader>
+            <TableRow className="border-b border-border/60 text-muted-foreground">
+              <TableHead className="px-4 py-3 text-left font-medium">
+                RPP Numero / Clave
+              </TableHead>
+              <TableHead className="px-4 py-3 text-left font-medium">
+                Ubicacion
+              </TableHead>
+              <TableHead className="px-4 py-3 text-left font-medium">
+                Estado
+              </TableHead>
+              <TableHead className="px-4 py-3 text-left font-medium">
+                Fecha
+              </TableHead>
+              <TableHead className="px-4 py-3 text-left font-medium">
+                Acciones
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {isLoading && data.length === 0 ? (
-              <tr>
-                <td
+              <TableRow>
+                <TableCell
                   colSpan={7}
-                  className="px-4 py-6 text-center text-muted-foreground"
+                  className="px-4 py-6 text-center text-muted-foreground "
                 >
                   Cargando bienes...
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : data.length === 0 ? (
-              <tr>
-                <td
+              <TableRow>
+                <TableCell
                   colSpan={7}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
                   Sin resultados para mostrar.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               data.map((row) => (
-                <tr
+                <TableRow
                   key={row.id}
                   className="border-b border-border/40 last:border-b-0 hover:bg-muted/30"
                 >
-                  <td className="px-4 py-3 text-foreground">{row.clave}</td>
-                  <td className="px-4 py-3 text-foreground">
-                    {row.descripcion}
-                  </td>
-                  <td className="px-4 py-3 text-foreground">{row.ubicacion}</td>
-                  <td className="px-4 py-3">
+                  <TableCell className="px-4 py-3 text-foreground">
+                    <div className="inline-flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Building2 className="h-5 w-5" />
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-mono"> {row.clave}</p>
+                        <p className="font-mono text-muted-foreground">
+                          {row.cNumber}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-foreground">
+                    {row.colony} {row.ubicacion} {row.block}
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                         row.estado === "Activo"
@@ -94,10 +131,21 @@ export default function BienesInmueblesTable({
                     >
                       {row.estado}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-foreground">{row.fecha}</td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-foreground">
+                    {row.fecha}
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
                     <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => onDelete(row)}
+                        aria-label="Dar de baja"
+                      >
+                        <PlusCircle className="h-4 w-4 text-blue-500" />
+                      </Button>
                       <Button
                         type="button"
                         variant="secondary"
@@ -107,42 +155,13 @@ export default function BienesInmueblesTable({
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => onDelete(row)}
-                        aria-label="Dar de baja"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => onAttach(row)}
-                        aria-label="Adjuntar documento"
-                      >
-                        <Paperclip className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => {
-                          router.push(`/archivos/${row.id}/assets`);
-                        }}
-                        aria-label="Ver documentos"
-                      >
-                        <FolderClosed className="h-4 w-4" />
-                      </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">

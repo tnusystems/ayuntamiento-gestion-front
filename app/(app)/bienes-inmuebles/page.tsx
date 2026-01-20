@@ -1,9 +1,5 @@
 "use client";
-import AppCard from "@/components/app-card";
-import BienesInmueblesFilters from "@/components/bienes-inmuebles/bienes-inmuebles-filters";
 import BienesInmueblesResults from "@/components/bienes-inmuebles/bienes-inmuebles-results";
-import BienesInmueblesSectionCard from "@/components/bienes-inmuebles/bienes-inmuebles-section-card";
-import BienesInmueblesSummary from "@/components/bienes-inmuebles/bienes-inmuebles-summary";
 import AttachDocumentModal from "@/components/bienes-inmuebles/attach-document-modal";
 import EditConfirmModal from "@/components/bienes-inmuebles/edit-confirm-modal";
 import ReasonModal from "@/components/modals/reason-modal";
@@ -118,20 +114,14 @@ export default function BienesInmueblesPage() {
   const {
     tableData,
     isLoading,
-    loadError,
     pagination,
     assetFilters,
     setAssetFilters,
     loadAssets,
   } = useAssetsList(EMPTY_FORM_VALUES);
-  const operationTypes = useOperationTypes();
   const {
-    form,
     isSaving,
-    submitError,
-    successMessage,
     editRow,
-    editingRow,
     attachRow,
     attachment,
     attachmentName,
@@ -147,10 +137,8 @@ export default function BienesInmueblesPage() {
     setDeleteReason,
     handleSearch,
     handlePageChange,
-    onSubmit,
     handleEditRequest,
     handleConfirmEdit,
-    handleCancelEdit,
     handleDelete,
     handleAttachRequest,
     handleCloseAttach,
@@ -166,59 +154,6 @@ export default function BienesInmueblesPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <AppCard
-        title="Bienes Inmuebles"
-        description="Gestion de bienes inmuebles conforme a los lineamientos del sistema."
-      >
-        {loadError ? (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {loadError}
-          </div>
-        ) : null}
-        {submitError ? (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {submitError}
-          </div>
-        ) : null}
-        {successMessage ? (
-          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            {successMessage}
-          </div>
-        ) : null}
-        <form
-          id="bienes-inmuebles-form"
-          className="space-y-6"
-          onSubmit={form.handleSubmit(onSubmit)}
-        >
-          <BienesInmueblesFilters
-            register={form.register}
-            errors={form.formState.errors}
-            operationOptions={operationTypes}
-          />
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {SECTION_CARDS.map((card) => (
-              <BienesInmueblesSectionCard
-                key={card.title}
-                title={card.title}
-                fields={card.fields}
-                register={form.register}
-                errors={form.formState.errors}
-              />
-            ))}
-          </div>
-
-          <BienesInmueblesSummary
-            register={form.register}
-            errors={form.formState.errors}
-            isSubmitting={isSaving}
-            submitLabel={editingRow ? "Actualizar" : "Guardar"}
-            showCancel={!!editingRow}
-            onCancel={handleCancelEdit}
-          />
-        </form>
-      </AppCard>
-
       <BienesInmueblesResults
         data={tableData}
         isLoading={isLoading}
