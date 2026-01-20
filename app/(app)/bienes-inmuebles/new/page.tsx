@@ -21,7 +21,6 @@ export default function BienForm() {
 
   return (
     <form className="space-y-6">
-      {/* Header Actions */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" asChild>
           <Link href="/bienes-inmuebless">
