@@ -9,6 +9,8 @@ export default function ProcessPage() {
 
     const { asset, isLoading, isError } = useGetAssetByID(params.id);
 
+    console.log(asset);
+
     if (isLoading) {
         return <AssetLoader id={params.id} />;
     }

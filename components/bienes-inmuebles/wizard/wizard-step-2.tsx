@@ -25,7 +25,8 @@ interface WizardStep2Props {
         situacion: string;
         valorCatastral: string;
         valorComercial: string;
-        coordenadas: string;
+        lat: string;
+        alt: string;
         observacionesTecnicas: string;
     };
     updateFormData: (data: Partial<WizardStep2Props["formData"]>) => void;
@@ -39,7 +40,7 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                 <h3 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
                     Ubicación
                 </h3>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-2">
                         <Label htmlFor="colonia">Colonia *</Label>
                         <Input
@@ -107,12 +108,10 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 <SelectValue placeholder="Seleccionar zona" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="urbana">Urbana</SelectItem>
-                                <SelectItem value="suburbana">
-                                    Suburbana
-                                </SelectItem>
-                                <SelectItem value="rural">Rural</SelectItem>
-                                <SelectItem value="ejidal">Ejidal</SelectItem>
+                                <SelectItem value="norte">Norte</SelectItem>
+                                <SelectItem value="sur">Sur</SelectItem>
+                                <SelectItem value="este">Este</SelectItem>
+                                <SelectItem value="oeste">Oeste</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -238,13 +237,24 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="coordenadas">Coordenadas GPS</Label>
+                        <Label htmlFor="lat">Lat</Label>
                         <Input
-                            id="coordenadas"
-                            placeholder="29.0729, -110.9559"
-                            value={formData.coordenadas}
+                            id="lat"
+                            placeholder="29.0729"
+                            value={formData.lat}
                             onChange={(e) =>
-                                updateFormData({ coordenadas: e.target.value })
+                                updateFormData({ lat: e.target.value })
+                            }
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="alt">Alt</Label>
+                        <Input
+                            id="alt"
+                            placeholder="200"
+                            value={formData.alt}
+                            onChange={(e) =>
+                                updateFormData({ alt: e.target.value })
                             }
                         />
                     </div>

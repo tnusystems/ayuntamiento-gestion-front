@@ -10,7 +10,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { tiposProceso, actosJuridicos } from "@/lib/mock-data";
+import { tiposProceso } from "@/lib/mock-data";
+import { useOperationTypes } from "@/lib/hooks/bienes-inmuebles";
 
 interface WizardStep1Props {
     formData: {
@@ -23,6 +24,8 @@ interface WizardStep1Props {
 }
 
 export function WizardStep1({ formData, updateFormData }: WizardStep1Props) {
+    const operationTypes = useOperationTypes();
+
     return (
         <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2">
@@ -58,11 +61,25 @@ export function WizardStep1({ formData, updateFormData }: WizardStep1Props) {
                         <SelectValue placeholder="Seleccionar acto jurídico" />
                     </SelectTrigger>
                     <SelectContent>
-                        {actosJuridicos.map((acto) => (
-                            <SelectItem key={acto} value={acto}>
-                                {acto}
+                        {operationTypes.length === 0 && (
+                            <SelectItem value="__empty" disabled>
+                                Sin tipos disponibles
                             </SelectItem>
-                        ))}
+                        )}
+                        {operationTypes.map((operationType) => {
+                            const label =
+                                operationType.name ??
+                                operationType.key ??
+                                String(operationType.id);
+                            return (
+                                <SelectItem
+                                    key={operationType.id}
+                                    value={label}
+                                >
+                                    {label}
+                                </SelectItem>
+                            );
+                        })}
                     </SelectContent>
                 </Select>
             </div>

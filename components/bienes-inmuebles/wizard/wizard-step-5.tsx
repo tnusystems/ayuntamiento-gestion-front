@@ -30,7 +30,8 @@ interface WizardStep5Props {
         situacion: string;
         valorCatastral: string;
         valorComercial: string;
-        coordenadas: string;
+        lat: string;
+        alt: string;
         observacionesTecnicas: string;
         documentos: string[];
         etapas: Array<{

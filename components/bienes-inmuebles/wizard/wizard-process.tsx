@@ -95,7 +95,8 @@ export function ProcesoWizard({ bienId }: ProcesoWizardProps) {
         situacion: "",
         valorCatastral: "",
         valorComercial: "",
-        coordenadas: "",
+        lat: "",
+        alt: "",
         observacionesTecnicas: "",
         // Step 3
         documentos: [] as string[],
@@ -303,11 +304,6 @@ export function ProcesoWizard({ bienId }: ProcesoWizardProps) {
                 </Button>
 
                 <div className="flex gap-3">
-                    <Button variant="outline" onClick={handleSaveDraft}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Guardar Borrador
-                    </Button>
-
                     {currentStep === 5 ? (
                         <Button onClick={handleSubmit}>
                             <Send className="mr-2 h-4 w-4" />
