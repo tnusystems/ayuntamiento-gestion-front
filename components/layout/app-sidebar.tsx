@@ -29,11 +29,6 @@ const baseNavItems = [
         icon: FolderIcon,
         path: "/archivos",
     },
-    {
-        label: "Mapa",
-        icon: PinIcon,
-        path: "/mapa-osm",
-    },
 ];
 
 export default function AppSidebar({
@@ -182,21 +177,6 @@ function FolderIcon() {
             strokeWidth="2"
         >
             <path d="M3 7h6l2 2h10v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-        </svg>
-    );
-}
-
-function PinIcon() {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-        >
-            <circle cx="12" cy="10" r="3" />
-            <path d="M12 21s6-5.25 6-10a6 6 0 1 0-12 0c0 4.75 6 10 6 10z" />
         </svg>
     );
 }
