@@ -17,7 +17,6 @@ import {
 
 type BienFormValues = {
     rpp: string;
-    claveC: string;
     nombre: string;
     rppVolume: string;
     rppSection: string;
@@ -36,7 +35,6 @@ type BienFormValues = {
 
 const DEFAULT_VALUES: BienFormValues = {
     rpp: "",
-    claveC: "",
     nombre: "",
     rppVolume: "",
     rppSection: "",
@@ -105,15 +103,6 @@ export default function BienForm() {
                             id="rpp"
                             placeholder="2138974"
                             {...register("rpp")}
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="claveC">Clave catastral</Label>
-                        <Input
-                            id="claveC"
-                            placeholder="1380247"
-                            {...register("claveC")}
                         />
                     </div>
 
