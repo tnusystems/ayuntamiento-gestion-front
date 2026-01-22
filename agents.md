@@ -17,6 +17,7 @@ This document defines the rules and conventions that AI agents or contributors m
 
 - Framework: **Next.js 16 (App Router)**
 - Language: **TypeScript**
+- Icons: **Lucide Icons**
 - Styling: **Tailwind CSS** (if applicable)
 - UI Library: *(e.g., ShadCN or custom components, if applicable)*
 - Forms: *(react-hook-form + zod, if applicable)*

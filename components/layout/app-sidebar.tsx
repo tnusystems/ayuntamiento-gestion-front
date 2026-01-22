@@ -4,6 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import {
+    Building2,
+    Folder,
+    Grid,
+    Grid2X2CheckIcon,
+    Map,
+    Users,
+} from "lucide-react";
 
 type SidebarProps = {
     isOpen: boolean;
@@ -16,18 +24,24 @@ type SidebarProps = {
 const baseNavItems = [
     {
         label: "Tablero",
-        icon: GridIcon,
+        icon: Grid2X2CheckIcon,
         path: "/dashboard",
     },
     {
         label: "Bienes inmuebles",
-        icon: BuildingIcon,
+        icon: Building2,
         path: "/bienes-inmuebles",
     },
     {
         label: "Archivos",
-        icon: FolderIcon,
+        icon: Folder,
         path: "/archivos",
+    },
+
+    {
+        label: "Mapas",
+        icon: Map,
+        path: "/mapa",
     },
 ];
 
@@ -49,7 +63,7 @@ export default function AppSidebar({
     const navItems = isAdmin
         ? [
               ...baseNavItems,
-              { label: "Usuarios", icon: UsersIcon, path: "/usuarios" },
+              { label: "Usuarios", icon: Users, path: "/usuarios" },
           ]
         : baseNavItems;
     const activePath = currentPath || pathname;
@@ -131,84 +145,5 @@ export default function AppSidebar({
                 />
             )}
         </>
-    );
-}
-
-function GridIcon() {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-        >
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-            <rect x="14" y="14" width="7" height="7" rx="1" />
-        </svg>
-    );
-}
-
-function BuildingIcon() {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-        >
-            <path d="M5 21h14" />
-            <path d="M7 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16" />
-            <path d="M9 9h2M13 9h2M9 13h2M13 13h2M9 17h2M13 17h2" />
-        </svg>
-    );
-}
-
-function FolderIcon() {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-        >
-            <path d="M3 7h6l2 2h10v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-        </svg>
-    );
-}
-
-function UsersIcon() {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-        >
-            <path d="M16 11a4 4 0 1 0-8 0" />
-            <circle cx="12" cy="7" r="3" />
-            <path d="M4 20a6 6 0 0 1 16 0" />
-        </svg>
-    );
-}
-
-function ChevronLeftIcon({ isOpen }: { isOpen: boolean }) {
-    return (
-        <svg
-            viewBox="0 0 24 24"
-            className={`w-5 h-5 transition-transform duration-300 ${
-                !isOpen ? "rotate-180" : ""
-            }`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-        >
-            <path d={isOpen ? "m15 18-6-6 6-6" : "m9 18 6-6-6-6"} />
-        </svg>
     );
 }

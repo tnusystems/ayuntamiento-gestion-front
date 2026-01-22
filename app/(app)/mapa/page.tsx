@@ -1,7 +1,12 @@
 "use client";
 
-import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
-import { useState } from "react";
+import {
+    GoogleMap,
+    Marker,
+    StreetViewPanorama,
+    useLoadScript,
+} from "@react-google-maps/api";
+import { useCallback, useState } from "react";
 import {
     Search,
     X,
@@ -150,21 +155,17 @@ export default function MapaPage() {
     };
 
     const nextImage = () => {
-        if (selected) {
-            setCurrentImageIndex(
-                (prev) => (prev + 1) % selected.imagenes.length,
-            );
-        }
+        if (!selected) return;
+        setCurrentImageIndex((prev) => (prev + 1) % selected.imagenes.length);
     };
 
     const prevImage = () => {
-        if (selected) {
-            setCurrentImageIndex(
-                (prev) =>
-                    (prev - 1 + selected.imagenes.length) %
-                    selected.imagenes.length,
-            );
-        }
+        if (!selected) return;
+        setCurrentImageIndex(
+            (prev) =>
+                (prev - 1 + selected.imagenes.length) %
+                selected.imagenes.length,
+        );
     };
 
     const openGoogleStreetView = (propiedad: (typeof propiedades)[0]) => {
@@ -172,12 +173,24 @@ export default function MapaPage() {
         window.open(url, "_blank", "noopener,noreferrer");
     };
 
-    if (!isLoaded)
+    // Cierra Street View si el usuario presiona la "X" dentro del panorama (closeclick)
+    const handleStreetViewLoad = useCallback(
+        (pano: google.maps.StreetViewPanorama) => {
+            pano.addListener("closeclick", () => {
+                setShowStreetView(false);
+                // opcional: setStreetViewPosition(null);
+            });
+        },
+        [],
+    );
+
+    if (!isLoaded) {
         return (
             <div className="flex items-center justify-center h-screen bg-neutral-50">
                 <p className="text-neutral-600">Cargando mapa...</p>
             </div>
         );
+    }
 
     return (
         <div className="relative h-screen w-full overflow-hidden">
@@ -213,6 +226,8 @@ export default function MapaPage() {
                                     setFilteredSuggestions([]);
                                     setShowSuggestions(false);
                                     setSelected(null);
+                                    setShowStreetView(false);
+                                    setStreetViewPosition(null);
                                 }}
                                 className="p-1 hover:bg-neutral-100 rounded-full transition-colors"
                             >
@@ -307,7 +322,11 @@ export default function MapaPage() {
                                     </p>
                                 </div>
                                 <button
-                                    onClick={() => setSelected(null)}
+                                    onClick={() => {
+                                        setSelected(null);
+                                        setShowStreetView(false);
+                                        setStreetViewPosition(null);
+                                    }}
                                     className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
                                 >
                                     <X className="w-5 h-5 text-neutral-500" />
@@ -351,6 +370,7 @@ export default function MapaPage() {
                                     <Navigation className="w-4 h-4" />
                                     Abrir vista de calle
                                 </button>
+
                                 <button
                                     className="w-full flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-3 px-4 rounded-xl hover:bg-neutral-200 transition-colors font-medium text-sm"
                                     onClick={() =>
@@ -428,17 +448,17 @@ export default function MapaPage() {
                 }
                 mapContainerClassName="w-full h-full"
             >
-                {streetViewPosition && (
+                {/* ✅ Street View: se monta solo cuando showStreetView es true */}
+                {showStreetView && streetViewPosition && (
                     <StreetViewPanorama
-                        visible={showStreetView}
-                        position={streetViewPosition}
                         options={{
                             addressControl: false,
                             fullscreenControl: false,
                         }}
-                        onCloseClick={() => setShowStreetView(false)}
+                        onLoad={handleStreetViewLoad}
                     />
                 )}
+
                 {propiedades.map((p) => (
                     <Marker
                         key={p.id}
