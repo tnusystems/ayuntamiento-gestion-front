@@ -167,6 +167,11 @@ export default function MapaPage() {
         }
     };
 
+    const openGoogleStreetView = (propiedad: (typeof propiedades)[0]) => {
+        const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${propiedad.lat},${propiedad.lng}`;
+        window.open(url, "_blank", "noopener,noreferrer");
+    };
+
     if (!isLoaded)
         return (
             <div className="flex items-center justify-center h-screen bg-neutral-50">
@@ -237,11 +242,7 @@ export default function MapaPage() {
                         </div>
                     )}
                 </div>
-
-                    window.open(
-                      `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=$}${}`
-                      "_blank")
-                              </div>
+            </div>
 
             {/* Detalles de la propiedad - Cuadro flotante izquierdo */}
             {selected && (
@@ -349,6 +350,15 @@ export default function MapaPage() {
                                 >
                                     <Navigation className="w-4 h-4" />
                                     Abrir vista de calle
+                                </button>
+                                <button
+                                    className="w-full flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-3 px-4 rounded-xl hover:bg-neutral-200 transition-colors font-medium text-sm"
+                                    onClick={() =>
+                                        openGoogleStreetView(selected)
+                                    }
+                                >
+                                    <Navigation className="w-4 h-4" />
+                                    Abrir en Google Maps
                                 </button>
                             </div>
                         </div>
