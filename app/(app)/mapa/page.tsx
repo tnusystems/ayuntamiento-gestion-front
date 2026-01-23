@@ -451,9 +451,11 @@ export default function MapaPage() {
                 {/* ✅ Street View: se monta solo cuando showStreetView es true */}
                 {showStreetView && streetViewPosition && (
                     <StreetViewPanorama
+                        position={streetViewPosition}
                         options={{
                             addressControl: false,
                             fullscreenControl: false,
+                            visible: true,
                         }}
                         onLoad={handleStreetViewLoad}
                     />
