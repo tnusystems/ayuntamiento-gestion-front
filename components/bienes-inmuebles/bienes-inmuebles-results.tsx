@@ -66,7 +66,7 @@ export default function BienesInmueblesResults({
                     type="button"
                     onClick={() => router.push("/bienes-inmuebles/new")}
                 >
-                    Registrar Expediente.
+                    Registrar Nuevo Proceso.
                 </Button>
             }
         >
