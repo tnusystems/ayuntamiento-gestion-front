@@ -1,3 +1,4 @@
+// bienes-inmuebles-table.tsx
 "use client";
 
 import { useMemo } from "react";
