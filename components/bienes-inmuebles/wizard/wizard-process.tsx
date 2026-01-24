@@ -32,6 +32,7 @@ import { WizardStep5 } from "./wizard-step-5";
 
 interface ProcesoWizardProps {
     bienId?: string;
+    backPath?: string;
 }
 
 const steps = [
@@ -67,13 +68,13 @@ const steps = [
     },
 ];
 
-export function ProcesoWizard({ bienId }: ProcesoWizardProps) {
+export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [currentStep, setCurrentStep] = useState(1);
-    const bienPath = bienId
-        ? `/bienes-inmuebles/${bienId}`
-        : "/bienes-inmuebles";
+    const resolvedBackPath =
+        backPath ??
+        (bienId ? `/bienes-inmuebles/${bienId}` : "/bienes-inmuebles");
 
     const tipoFromUrl = searchParams.get("tipo") || "";
     const [formData, setFormData] = useState({
@@ -147,7 +148,7 @@ export function ProcesoWizard({ bienId }: ProcesoWizardProps) {
 
     const handleSaveDraft = () => {
         // Save as draft logic
-        router.push(bienPath);
+        router.push(resolvedBackPath);
     };
 
     const handleSubmit = () => {
@@ -160,7 +161,7 @@ export function ProcesoWizard({ bienId }: ProcesoWizardProps) {
             {/* Header */}
             <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" asChild>
-                    <Link href={bienPath}>
+                    <Link href={resolvedBackPath}>
                         <ArrowLeft className="h-5 w-5" />
                     </Link>
                 </Button>

@@ -3,212 +3,250 @@ import { z } from "zod";
 const idSchema = z.union([z.string(), z.number()]);
 
 export const RolSchema = z
-  .object({
-    id: z.number().int(),
-    name: z.string().min(1),
-    key: z.string().min(1).optional(),
-    description: z.string().optional(),
-  })
-  .passthrough();
+    .object({
+        id: z.number().int(),
+        name: z.string().min(1),
+        key: z.string().min(1).optional(),
+        description: z.string().optional(),
+    })
+    .passthrough();
 
 export type Rol = z.infer<typeof RolSchema>;
 
 export const OperationTypeSchema = z
-  .object({
-    id: z.number().int(),
-    name: z.string().optional(),
-    key: z.string().optional(),
-    kind: z.string().optional(),
-    position: z.number().int().nullable().optional(),
-    active: z.boolean().nullable().optional(),
-    created_at: z.string().optional(),
-    updated_at: z.string().optional(),
-  })
-  .passthrough();
+    .object({
+        id: z.number().int(),
+        name: z.string().optional(),
+        key: z.string().optional(),
+        kind: z.string().optional(),
+        position: z.number().int().nullable().optional(),
+        active: z.boolean().nullable().optional(),
+        created_at: z.string().optional(),
+        updated_at: z.string().optional(),
+    })
+    .passthrough();
 
 export type OperationType = z.infer<typeof OperationTypeSchema>;
 
 export const UbicacionSchema = z
-  .object({
-    id: z.number().int().optional(),
-    name: z.string().min(1).optional(),
+    .object({
+        id: z.number().int().optional(),
+        name: z.string().min(1).optional(),
+        address: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        postalCode: z.string().optional(),
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+    })
+    .passthrough();
+
+export type Ubicacion = z.infer<typeof UbicacionSchema>;
+
+export const UbicacionFormSchema = z.object({
+    name: z.string().min(1, "Nombre requerido"),
     address: z.string().optional(),
     city: z.string().optional(),
     state: z.string().optional(),
     postalCode: z.string().optional(),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
-  })
-  .passthrough();
-
-export type Ubicacion = z.infer<typeof UbicacionSchema>;
-
-export const UbicacionFormSchema = z.object({
-  name: z.string().min(1, "Nombre requerido"),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  postalCode: z.string().optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
 });
 
 export type UbicacionFormValues = z.infer<typeof UbicacionFormSchema>;
 
 export const UsuarioSchema = z
-  .object({
-    id: z.number().int(),
-    email: z.string(),
-    name: z.string().nullable().optional(),
-    role: z.union([z.string(), RolSchema]).optional(),
-  })
-  .passthrough();
+    .object({
+        id: z.number().int(),
+        email: z.string(),
+        name: z.string().nullable().optional(),
+        role: z.union([z.string(), RolSchema]).optional(),
+    })
+    .passthrough();
 
 export type Usuario = z.infer<typeof UsuarioSchema>;
 
 export const UsuarioFormSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-  name: z.string().optional(),
-  roleId: z.number().int().optional(),
+    email: z.string().email(),
+    password: z.string().min(1),
+    name: z.string().optional(),
+    roleId: z.number().int().optional(),
 });
 
 export type UsuarioFormValues = z.infer<typeof UsuarioFormSchema>;
 
 export const BienSchema = z
-  .object({
-    id: idSchema,
-    clave: z.string().optional(),
-    descripcion: z.string().optional(),
-    nombre: z.string().optional(),
-    rpp: z.string().optional(),
-    claveCatastral: z.string().optional(),
-    ubicacion: z.union([UbicacionSchema, z.string()]).optional(),
-    estado: z.enum(["Activo", "Inactivo"]).optional(),
-    fecha: z.string().optional(),
-    responsable: z.string().optional(),
-  })
-  .passthrough();
+    .object({
+        id: idSchema,
+        clave: z.string().optional(),
+        descripcion: z.string().optional(),
+        nombre: z.string().optional(),
+        rpp: z.string().optional(),
+        claveCatastral: z.string().optional(),
+        ubicacion: z.union([UbicacionSchema, z.string()]).optional(),
+        estado: z.enum(["Activo", "Inactivo"]).optional(),
+        fecha: z.string().optional(),
+        responsable: z.string().optional(),
+    })
+    .passthrough();
 
 export type Bien = z.infer<typeof BienSchema>;
 
 export const BienApiSchema = z
-  .object({
-    id: z.number().int(),
-    rpp_number: z.string().nullable().optional(),
-    c_number: z.string().nullable().optional(),
-    description: z.string().optional(),
-    inventory_status: z.string().nullable().optional(),
-    category: z.record(z.string(), z.unknown()).optional(),
-    location: UbicacionSchema.optional(),
-    operation_type_id: z.number().int().optional(),
-    operation_type_name: z.string().optional(),
-    lot: z.string().nullable().optional(),
-    block: z.string().nullable().optional(),
-    colony: z.string().nullable().optional(),
-    street: z.string().nullable().optional(),
-    total_area: z.union([z.string(), z.number()]).nullable().optional(),
-    built_area: z.union([z.string(), z.number()]).nullable().optional(),
-    cadastral_value: z.union([z.string(), z.number()]).nullable().optional(),
-    commercial_value: z.union([z.string(), z.number()]).nullable().optional(),
-    latitude: z.union([z.string(), z.number()]).nullable().optional(),
-    longitude: z.union([z.string(), z.number()]).nullable().optional(),
-    created_at: z.string().optional(),
-    updated_at: z.string().optional(),
-  })
-  .passthrough();
+    .object({
+        id: z.number().int(),
+        rpp_number: z.string().nullable().optional(),
+        c_number: z.string().nullable().optional(),
+        description: z.string().optional(),
+        inventory_status: z.string().nullable().optional(),
+        category: z.record(z.string(), z.unknown()).optional(),
+        location: UbicacionSchema.optional(),
+        operation_type_id: z.number().int().optional(),
+        operation_type_name: z.string().optional(),
+        lot: z.string().nullable().optional(),
+        block: z.string().nullable().optional(),
+        colony: z.string().nullable().optional(),
+        street: z.string().nullable().optional(),
+        total_area: z.union([z.string(), z.number()]).nullable().optional(),
+        built_area: z.union([z.string(), z.number()]).nullable().optional(),
+        cadastral_value: z
+            .union([z.string(), z.number()])
+            .nullable()
+            .optional(),
+        commercial_value: z
+            .union([z.string(), z.number()])
+            .nullable()
+            .optional(),
+        latitude: z.union([z.string(), z.number()]).nullable().optional(),
+        longitude: z.union([z.string(), z.number()]).nullable().optional(),
+        created_at: z.string().optional(),
+        updated_at: z.string().optional(),
+    })
+    .passthrough();
 
 export type BienApi = z.infer<typeof BienApiSchema>;
 
+export const RegistryApiSchema = z
+    .object({
+        id: z.number().int(),
+        name: z.string().optional(),
+        rpp_number: z.string().nullable().optional(),
+        rpp_volume: z.string().nullable().optional(),
+        rpp_section: z.string().nullable().optional(),
+        rpp_date: z.string().nullable().optional(),
+        rpp_antecedent: z.string().nullable().optional(),
+        rpp_antecedent_1: z.string().nullable().optional(),
+        rpp_antecedent_2: z.string().nullable().optional(),
+        rpp_antecedent_3: z.string().nullable().optional(),
+        rpp_antecedent_4: z.string().nullable().optional(),
+        rpp_antecedent_5: z.string().nullable().optional(),
+        b_number: z.string().nullable().optional(),
+        b_volume: z.string().nullable().optional(),
+        b_date: z.string().nullable().optional(),
+        e_number: z.string().nullable().optional(),
+        e_notary: z.string().nullable().optional(),
+        e_date: z.string().nullable().optional(),
+        co_number: z.string().nullable().optional(),
+        co_date: z.string().nullable().optional(),
+        status: z.string().nullable().optional(),
+        fecha_alta: z.string().nullable().optional(),
+        st_baja: z.boolean().nullable().optional(),
+        created_at: z.string().nullable().optional(),
+        updated_at: z.string().nullable().optional(),
+    })
+    .passthrough();
+
+export type RegistryApi = z.infer<typeof RegistryApiSchema>;
+
 export const BienFormSchema = z.object({
-  operation: z.string().optional(),
-  dateFilter: z.string().optional(),
-  registroNumero: z.string().min(1, "Numero requerido"),
-  registroVolumen: z.string().optional(),
-  registroSeccion: z.string().optional(),
-  registroFecha: z.string().optional(),
-  escriturasNumero: z.string().min(1, "Numero requerido"),
-  escriturasNotaria: z.string().optional(),
-  escriturasFecha: z.string().optional(),
-  boletinNumero: z.string().optional(),
-  boletinVolumen: z.string().optional(),
-  boletinFecha: z.string().optional(),
-  convenioNumero: z.string().optional(),
-  convenioVolumen: z.string().optional(),
-  convenioFecha: z.string().optional(),
-  nombre: z.string().min(1, "Nombre requerido"),
-  antecedente: z.string().optional(),
-  colony: z.string().optional(),
-  street: z.string().optional(),
-  block: z.string().optional(),
-  lot: z.string().optional(),
-  totalArea: z.string().optional(),
-  builtArea: z.string().optional(),
-  cadastralValue: z.string().optional(),
-  commercialValue: z.string().optional(),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
+    operation: z.string().optional(),
+    dateFilter: z.string().optional(),
+    registroNumero: z.string().min(1, "Numero requerido"),
+    registroVolumen: z.string().optional(),
+    registroSeccion: z.string().optional(),
+    registroFecha: z.string().optional(),
+    escriturasNumero: z.string().min(1, "Numero requerido"),
+    escriturasNotaria: z.string().optional(),
+    escriturasFecha: z.string().optional(),
+    boletinNumero: z.string().optional(),
+    boletinVolumen: z.string().optional(),
+    boletinFecha: z.string().optional(),
+    convenioNumero: z.string().optional(),
+    convenioVolumen: z.string().optional(),
+    convenioFecha: z.string().optional(),
+    nombre: z.string().min(1, "Nombre requerido"),
+    antecedente: z.string().optional(),
+    colony: z.string().optional(),
+    street: z.string().optional(),
+    block: z.string().optional(),
+    lot: z.string().optional(),
+    totalArea: z.string().optional(),
+    builtArea: z.string().optional(),
+    cadastralValue: z.string().optional(),
+    commercialValue: z.string().optional(),
+    latitude: z.string().optional(),
+    longitude: z.string().optional(),
 });
 
 export type BienFormValues = z.infer<typeof BienFormSchema>;
 
 const archivoFileSchema = z
-  .object({
-    filename: z.string(),
-    content_type: z.string(),
-    byte_size: z.number().int(),
-    url: z.string(),
-    download_url: z.string().optional(),
-  })
-  .passthrough();
+    .object({
+        filename: z.string(),
+        content_type: z.string(),
+        byte_size: z.number().int(),
+        url: z.string(),
+        download_url: z.string().optional(),
+    })
+    .passthrough();
 
 const archivoDocumentTypeSchema = z
-  .object({
-    id: z.number().int(),
-    kind: z.string(),
-    name: z.string(),
-  })
-  .passthrough();
+    .object({
+        id: z.number().int(),
+        kind: z.string(),
+        name: z.string(),
+    })
+    .passthrough();
 
 export const ArchivoApiSchema = z
-  .object({
-    id: z.number().int(),
-    name: z.string(),
-    document_type: archivoDocumentTypeSchema.optional(),
-    position: z.number().int().nullable().optional(),
-    metadata: z.record(z.string(), z.unknown()).optional(),
-    file: archivoFileSchema.nullable().optional(),
-    image: z.boolean().optional(),
-  })
-  .passthrough();
+    .object({
+        id: z.number().int(),
+        name: z.string(),
+        document_type: archivoDocumentTypeSchema.optional(),
+        position: z.number().int().nullable().optional(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
+        file: archivoFileSchema.nullable().optional(),
+        image: z.boolean().optional(),
+    })
+    .passthrough();
 
 export type ArchivoApi = z.infer<typeof ArchivoApiSchema>;
 
 export const ArchivoSchema = z
-  .object({
-    id: idSchema,
-    nombre: z.string(),
-    tipo: z.string().optional(),
-    fecha: z.string().optional(),
-    tamano: z.string().optional(),
-    usuario: z.string().optional(),
-    departamento: z.string().optional(),
-  })
-  .passthrough();
+    .object({
+        id: idSchema,
+        nombre: z.string(),
+        tipo: z.string().optional(),
+        fecha: z.string().optional(),
+        tamano: z.string().optional(),
+        usuario: z.string().optional(),
+        departamento: z.string().optional(),
+    })
+    .passthrough();
 
 export type Archivo = z.infer<typeof ArchivoSchema>;
 
 export const ArchivoFormSchema = z.object({
-  file: z
-    .custom<File>(
-      (value) => typeof File !== "undefined" && value instanceof File,
-      "Archivo invalido"
-    )
-    .optional(),
-  name: z.string().optional(),
-  documentTypeId: z.number().int().optional(),
-  bienId: idSchema.optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+    file: z
+        .custom<File>(
+            (value) => typeof File !== "undefined" && value instanceof File,
+            "Archivo invalido",
+        )
+        .optional(),
+    name: z.string().optional(),
+    documentTypeId: z.number().int().optional(),
+    bienId: idSchema.optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type ArchivoFormValues = z.infer<typeof ArchivoFormSchema>;
@@ -220,21 +258,29 @@ export const UsuarioListSchema = z.array(UsuarioSchema);
 export const BienListSchema = z.array(BienSchema);
 export const BienApiListSchema = z.array(BienApiSchema);
 export const ArchivoApiListSchema = z.array(ArchivoApiSchema);
+export const RegistryApiListSchema = z.array(RegistryApiSchema);
 
 export const PaginationSchema = z
-  .object({
-    current_page: z.number().int().optional(),
-    next_page: z.number().int().nullable().optional(),
-    prev_page: z.number().int().nullable().optional(),
-    total_pages: z.number().int().optional(),
-    total_count: z.number().int().optional(),
-    per_page: z.number().int().optional(),
-  })
-  .passthrough();
+    .object({
+        current_page: z.number().int().optional(),
+        next_page: z.number().int().nullable().optional(),
+        prev_page: z.number().int().nullable().optional(),
+        total_pages: z.number().int().optional(),
+        total_count: z.number().int().optional(),
+        per_page: z.number().int().optional(),
+    })
+    .passthrough();
 
 export const BienApiListResponseSchema = z
-  .object({
-    data: BienApiListSchema,
-    pagination: PaginationSchema.optional(),
-  })
-  .passthrough();
+    .object({
+        data: BienApiListSchema,
+        pagination: PaginationSchema.optional(),
+    })
+    .passthrough();
+
+export const RegistryApiListResponseSchema = z
+    .object({
+        data: RegistryApiListSchema,
+        pagination: PaginationSchema.optional(),
+    })
+    .passthrough();
