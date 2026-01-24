@@ -11,6 +11,7 @@ import {
     Grid2X2CheckIcon,
     Map,
     Users,
+    File,
 } from "lucide-react";
 
 type SidebarProps = {
@@ -28,9 +29,9 @@ const baseNavItems = [
         path: "/dashboard",
     },
     {
-        label: "Bienes inmuebles",
-        icon: Building2,
-        path: "/bienes-inmuebles",
+        label: "Registros",
+        icon: File,
+        path: "/registry",
     },
     {
         label: "Archivos",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,64 +20,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { fetchRegistries } from "@/lib/api/registries";
 
-type RegistryItem = {
-    id: number;
-    name: string;
-    rpp_number: string;
-    rpp_volume: string;
-    rpp_section: string;
-    rpp_date: string;
-    rpp_antecedent: string;
-    rpp_antecedent_1: string;
-    rpp_antecedent_2: string;
-    rpp_antecedent_3: string;
-    rpp_antecedent_4: string;
-    rpp_antecedent_5: string;
-    b_number: string;
-    b_volume: string;
-    b_date: string;
-    e_number: string;
-    e_notary: string;
-    e_date: string;
-    co_number: string;
-    co_date: string;
-    status: string;
-    fecha_alta: string;
-    st_baja: boolean;
-    created_at: string;
-    updated_at: string;
-};
-
-const registryItems: RegistryItem[] = [
-    {
-        id: 0,
-        name: "string",
-        rpp_number: "string",
-        rpp_volume: "string",
-        rpp_section: "string",
-        rpp_date: "2026-01-23T16:52:39.460Z",
-        rpp_antecedent: "string",
-        rpp_antecedent_1: "string",
-        rpp_antecedent_2: "string",
-        rpp_antecedent_3: "string",
-        rpp_antecedent_4: "string",
-        rpp_antecedent_5: "string",
-        b_number: "string",
-        b_volume: "string",
-        b_date: "2026-01-23T16:52:39.460Z",
-        e_number: "string",
-        e_notary: "string",
-        e_date: "2026-01-23T16:52:39.460Z",
-        co_number: "string",
-        co_date: "2026-01-23T16:52:39.460Z",
-        status: "string",
-        fecha_alta: "2026-01-23T16:52:39.460Z",
-        st_baja: true,
-        created_at: "2026-01-23T16:52:39.460Z",
-        updated_at: "2026-01-23T16:52:39.460Z",
-    },
-];
+type RegistryItem = Awaited<ReturnType<typeof fetchRegistries>>["data"][number];
 
 const statusConfig: Record<string, { label: string; className: string }> = {
     activo: {
@@ -97,9 +43,10 @@ const statusConfig: Record<string, { label: string; className: string }> = {
     },
 };
 
-const formatDate = (value: string) => {
+const formatDate = (value?: string | null) => {
     if (!value) return "—";
     const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
     return new Intl.DateTimeFormat("es-MX", {
         dateStyle: "medium",
     }).format(date);
@@ -107,30 +54,96 @@ const formatDate = (value: string) => {
 
 export default function RegistryPage() {
     const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("todos");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
+    const [data, setData] = useState<RegistryItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        totalPages: 1,
+        totalCount: 0,
+        perPage: itemsPerPage,
+    });
 
-    const filteredItems = useMemo(() => {
-        return registryItems.filter((item) => {
-            const matchesSearch =
-                item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                item.rpp_number
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase()) ||
-                item.b_number.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesStatus =
-                statusFilter === "todos" || item.status === statusFilter;
-            return matchesSearch && matchesStatus;
-        });
-    }, [searchTerm, statusFilter]);
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setDebouncedSearch(searchTerm.trim());
+        }, 400);
+        return () => clearTimeout(timeoutId);
+    }, [searchTerm]);
 
-    const totalPages = Math.ceil(filteredItems.length / itemsPerPage) || 1;
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedItems = filteredItems.slice(
-        startIndex,
-        startIndex + itemsPerPage,
-    );
+    useEffect(() => {
+        let active = true;
+        const loadRegistry = async () => {
+            setIsLoading(true);
+            setLoadError(null);
+            try {
+                const response = await fetchRegistries({
+                    page: currentPage,
+                    per_page: itemsPerPage,
+                    q: debouncedSearch || undefined,
+                    status: statusFilter !== "todos" ? statusFilter : undefined,
+                });
+
+                if (!active) return;
+                setData(response.data ?? []);
+                const responsePage =
+                    response.pagination?.current_page ?? currentPage;
+                if (responsePage !== currentPage) {
+                    setCurrentPage(responsePage);
+                }
+                setPagination({
+                    currentPage: responsePage,
+                    totalPages: Math.max(
+                        1,
+                        response.pagination?.total_pages ?? 1,
+                    ),
+                    totalCount:
+                        response.pagination?.total_count ??
+                        response.data.length,
+                    perPage: response.pagination?.per_page ?? itemsPerPage,
+                });
+            } catch (error) {
+                if (!active) return;
+                if (error instanceof Error && error.name === "AbortError") {
+                    return;
+                }
+                setLoadError(
+                    error instanceof Error
+                        ? error.message
+                        : "Error al cargar registros.",
+                );
+                setData([]);
+                setPagination({
+                    currentPage: 1,
+                    totalPages: 1,
+                    totalCount: 0,
+                    perPage: itemsPerPage,
+                });
+            } finally {
+                if (active) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        loadRegistry();
+        return () => {
+            active = false;
+        };
+    }, [currentPage, debouncedSearch, itemsPerPage, statusFilter]);
+
+    const displayFrom =
+        pagination.totalCount === 0
+            ? 0
+            : (pagination.currentPage - 1) * pagination.perPage + 1;
+    const displayTo =
+        pagination.totalCount === 0
+            ? 0
+            : (pagination.currentPage - 1) * pagination.perPage + data.length;
 
     return (
         <div className="space-y-4">
@@ -144,10 +157,15 @@ export default function RegistryPage() {
                             setCurrentPage(1);
                         }}
                         className="w-full sm:w-72"
+                        disabled={isLoading}
                     />
                     <Select
                         value={statusFilter}
-                        onValueChange={setStatusFilter}
+                        onValueChange={(value) => {
+                            setStatusFilter(value);
+                            setCurrentPage(1);
+                        }}
+                        disabled={isLoading}
                     >
                         <SelectTrigger className="w-full sm:w-44">
                             <SelectValue placeholder="Estatus" />
@@ -164,14 +182,16 @@ export default function RegistryPage() {
                         </SelectContent>
                     </Select>
                 </div>
-                <Button>Registrar Nuevo</Button>
+                <Button asChild>
+                    <Link href="/registry/new">Registrar Nuevo</Link>
+                </Button>
             </div>
 
             <div className="rounded-lg border border-border bg-card">
                 <Table>
                     <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                            <TableHead>Nombre</TableHead>
+                            <TableHead className="pl-4">Nombre</TableHead>
                             <TableHead>RPP</TableHead>
                             <TableHead>Libro (B)</TableHead>
                             <TableHead>Escritura</TableHead>
@@ -181,112 +201,197 @@ export default function RegistryPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {paginatedItems.map((item) => {
-                            const statusKey = statusConfig[item.status]
-                                ? item.status
-                                : "default";
-                            return (
-                                <TableRow key={item.id}>
-                                    <TableCell className="font-medium">
-                                        {item.name}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="text-sm">
-                                            <p className="font-mono">
-                                                {item.rpp_number}
-                                            </p>
-                                            <p className="text-muted-foreground">
-                                                Vol. {item.rpp_volume} · Secc.{" "}
-                                                {item.rpp_section}
-                                            </p>
-                                            <p className="text-muted-foreground">
-                                                {formatDate(item.rpp_date)}
-                                            </p>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="text-sm">
-                                            <p className="font-mono">
-                                                {item.b_number}
-                                            </p>
-                                            <p className="text-muted-foreground">
-                                                Vol. {item.b_volume}
-                                            </p>
-                                            <p className="text-muted-foreground">
-                                                {formatDate(item.b_date)}
-                                            </p>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="text-sm">
-                                            <p className="font-mono">
-                                                {item.e_number}
-                                            </p>
-                                            <p className="text-muted-foreground">
-                                                {item.e_notary}
-                                            </p>
-                                            <p className="text-muted-foreground">
-                                                {formatDate(item.e_date)}
-                                            </p>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="text-sm">
-                                            <p className="font-mono">
-                                                {item.co_number}
-                                            </p>
-                                            <p className="text-muted-foreground">
-                                                {formatDate(item.co_date)}
-                                            </p>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="text-sm text-muted-foreground">
-                                            <p>
-                                                Alta:{" "}
-                                                {formatDate(item.fecha_alta)}
-                                            </p>
-                                            <p>
-                                                Creado:{" "}
-                                                {formatDate(item.created_at)}
-                                            </p>
-                                            <p>
-                                                Actualizado:{" "}
-                                                {formatDate(item.updated_at)}
-                                            </p>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="space-y-2">
-                                            <Badge
-                                                variant="outline"
-                                                className={
-                                                    statusConfig[statusKey]
-                                                        .className
-                                                }
-                                            >
-                                                {statusConfig[statusKey].label}
-                                            </Badge>
-                                            <p className="text-xs text-muted-foreground">
-                                                Baja:{" "}
-                                                {item.st_baja ? "Sí" : "No"}
-                                            </p>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell
+                                    colSpan={7}
+                                    className="py-10 text-center text-sm text-muted-foreground"
+                                >
+                                    Cargando registros...
+                                </TableCell>
+                            </TableRow>
+                        ) : loadError ? (
+                            <TableRow>
+                                <TableCell
+                                    colSpan={7}
+                                    className="py-10 text-center text-sm text-destructive"
+                                >
+                                    {loadError}
+                                </TableCell>
+                            </TableRow>
+                        ) : data.length === 0 ? (
+                            <TableRow>
+                                <TableCell
+                                    colSpan={7}
+                                    className="py-10 text-center text-sm text-muted-foreground"
+                                >
+                                    No hay registros para mostrar.
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            data.map((item) => {
+                                const statusValue = item.status ?? "default";
+                                const statusKey = statusConfig[statusValue]
+                                    ? statusValue
+                                    : "default";
+                                return (
+                                    <TableRow key={item.id}>
+                                        <TableCell className="pl-4 font-medium">
+                                            {item.name ?? "—"}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="text-sm">
+                                                <p className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        RPP Número:
+                                                    </span>
+                                                    <span className="font-mono">
+                                                        {item.rpp_number ?? "—"}
+                                                    </span>
+                                                </p>
+                                                <p className="text-muted-foreground">
+                                                    <span className="text-xs">
+                                                        Volumen:
+                                                    </span>{" "}
+                                                    {item.rpp_volume ?? "—"} ·{" "}
+                                                    <span className="text-xs">
+                                                        Sección:
+                                                    </span>{" "}
+                                                    {item.rpp_section ?? "—"}
+                                                </p>
+                                                <p className="text-muted-foreground">
+                                                    <span className="text-xs">
+                                                        RPP Fecha:
+                                                    </span>{" "}
+                                                    {formatDate(item.rpp_date)}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="text-sm">
+                                                <p className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Libro B:
+                                                    </span>
+                                                    <span className="font-mono">
+                                                        {item.b_number ?? "—"}
+                                                    </span>
+                                                </p>
+                                                <p className="text-muted-foreground">
+                                                    <span className="text-xs">
+                                                        Volumen:
+                                                    </span>{" "}
+                                                    {item.b_volume ?? "—"}
+                                                </p>
+                                                <p className="text-muted-foreground">
+                                                    <span className="text-xs">
+                                                        Fecha:
+                                                    </span>{" "}
+                                                    {formatDate(item.b_date)}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="text-sm">
+                                                <p className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Escritura:
+                                                    </span>
+                                                    <span className="font-mono">
+                                                        {item.e_number ?? "—"}
+                                                    </span>
+                                                </p>
+                                                <p className="text-muted-foreground">
+                                                    <span className="text-xs">
+                                                        Notaría:
+                                                    </span>{" "}
+                                                    {item.e_notary ?? "—"}
+                                                </p>
+                                                <p className="text-muted-foreground">
+                                                    <span className="text-xs">
+                                                        Fecha:
+                                                    </span>{" "}
+                                                    {formatDate(item.e_date)}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="text-sm">
+                                                <p className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Certificado:
+                                                    </span>
+                                                    <span className="font-mono">
+                                                        {item.co_number ?? "—"}
+                                                    </span>
+                                                </p>
+                                                <p className="text-muted-foreground">
+                                                    <span className="text-xs">
+                                                        Fecha:
+                                                    </span>{" "}
+                                                    {formatDate(item.co_date)}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="text-sm text-muted-foreground">
+                                                <p>
+                                                    <span className="text-xs">
+                                                        Alta:
+                                                    </span>{" "}
+                                                    {formatDate(
+                                                        item.fecha_alta,
+                                                    )}
+                                                </p>
+                                                <p>
+                                                    <span className="text-xs">
+                                                        Creado:
+                                                    </span>{" "}
+                                                    {formatDate(
+                                                        item.created_at,
+                                                    )}
+                                                </p>
+                                                <p>
+                                                    <span className="text-xs">
+                                                        Actualizado:
+                                                    </span>{" "}
+                                                    {formatDate(
+                                                        item.updated_at,
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="space-y-2">
+                                                <Badge
+                                                    variant="outline"
+                                                    className={
+                                                        statusConfig[statusKey]
+                                                            .className
+                                                    }
+                                                >
+                                                    {
+                                                        statusConfig[statusKey]
+                                                            .label
+                                                    }
+                                                </Badge>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Baja:{" "}
+                                                    {item.st_baja ? "Sí" : "No"}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })
+                        )}
                     </TableBody>
                 </Table>
 
                 <div className="flex items-center justify-between border-t border-border px-4 py-3">
                     <p className="text-sm text-muted-foreground">
-                        Mostrando {startIndex + 1} a{" "}
-                        {Math.min(
-                            startIndex + itemsPerPage,
-                            filteredItems.length,
-                        )}{" "}
-                        de {filteredItems.length} registros
+                        Mostrando {displayFrom} a {displayTo} de{" "}
+                        {pagination.totalCount} registros
                     </p>
                     <div className="flex items-center gap-2">
                         <Button
@@ -295,7 +400,7 @@ export default function RegistryPage() {
                             onClick={() =>
                                 setCurrentPage((p) => Math.max(1, p - 1))
                             }
-                            disabled={currentPage === 1}
+                            disabled={pagination.currentPage <= 1 || isLoading}
                         >
                             Anterior
                         </Button>
@@ -304,10 +409,13 @@ export default function RegistryPage() {
                             size="sm"
                             onClick={() =>
                                 setCurrentPage((p) =>
-                                    Math.min(totalPages, p + 1),
+                                    Math.min(pagination.totalPages, p + 1),
                                 )
                             }
-                            disabled={currentPage === totalPages}
+                            disabled={
+                                pagination.currentPage >=
+                                    pagination.totalPages || isLoading
+                            }
                         >
                             Siguiente
                         </Button>

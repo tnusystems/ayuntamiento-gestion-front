@@ -1,7 +1,9 @@
 "use client";
+
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
+import { ArrowLeft, Save } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,61 +16,92 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { createRegistry } from "@/lib/api/registries";
 
-type BienFormValues = {
-    rpp: string;
+type RegistryFormValues = {
+    rppNumber: string;
     nombre: string;
     rppVolume: string;
     rppSection: string;
     rppDate: string;
-    scriptureNumber: string;
+    escrituraNumber: string;
     notary: string;
-    scriptureDate: string;
-    bulletinNumber: string;
-    bulletinVolume: string;
-    bulletinDate: string;
-    agreementNumber: string;
-    agreementVolume: string;
-    agreementDate: string;
+    escrituraDate: string;
+    boletinNumber: string;
+    boletinVolume: string;
+    boletinDate: string;
+    convenioNumber: string;
+    convenioDate: string;
     antecedentes: string;
 };
 
-const DEFAULT_VALUES: BienFormValues = {
-    rpp: "",
+const DEFAULT_VALUES: RegistryFormValues = {
+    rppNumber: "",
     nombre: "",
     rppVolume: "",
     rppSection: "",
     rppDate: "",
-    scriptureNumber: "",
+    escrituraNumber: "",
     notary: "",
-    scriptureDate: "",
-    bulletinNumber: "",
-    bulletinVolume: "",
-    bulletinDate: "",
-    agreementNumber: "",
-    agreementVolume: "",
-    agreementDate: "",
+    escrituraDate: "",
+    boletinNumber: "",
+    boletinVolume: "",
+    boletinDate: "",
+    convenioNumber: "",
+    convenioDate: "",
     antecedentes: "",
 };
 
-export default function BienForm() {
+export default function RegistryNewPage() {
     const router = useRouter();
-    const { register, getValues } = useForm<BienFormValues>({
+    const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const { register, handleSubmit, reset } = useForm<RegistryFormValues>({
         defaultValues: DEFAULT_VALUES,
     });
 
-    const onClickSave = () => {
-        const payload = getValues();
-        console.log(payload);
-        router.push("/bienes-inmuebles/7039/process");
-        return payload;
-    };
+    const onSubmit = handleSubmit(async (values) => {
+        setIsSaving(true);
+        setErrorMessage(null);
+        try {
+            const created = await createRegistry({
+                name: values.nombre,
+                rpp_number: values.rppNumber,
+                rpp_volume: values.rppVolume || undefined,
+                rpp_section: values.rppSection || undefined,
+                rpp_date: values.rppDate || undefined,
+                rpp_antecedent: values.antecedentes || undefined,
+                b_number: values.boletinNumber || undefined,
+                b_volume: values.boletinVolume || undefined,
+                b_date: values.boletinDate || undefined,
+                e_number: values.escrituraNumber || undefined,
+                e_notary: values.notary || undefined,
+                e_date: values.escrituraDate || undefined,
+                co_number: values.convenioNumber || undefined,
+                co_date: values.convenioDate || undefined,
+            });
+            reset(DEFAULT_VALUES);
+            if (created?.id) {
+                router.push(`/assets/new/${created.id}`);
+            } else {
+                router.push("/registry");
+            }
+        } catch (error) {
+            setErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo guardar el registro.",
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    });
 
     return (
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={onSubmit}>
             <div className="flex items-center justify-between">
                 <Button variant="ghost" asChild>
-                    <Link href="/bienes-inmuebles">
+                    <Link href="/registry">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Volver al Listado
                     </Link>
@@ -77,52 +110,58 @@ export default function BienForm() {
                     <Button
                         variant="outline"
                         type="button"
-                        onClick={() => router.push("/bienes-inmuebles")}
+                        onClick={() => router.push("/registry")}
+                        disabled={isSaving}
                     >
                         Cancelar
                     </Button>
-                    <Button type="button" onClick={onClickSave}>
+                    <Button type="submit" disabled={isSaving}>
                         <Save className="mr-2 h-4 w-4" />
-                        Guardar y Capturar Alta
+                        Guardar Registro
                     </Button>
                 </div>
             </div>
 
-            {/* Section A: Identification */}
+            {errorMessage ? (
+                <div className="rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {errorMessage}
+                </div>
+            ) : null}
+
             <Card>
                 <CardHeader>
-                    <CardTitle>Sección A: Identificación del Bien</CardTitle>
+                    <CardTitle>Sección A: Identificación</CardTitle>
                     <CardDescription>
-                        Información básica para identificar el bien patrimonial
+                        Información básica para identificar el registro
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="space-y-2">
-                        <Label htmlFor="rpp">RPP Número *</Label>
+                        <Label htmlFor="rppNumber">RPP Número *</Label>
                         <Input
-                            id="rpp"
+                            id="rppNumber"
                             placeholder="2138974"
-                            {...register("rpp")}
+                            {...register("rppNumber")}
+                            disabled={isSaving}
                         />
                     </div>
-
                     <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-                        <Label htmlFor="nombre">Nombre del Bien *</Label>
+                        <Label htmlFor="nombre">Nombre *</Label>
                         <Input
                             id="nombre"
-                            placeholder="Nombre descriptivo del bien"
+                            placeholder="Nombre descriptivo"
                             {...register("nombre")}
+                            disabled={isSaving}
                         />
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Section B: Expedient Data */}
             <Card>
                 <CardHeader>
                     <CardTitle>Sección B: Datos del Expediente</CardTitle>
                     <CardDescription>
-                        Información documental y legal del bien
+                        Información documental y legal del registro
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -133,119 +172,114 @@ export default function BienForm() {
                                 id="rppVolume"
                                 placeholder="Ej: 12345"
                                 {...register("rppVolume")}
+                                disabled={isSaving}
                             />
                         </div>
-
                         <div className="space-y-2">
-                            <Label htmlFor="rppSection">RPP Seccion</Label>
+                            <Label htmlFor="rppSection">RPP Sección</Label>
                             <Input
                                 id="rppSection"
                                 placeholder="Ej: 12345"
                                 {...register("rppSection")}
+                                disabled={isSaving}
                             />
                         </div>
-
                         <div className="space-y-2">
                             <Label htmlFor="rppDate">RPP Fecha</Label>
                             <Input
                                 id="rppDate"
                                 type="date"
                                 {...register("rppDate")}
+                                disabled={isSaving}
                             />
                         </div>
                     </div>
 
                     <div className="grid grid-rows-3 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="scriptureNumber">
-                                Numero de escrituras
+                            <Label htmlFor="escrituraNumber">
+                                Número de escrituras
                             </Label>
                             <Input
-                                id="scriptureNumber"
+                                id="escrituraNumber"
                                 placeholder="Ej: 12345"
-                                {...register("scriptureNumber")}
+                                {...register("escrituraNumber")}
+                                disabled={isSaving}
                             />
                         </div>
-
                         <div className="space-y-2">
-                            <Label htmlFor="notary">Notaria</Label>
+                            <Label htmlFor="notary">Notaría</Label>
                             <Input
                                 id="notary"
                                 placeholder="Ej: 12345"
                                 {...register("notary")}
+                                disabled={isSaving}
                             />
                         </div>
-
                         <div className="space-y-2">
-                            <Label htmlFor="scriptureDate">
+                            <Label htmlFor="escrituraDate">
                                 Fecha de escrituras
                             </Label>
                             <Input
-                                id="scriptureDate"
+                                id="escrituraDate"
                                 type="date"
-                                {...register("scriptureDate")}
+                                {...register("escrituraDate")}
+                                disabled={isSaving}
                             />
                         </div>
                     </div>
 
                     <div className="grid grid-rows-3 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="bulletinNumber">Boletin</Label>
+                            <Label htmlFor="boletinNumber">Boletín</Label>
                             <Input
-                                id="bulletinNumber"
+                                id="boletinNumber"
                                 placeholder="Ej: 12345"
-                                {...register("bulletinNumber")}
+                                {...register("boletinNumber")}
+                                disabled={isSaving}
                             />
                         </div>
-
                         <div className="space-y-2">
-                            <Label htmlFor="bulletinVolume">Volumen</Label>
+                            <Label htmlFor="boletinVolume">Volumen</Label>
                             <Input
-                                id="bulletinVolume"
+                                id="boletinVolume"
                                 placeholder="Ej: 12345"
-                                {...register("bulletinVolume")}
+                                {...register("boletinVolume")}
+                                disabled={isSaving}
                             />
                         </div>
-
                         <div className="space-y-2">
-                            <Label htmlFor="bulletinDate">
-                                Fecha de boletin
+                            <Label htmlFor="boletinDate">
+                                Fecha de boletín
                             </Label>
                             <Input
-                                id="bulletinDate"
+                                id="boletinDate"
                                 type="date"
-                                {...register("bulletinDate")}
+                                {...register("boletinDate")}
+                                disabled={isSaving}
                             />
                         </div>
                     </div>
 
                     <div className="grid grid-rows-3 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="agreementNumber">Convenio</Label>
+                            <Label htmlFor="convenioNumber">Convenio</Label>
                             <Input
-                                id="agreementNumber"
+                                id="convenioNumber"
                                 placeholder="Ej: 12345"
-                                {...register("agreementNumber")}
+                                {...register("convenioNumber")}
+                                disabled={isSaving}
                             />
                         </div>
-
                         <div className="space-y-2">
-                            <Label htmlFor="agreementVolume">Volumen</Label>
-                            <Input
-                                id="agreementVolume"
-                                placeholder="Ej: 12345"
-                                {...register("agreementVolume")}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="agreementDate">
+                            <Label htmlFor="convenioDate">
                                 Fecha de convenio
                             </Label>
                             <Input
-                                id="agreementDate"
+                                id="convenioDate"
                                 type="date"
-                                {...register("agreementDate")}
+                                {...register("convenioDate")}
+                                disabled={isSaving}
                             />
                         </div>
                     </div>
@@ -254,9 +288,10 @@ export default function BienForm() {
                         <Label htmlFor="antecedentes">Antecedentes</Label>
                         <Textarea
                             id="antecedentes"
-                            placeholder="Historial y antecedentes del bien..."
+                            placeholder="Historial y antecedentes del registro..."
                             rows={4}
                             {...register("antecedentes")}
+                            disabled={isSaving}
                         />
                     </div>
                 </CardContent>

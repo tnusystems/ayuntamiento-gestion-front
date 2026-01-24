@@ -79,7 +79,7 @@ export default function BienesInmueblesPage() {
     });
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="space-y-4">
             <BienesInmueblesResults
                 data={tableData}
                 isLoading={isLoading}
