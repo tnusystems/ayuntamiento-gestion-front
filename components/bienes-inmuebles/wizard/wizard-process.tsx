@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -10,7 +10,6 @@ import {
     FileText,
     MapPin,
     Upload,
-    ListChecks,
     ClipboardCheck,
     Save,
     Send,
@@ -27,8 +26,9 @@ import { cn } from "@/lib/utils";
 import { WizardStep1 } from "./wizard-step-1";
 import { WizardStep2 } from "./wizard-step-2";
 import { WizardStep3 } from "./wizard-step-3";
-import { WizardStep4 } from "./wizard-step-4";
 import { WizardStep5 } from "./wizard-step-5";
+import { createAsset } from "@/lib/api/assets";
+import { fetchRegistry } from "@/lib/api/registries";
 
 interface ProcesoWizardProps {
     bienId?: string;
@@ -56,12 +56,6 @@ const steps = [
     },
     {
         id: 4,
-        name: "Etapas del Trámite",
-        icon: ListChecks,
-        description: "Control de etapas",
-    },
-    {
-        id: 5,
         name: "Revisión Final",
         icon: ClipboardCheck,
         description: "Resumen y envío",
@@ -72,6 +66,12 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [currentStep, setCurrentStep] = useState(1);
+    const [createdAssetId, setCreatedAssetId] = useState<number | null>(null);
+    const [step1Errors, setStep1Errors] = useState<{
+        tipoProceso?: string;
+        actoJuridico?: string;
+        responsable?: string;
+    }>({});
     const resolvedBackPath =
         backPath ??
         (bienId ? `/bienes-inmuebles/${bienId}` : "/bienes-inmuebles");
@@ -83,6 +83,8 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
         actoJuridico: tipoFromUrl === "BAJA" ? "Desincorporación" : "",
         responsable: "",
         observaciones: "",
+        rppNumber: "",
+        claveCatastral: "",
         // Step 2
         colonia: "",
         calle: "",
@@ -93,7 +95,8 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
         superficieConstruccion: "",
         zona: "",
         dominio: "",
-        situacion: "",
+        stageDefinition: "",
+        operacionU: "",
         valorCatastral: "",
         valorComercial: "",
         lat: "",
@@ -101,41 +104,89 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
         observacionesTecnicas: "",
         // Step 3
         documentos: [] as string[],
-        // Step 4
-        etapas: [
-            {
-                nombre: "Recepción de Documentos",
-                completada: false,
-                fecha: "",
-                observaciones: "",
-            },
-            {
-                nombre: "Verificación Técnica",
-                completada: false,
-                fecha: "",
-                observaciones: "",
-            },
-            {
-                nombre: "Revisión Jurídica",
-                completada: false,
-                fecha: "",
-                observaciones: "",
-            },
-            {
-                nombre: "Aprobación Final",
-                completada: false,
-                fecha: "",
-                observaciones: "",
-            },
-        ],
+        documentosDetalle: [] as Array<{
+            docTypeId: string;
+            docTypeLabel: string;
+            files: Array<{
+                name: string;
+                type: string;
+                size: number;
+                lastModified: number;
+                file: File;
+            }>;
+        }>,
     });
 
     const updateFormData = (data: Partial<typeof formData>) => {
         setFormData((prev) => ({ ...prev, ...data }));
+        if (
+            "tipoProceso" in data ||
+            "actoJuridico" in data ||
+            "responsable" in data
+        ) {
+            setStep1Errors((prev) => {
+                const next = { ...prev };
+                if ("tipoProceso" in data) {
+                    delete next.tipoProceso;
+                }
+                if ("actoJuridico" in data) {
+                    delete next.actoJuridico;
+                }
+                if ("responsable" in data) {
+                    delete next.responsable;
+                }
+                return next;
+            });
+        }
+    };
+
+    useEffect(() => {
+        if (!bienId) return;
+        let isMounted = true;
+
+        const loadRegistry = async () => {
+            try {
+                const registry = await fetchRegistry(bienId);
+                if (!isMounted || !registry) return;
+                setFormData((prev) => ({
+                    ...prev,
+                    rppNumber: registry.rpp_number ?? "",
+                }));
+            } catch (error) {
+                if (isMounted) {
+                    console.error("Registry load error:", error);
+                }
+            }
+        };
+
+        void loadRegistry();
+        return () => {
+            isMounted = false;
+        };
+    }, [bienId]);
+
+    const validateStep1 = () => {
+        const errors: typeof step1Errors = {};
+
+        if (!formData.tipoProceso) {
+            errors.tipoProceso = "Selecciona un tipo de proceso.";
+        }
+        if (!formData.actoJuridico || formData.actoJuridico === "__empty") {
+            errors.actoJuridico = "Selecciona un acto jurídico.";
+        }
+        if (!formData.responsable.trim()) {
+            errors.responsable = "Ingresa el nombre del responsable.";
+        }
+
+        setStep1Errors(errors);
+        return Object.keys(errors).length === 0;
     };
 
     const handleNext = () => {
-        if (currentStep < 5) {
+        if (currentStep < 4) {
+            if (currentStep === 1 && !validateStep1()) {
+                return;
+            }
             setCurrentStep(currentStep + 1);
         }
     };
@@ -151,9 +202,51 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
         router.push(resolvedBackPath);
     };
 
-    const handleSubmit = () => {
-        // Submit for approval logic
-        router.push("/aprobaciones");
+    const handleSubmit = async () => {
+        const toNumber = (value: string) => {
+            const trimmed = value.trim();
+            if (!trimmed) return 0;
+            const parsed = Number(trimmed);
+            return Number.isFinite(parsed) ? parsed : 0;
+        };
+
+        const now = new Date().toISOString();
+        const registryId = bienId ? Number(bienId) : 0;
+        const safeRegistryId = Number.isFinite(registryId) ? registryId : 0;
+        const payload = {
+            rpp_number: formData.rppNumber.trim(),
+            c_number: formData.claveCatastral.trim(),
+            lot: formData.lote.trim(),
+            block: formData.manzana.trim(),
+            colony: formData.colonia.trim(),
+            street: formData.calle.trim(),
+            total_area: toNumber(formData.superficieTerreno),
+            built_area: toNumber(formData.superficieConstruccion),
+            cadastral_value: toNumber(formData.valorCatastral),
+            commercial_value: toNumber(formData.valorComercial),
+            latitude: toNumber(formData.lat),
+            longitude: toNumber(formData.alt),
+            inventory_status: "active" as const,
+            owner_name: formData.responsable.trim(),
+            registry_date: now,
+            registry_section: "",
+            registry_volume: "",
+            operation_type_id: toNumber(formData.actoJuridico),
+            registry_id: safeRegistryId,
+            created_at: now,
+            updated_at: now,
+            category: {},
+            location: {},
+        };
+
+        try {
+            console.log("Wizard payload:", payload);
+            const response = await createAsset(payload);
+            setCreatedAssetId(response?.id ?? null);
+            console.log("Create asset response:", response);
+        } catch (error) {
+            console.error("Create asset error:", error);
+        }
     };
 
     return (
@@ -268,6 +361,7 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                     {currentStep === 1 && (
                         <WizardStep1
                             formData={formData}
+                            errors={step1Errors}
                             updateFormData={updateFormData}
                         />
                     )}
@@ -283,13 +377,7 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                             updateFormData={updateFormData}
                         />
                     )}
-                    {currentStep === 4 && (
-                        <WizardStep4
-                            formData={formData}
-                            updateFormData={updateFormData}
-                        />
-                    )}
-                    {currentStep === 5 && <WizardStep5 formData={formData} />}
+                    {currentStep === 4 && <WizardStep5 formData={formData} />}
                 </CardContent>
             </Card>
 
@@ -305,7 +393,7 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                 </Button>
 
                 <div className="flex gap-3">
-                    {currentStep === 5 ? (
+                    {currentStep === 4 ? (
                         <Button onClick={handleSubmit}>
                             <Send className="mr-2 h-4 w-4" />
                             Enviar a Aprobación

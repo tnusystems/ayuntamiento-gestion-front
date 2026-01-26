@@ -6,183 +6,245 @@ import {
     StreetViewPanorama,
     useLoadScript,
 } from "@react-google-maps/api";
-import { useCallback, useState } from "react";
-import {
-    Search,
-    X,
-    ChevronLeft,
-    ChevronRight,
-    FileText,
-    Navigation,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { FileText, Navigation, Search, X } from "lucide-react";
 import Image from "next/image";
+import { fetchRegistries, fetchRegistry } from "@/lib/api/registries";
+import { fetchAssets } from "@/lib/api/assets";
 
 const center = {
     lat: 29.072967,
     lng: -110.955919,
 };
 
-const propiedades = [
-    {
-        id: "HMO-001",
-        nombre: "Casa Centro",
-        direccion: "Av. Rosales, Hermosillo",
-        lat: 29.072967,
-        lng: -110.955919,
-        imagenes: [
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-        ],
-    },
-    {
-        id: "HMO-002",
-        nombre: "Terreno Norte",
-        direccion: "Col. Modelo",
-        lat: 29.0981,
-        lng: -110.9654,
-        imagenes: [
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-        ],
-    },
-    {
-        id: "PUB-001",
-        nombre: "Cerro de la Campana",
-        direccion: "Cerro de la Campana, Hermosillo",
-        lat: 29.080556,
-        lng: -110.958889,
-        imagenes: [
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-        ],
-    },
-    {
-        id: "PUB-002",
-        nombre: "Parque Madero",
-        direccion: "Blvd. Hidalgo y Rosales, Centro",
-        lat: 29.0725,
-        lng: -110.9558,
-        imagenes: [
-            "/park-trees.jpg",
-            "/park-playground.jpg",
-            "/park-benches.jpg",
-        ],
-    },
-    {
-        id: "PUB-003",
-        nombre: "Cárcamo de Hermosillo",
-        direccion: "Callejón del Cárcamo, Centro",
-        lat: 29.068889,
-        lng: -110.958611,
-        imagenes: [
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-        ],
-    },
-    {
-        id: "PUB-004",
-        nombre: "Catedral de la Asunción",
-        direccion: "Blvd. Hidalgo s/n, Centro",
-        lat: 29.073611,
-        lng: -110.956389,
-        imagenes: [
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-        ],
-    },
-    {
-        id: "PUB-005",
-        nombre: "Estadio Sonora",
-        direccion: "Blvd. de los Deportes, Hermosillo",
-        lat: 29.091944,
-        lng: -110.966111,
-        imagenes: [
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-            "/placeholder_location.jpg",
-        ],
-    },
-];
+type RegistryItem = Awaited<ReturnType<typeof fetchRegistries>>["data"][number];
+
+type AssetItem = Awaited<ReturnType<typeof fetchAssets>>["data"][number];
+
+type AssetMarker = {
+    id: string | number;
+    lat: number;
+    lng: number;
+    c_number?: string | null;
+    rpp_number?: string | null;
+    name?: string | null;
+};
 
 export default function MapaPage() {
     const { isLoaded } = useLoadScript({
         googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
     });
 
-    const [selected, setSelected] = useState<(typeof propiedades)[0] | null>(
+    const [query, setQuery] = useState("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [suggestions, setSuggestions] = useState<RegistryItem[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
+    const [isRegistrySelected, setIsRegistrySelected] = useState(false);
+
+    const [registryId, setRegistryId] = useState<string | number | null>(null);
+    const [registryName, setRegistryName] = useState<string | null>(null);
+
+    const [assetQuery, setAssetQuery] = useState("");
+    const [debouncedAssetQuery, setDebouncedAssetQuery] = useState("");
+    const [isAssetSearching, setIsAssetSearching] = useState(false);
+    const [assetError, setAssetError] = useState<string | null>(null);
+    const [assets, setAssets] = useState<AssetMarker[]>([]);
+    const [selectedAsset, setSelectedAsset] = useState<AssetMarker | null>(
         null,
     );
-    const [query, setQuery] = useState("");
-    const [showImageModal, setShowImageModal] = useState(false);
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [filteredSuggestions, setFilteredSuggestions] = useState<
-        typeof propiedades
-    >([]);
     const [showStreetView, setShowStreetView] = useState(false);
-    const [streetViewPosition, setStreetViewPosition] = useState<{
-        lat: number;
-        lng: number;
-    } | null>(null);
+    const [streetViewPosition, setStreetViewPosition] =
+        useState<google.maps.LatLngLiteral | null>(null);
 
-    const handleInputChange = (value: string) => {
-        setQuery(value);
-        if (value.trim()) {
-            const filtered = propiedades.filter(
-                (p) =>
-                    p.nombre.toLowerCase().includes(value.toLowerCase()) ||
-                    p.id.toLowerCase().includes(value.toLowerCase()) ||
-                    p.direccion.toLowerCase().includes(value.toLowerCase()),
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setDebouncedQuery(query.trim());
+        }, 400);
+        return () => clearTimeout(timeoutId);
+    }, [query]);
+
+    useEffect(() => {
+        let isActive = true;
+
+        const loadSuggestions = async () => {
+            if (!debouncedQuery) {
+                setSuggestions([]);
+                setShowSuggestions(false);
+                setSearchError(null);
+                return;
+            }
+            if (isRegistrySelected) {
+                setSuggestions([]);
+                setShowSuggestions(false);
+                setSearchError(null);
+                return;
+            }
+            setIsSearching(true);
+            setSearchError(null);
+            try {
+                const response = await fetchRegistries({
+                    page: 1,
+                    per_page: 10,
+                    q: debouncedQuery,
+                });
+                if (!isActive) return;
+                setSuggestions(response.data ?? []);
+                setShowSuggestions(true);
+            } catch (error) {
+                if (!isActive) return;
+                setSuggestions([]);
+                setShowSuggestions(true);
+                setSearchError(
+                    error instanceof Error
+                        ? error.message
+                        : "Error al buscar registros.",
+                );
+            } finally {
+                if (isActive) {
+                    setIsSearching(false);
+                }
+            }
+        };
+
+        void loadSuggestions();
+        return () => {
+            isActive = false;
+        };
+    }, [debouncedQuery]);
+
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setDebouncedAssetQuery(assetQuery.trim());
+        }, 400);
+        return () => clearTimeout(timeoutId);
+    }, [assetQuery]);
+
+    useEffect(() => {
+        let isActive = true;
+
+        const loadAssets = async () => {
+            if (!registryId || !debouncedAssetQuery) {
+                setAssets([]);
+                setAssetError(null);
+                return;
+            }
+            setIsAssetSearching(true);
+            setAssetError(null);
+            try {
+                const response = await fetchAssets({
+                    page: 1,
+                    per_page: 10,
+                    q: debouncedAssetQuery,
+                    registry_id: String(registryId),
+                });
+                if (!isActive) return;
+                const nextAssets = response.data
+                    .map((asset, index) => {
+                        const lat = Number(asset.latitude);
+                        const lng = Number(asset.longitude);
+                        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                            return null;
+                        }
+                        return {
+                            id: asset.id ?? `${lat}-${lng}-${index}`,
+                            lat,
+                            lng,
+                            c_number: asset.c_number ?? null,
+                            rpp_number: asset.rpp_number ?? null,
+                            name: asset.description ?? asset.colony ?? null,
+                        } as AssetMarker;
+                    })
+                    .filter((asset): asset is AssetMarker => Boolean(asset));
+                const limitedAssets = nextAssets.slice(0, 10);
+                setAssets(limitedAssets);
+                setSelectedAsset(null);
+            } catch (error) {
+                if (!isActive) return;
+                setAssets([]);
+                setSelectedAsset(null);
+                setAssetError(
+                    error instanceof Error
+                        ? error.message
+                        : "Error al buscar bienes.",
+                );
+            } finally {
+                if (isActive) {
+                    setIsAssetSearching(false);
+                }
+            }
+        };
+
+        void loadAssets();
+        return () => {
+            isActive = false;
+        };
+    }, [debouncedAssetQuery, registryId]);
+
+    const handleSelectRegistry = async (registry: RegistryItem) => {
+        setRegistryId(registry.id ?? null);
+        setRegistryName(
+            registry.name ?? registry.rpp_number ?? String(registry.id),
+        );
+        setQuery(registry.name ?? registry.rpp_number ?? String(registry.id));
+        setShowSuggestions(false);
+        setIsRegistrySelected(true);
+        setAssets([]);
+        setAssetQuery("");
+        setSelectedAsset(null);
+        try {
+            const response = await fetchRegistry(registry.id);
+            setRegistryName(
+                response?.name ?? response?.rpp_number ?? String(registry.id),
             );
-            setFilteredSuggestions(filtered);
-            setShowSuggestions(true);
-        } else {
-            setFilteredSuggestions([]);
-            setShowSuggestions(false);
+        } catch {
+            // ignore
         }
     };
 
-    const handleSelectSuggestion = (propiedad: (typeof propiedades)[0]) => {
-        setQuery(propiedad.nombre);
-        setSelected(propiedad);
-        setCurrentImageIndex(0);
+    const handleClear = () => {
+        setQuery("");
+        setDebouncedQuery("");
         setShowSuggestions(false);
+        setSuggestions([]);
+        setSearchError(null);
+        setRegistryId(null);
+        setRegistryName(null);
+        setIsRegistrySelected(false);
+        setAssets([]);
+        setAssetQuery("");
+        setDebouncedAssetQuery("");
+        setAssetError(null);
+        setSelectedAsset(null);
+        setShowStreetView(false);
+        setStreetViewPosition(null);
     };
 
-    const nextImage = () => {
-        if (!selected) return;
-        setCurrentImageIndex((prev) => (prev + 1) % selected.imagenes.length);
-    };
-
-    const prevImage = () => {
-        if (!selected) return;
-        setCurrentImageIndex(
-            (prev) =>
-                (prev - 1 + selected.imagenes.length) %
-                selected.imagenes.length,
-        );
-    };
-
-    const openGoogleStreetView = (propiedad: (typeof propiedades)[0]) => {
-        const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${propiedad.lat},${propiedad.lng}`;
+    const openGoogleMaps = (asset: AssetMarker) => {
+        const url = `https://www.google.com/maps/search/?api=1&query=${asset.lat},${asset.lng}`;
         window.open(url, "_blank", "noopener,noreferrer");
     };
 
-    // Cierra Street View si el usuario presiona la "X" dentro del panorama (closeclick)
-    const handleStreetViewLoad = useCallback(
-        (pano: google.maps.StreetViewPanorama) => {
-            pano.addListener("closeclick", () => {
-                setShowStreetView(false);
-                // opcional: setStreetViewPosition(null);
+    const mapCenter = useMemo(() => {
+        if (selectedAsset) {
+            return { lat: selectedAsset.lat, lng: selectedAsset.lng };
+        }
+        return center;
+    }, [selectedAsset]);
+
+    useEffect(() => {
+        if (selectedAsset) {
+            setStreetViewPosition({
+                lat: selectedAsset.lat,
+                lng: selectedAsset.lng,
             });
-        },
-        [],
-    );
+            setShowStreetView(false);
+        } else {
+            setStreetViewPosition(null);
+            setShowStreetView(false);
+        }
+    }, [selectedAsset]);
 
     if (!isLoaded) {
         return (
@@ -194,41 +256,37 @@ export default function MapaPage() {
 
     return (
         <div className="relative h-screen w-full overflow-hidden">
-            {/* Buscador flotante arriba del mapa */}
+            {" "}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4">
                 <div className="bg-white rounded-2xl shadow-lg border border-neutral-200 overflow-hidden">
                     <div className="flex items-center gap-2 p-3">
                         <Search className="w-5 h-5 text-neutral-400 ml-1" />
                         <input
                             type="text"
-                            placeholder="Buscar por código, nombre o dirección..."
+                            placeholder="Buscar registro por ID, RPP o nombre..."
                             className="flex-1 outline-none text-sm text-neutral-700 placeholder:text-neutral-400"
                             value={query}
-                            onChange={(e) => handleInputChange(e.target.value)}
+                            onChange={(e) => {
+                                setQuery(e.target.value);
+                                setIsRegistrySelected(false);
+                            }}
                             onFocus={() => {
-                                if (query.trim()) setShowSuggestions(true);
+                                if (debouncedQuery && !isRegistrySelected) {
+                                    setShowSuggestions(true);
+                                }
                             }}
                             onKeyDown={(e) => {
                                 if (
                                     e.key === "Enter" &&
-                                    filteredSuggestions.length > 0
+                                    suggestions.length > 0
                                 ) {
-                                    handleSelectSuggestion(
-                                        filteredSuggestions[0],
-                                    );
+                                    handleSelectRegistry(suggestions[0]);
                                 }
                             }}
                         />
                         {query && (
                             <button
-                                onClick={() => {
-                                    setQuery("");
-                                    setFilteredSuggestions([]);
-                                    setShowSuggestions(false);
-                                    setSelected(null);
-                                    setShowStreetView(false);
-                                    setStreetViewPosition(null);
-                                }}
+                                onClick={handleClear}
                                 className="p-1 hover:bg-neutral-100 rounded-full transition-colors"
                             >
                                 <X className="w-4 h-4 text-neutral-500" />
@@ -236,219 +294,79 @@ export default function MapaPage() {
                         )}
                     </div>
 
-                    {showSuggestions && filteredSuggestions.length > 0 && (
+                    {showSuggestions && (
                         <div className="border-t border-neutral-200 max-h-64 overflow-y-auto">
-                            {filteredSuggestions.map((propiedad) => (
-                                <button
-                                    key={propiedad.id}
-                                    onClick={() =>
-                                        handleSelectSuggestion(propiedad)
-                                    }
-                                    className="w-full text-left px-4 py-3 hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0"
-                                >
-                                    <div className="font-medium text-sm text-neutral-900">
-                                        {propiedad.nombre}
-                                    </div>
-                                    <div className="text-xs text-neutral-500 mt-0.5">
-                                        {propiedad.id} - {propiedad.direccion}
-                                    </div>
-                                </button>
-                            ))}
+                            {isSearching ? (
+                                <div className="px-4 py-3 text-sm text-neutral-500">
+                                    Buscando registros...
+                                </div>
+                            ) : searchError ? (
+                                <div className="px-4 py-3 text-sm text-red-600">
+                                    {searchError}
+                                </div>
+                            ) : suggestions.length === 0 ? (
+                                <div className="px-4 py-3 text-sm text-neutral-500">
+                                    Sin resultados.
+                                </div>
+                            ) : (
+                                suggestions.map((registry) => (
+                                    <button
+                                        key={String(registry.id)}
+                                        onClick={() =>
+                                            handleSelectRegistry(registry)
+                                        }
+                                        className="w-full text-left px-4 py-3 hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0"
+                                    >
+                                        <div className="font-medium text-sm text-neutral-900">
+                                            {registry.name ?? "Registro"}
+                                        </div>
+                                        <div className="text-xs text-neutral-500 mt-0.5">
+                                            {registry.rpp_number ?? "RPP"} · ID{" "}
+                                            {String(registry.id)}
+                                        </div>
+                                    </button>
+                                ))
+                            )}
                         </div>
                     )}
                 </div>
             </div>
-
-            {/* Detalles de la propiedad - Cuadro flotante izquierdo */}
-            {selected && (
-                <div className="absolute top-24 left-4 z-20 w-full max-w-sm">
-                    <div className="bg-white rounded-2xl shadow-xl border border-neutral-200 overflow-hidden">
-                        {/* Carrusel de imágenes */}
-                        <div className="relative aspect-video bg-neutral-100">
-                            <Image
-                                src={
-                                    selected.imagenes[currentImageIndex] ||
-                                    "/placeholder_location.jpg"
-                                }
-                                alt={`${selected.nombre} - imagen ${currentImageIndex + 1}`}
-                                fill
-                                className="w-full h-full object-cover cursor-pointer"
-                                onClick={() => setShowImageModal(true)}
-                            />
-
-                            {/* Controles del carrusel */}
-                            <div className="absolute inset-0 flex items-center justify-between p-2">
-                                <button
-                                    onClick={prevImage}
-                                    className="w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-colors"
-                                >
-                                    <ChevronLeft className="w-5 h-5 text-neutral-700" />
-                                </button>
-                                <button
-                                    onClick={nextImage}
-                                    className="w-10 h-10 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-colors"
-                                >
-                                    <ChevronRight className="w-5 h-5 text-neutral-700" />
-                                </button>
-                            </div>
-
-                            {/* Indicadores */}
-                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                {selected.imagenes.map((_, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() =>
-                                            setCurrentImageIndex(idx)
-                                        }
-                                        className={`w-2 h-2 rounded-full transition-all ${
-                                            idx === currentImageIndex
-                                                ? "bg-white w-6"
-                                                : "bg-white/60"
-                                        }`}
-                                    />
-                                ))}
-                            </div>
+            {registryId && (
+                <div className="absolute top-4 right-4 z-20 w-full max-w-xs">
+                    <div className="bg-white rounded-2xl shadow-lg border border-neutral-200 p-3 space-y-2">
+                        <div className="text-xs text-neutral-500">
+                            {registryName
+                                ? `Registro: ${registryName}`
+                                : "Registro seleccionado"}
                         </div>
-
-                        {/* Información */}
-                        <div className="p-5">
-                            <div className="flex items-start justify-between mb-3">
-                                <div>
-                                    <h3 className="text-lg font-bold text-neutral-900">
-                                        {selected.nombre}
-                                    </h3>
-                                    <p className="text-sm text-neutral-500">
-                                        {selected.id}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        setSelected(null);
-                                        setShowStreetView(false);
-                                        setStreetViewPosition(null);
-                                    }}
-                                    className="p-1.5 hover:bg-neutral-100 rounded-lg transition-colors"
-                                >
-                                    <X className="w-5 h-5 text-neutral-500" />
-                                </button>
+                        <input
+                            type="text"
+                            placeholder="Filtrar por clave catastral o RPP..."
+                            className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400"
+                            value={assetQuery}
+                            onChange={(e) => setAssetQuery(e.target.value)}
+                        />
+                        {isAssetSearching ? (
+                            <div className="text-xs text-neutral-500">
+                                Buscando bienes...
                             </div>
-
-                            <p className="text-sm text-neutral-600 mb-4">
-                                {selected.direccion}
-                            </p>
-
-                            <div className="text-xs text-neutral-500 mb-4 font-mono">
-                                {selected.lat.toFixed(6)},{" "}
-                                {selected.lng.toFixed(6)}
+                        ) : assetError ? (
+                            <div className="text-xs text-red-600">
+                                {assetError}
                             </div>
-
-                            {/* Botones de acción */}
-                            <div className="space-y-2">
-                                <button
-                                    className="w-full flex items-center justify-center gap-2 bg-neutral-900 text-white py-3 px-4 rounded-xl hover:bg-neutral-800 transition-colors font-medium text-sm"
-                                    onClick={() =>
-                                        alert(
-                                            "Ver archivos adjuntos de " +
-                                                selected.nombre,
-                                        )
-                                    }
-                                >
-                                    <FileText className="w-4 h-4" />
-                                    Ver archivos adjuntos
-                                </button>
-
-                                <button
-                                    className="w-full flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-3 px-4 rounded-xl hover:bg-neutral-200 transition-colors font-medium text-sm"
-                                    onClick={() => {
-                                        setStreetViewPosition({
-                                            lat: selected.lat,
-                                            lng: selected.lng,
-                                        });
-                                        setShowStreetView(true);
-                                    }}
-                                >
-                                    <Navigation className="w-4 h-4" />
-                                    Abrir vista de calle
-                                </button>
-
-                                <button
-                                    className="w-full flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-3 px-4 rounded-xl hover:bg-neutral-200 transition-colors font-medium text-sm"
-                                    onClick={() =>
-                                        openGoogleStreetView(selected)
-                                    }
-                                >
-                                    <Navigation className="w-4 h-4" />
-                                    Abrir en Google Maps
-                                </button>
+                        ) : (
+                            <div className="text-xs text-neutral-500">
+                                Mostrando {assets.length} resultado(s) (máx. 10)
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             )}
-
-            {/* Modal de imagen en grande */}
-            {showImageModal && selected && (
-                <div
-                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-                    onClick={() => setShowImageModal(false)}
-                >
-                    <div
-                        className="relative max-w-5xl w-full"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button
-                            onClick={() => setShowImageModal(false)}
-                            className="absolute -top-12 right-0 p-2 text-white hover:bg-white/20 rounded-lg transition-colors"
-                        >
-                            <X className="w-6 h-6" />
-                        </button>
-
-                        <div className="relative">
-                            <Image
-                                fill
-                                src={
-                                    selected.imagenes[currentImageIndex] ||
-                                    "/placeholder_location.jpg"
-                                }
-                                alt={`${selected.nombre} - imagen ${currentImageIndex + 1}`}
-                                className="w-full h-auto rounded-xl"
-                            />
-
-                            {/* Controles del carrusel en modal */}
-                            <div className="absolute inset-0 flex items-center justify-between p-4">
-                                <button
-                                    onClick={prevImage}
-                                    className="w-12 h-12 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-colors"
-                                >
-                                    <ChevronLeft className="w-6 h-6 text-neutral-700" />
-                                </button>
-                                <button
-                                    onClick={nextImage}
-                                    className="w-12 h-12 rounded-full bg-white/90 hover:bg-white shadow-lg flex items-center justify-center transition-colors"
-                                >
-                                    <ChevronRight className="w-6 h-6 text-neutral-700" />
-                                </button>
-                            </div>
-
-                            {/* Contador de imágenes */}
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/60 text-white text-sm rounded-full">
-                                {currentImageIndex + 1} /{" "}
-                                {selected.imagenes.length}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Mapa */}
             <GoogleMap
-                zoom={13}
-                center={
-                    selected ? { lat: selected.lat, lng: selected.lng } : center
-                }
+                zoom={assets.length ? 14 : 12}
+                center={mapCenter}
                 mapContainerClassName="w-full h-full"
             >
-                {/* ✅ Street View: se monta solo cuando showStreetView es true */}
                 {showStreetView && streetViewPosition && (
                     <StreetViewPanorama
                         options={{
@@ -457,30 +375,92 @@ export default function MapaPage() {
                             visible: true,
                             position: streetViewPosition,
                         }}
-                        onLoad={handleStreetViewLoad}
                     />
                 )}
-
-                {propiedades.map((p) => (
+                {assets.map((asset) => (
                     <Marker
-                        key={p.id}
-                        position={{ lat: p.lat, lng: p.lng }}
+                        key={String(asset.id)}
+                        position={{ lat: asset.lat, lng: asset.lng }}
                         onClick={() => {
-                            setSelected(p);
-                            setCurrentImageIndex(0);
+                            setSelectedAsset(asset);
+                            setShowStreetView(false);
                         }}
                     />
                 ))}
             </GoogleMap>
-
-            {showStreetView && (
-                <div className="absolute top-4 right-4 z-30">
-                    <button
-                        className="rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-neutral-700 shadow-lg hover:bg-white transition-colors"
-                        onClick={() => setShowStreetView(false)}
-                    >
-                        Cerrar vista de calle
-                    </button>
+            {selectedAsset && (
+                <div className="absolute bottom-4 right-4 z-20 w-full max-w-sm">
+                    <div className="bg-white rounded-3xl shadow-xl border border-neutral-200 overflow-hidden">
+                        <div className="relative aspect-[4/3] bg-neutral-100">
+                            <Image
+                                src="/placeholder_location.jpg"
+                                alt="Vista previa del bien"
+                                fill
+                                className="object-cover"
+                            />
+                        </div>
+                        <div className="p-4 space-y-3">
+                            <div className="flex items-start justify-between gap-2">
+                                <div>
+                                    <p className="text-lg font-semibold text-neutral-900">
+                                        {selectedAsset.name ?? "Bien"}
+                                    </p>
+                                    <p className="text-xs text-neutral-500">
+                                        {selectedAsset.rpp_number ?? "—"}
+                                    </p>
+                                </div>
+                                <button
+                                    className="p-1.5 rounded-full hover:bg-neutral-100"
+                                    onClick={() => {
+                                        setSelectedAsset(null);
+                                        setShowStreetView(false);
+                                        setStreetViewPosition(null);
+                                    }}
+                                >
+                                    <X className="h-4 w-4 text-neutral-500" />
+                                </button>
+                            </div>
+                            <div className="text-sm text-neutral-600">
+                                Clave catastral: {selectedAsset.c_number ?? "—"}
+                            </div>
+                            <div className="text-xs text-neutral-500">
+                                {selectedAsset.lat.toFixed(6)},{" "}
+                                {selectedAsset.lng.toFixed(6)}
+                            </div>
+                            <button
+                                className="w-full flex items-center justify-center gap-2 bg-neutral-900 text-white py-2.5 px-4 rounded-xl hover:bg-neutral-800 transition-colors font-medium text-sm"
+                                type="button"
+                                onClick={() => alert("Ver archivos adjuntos")}
+                            >
+                                <FileText className="w-4 h-4" />
+                                Ver archivos adjuntos
+                            </button>
+                            <button
+                                className="w-full flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-2.5 px-4 rounded-xl hover:bg-neutral-200 transition-colors font-medium text-sm"
+                                type="button"
+                                onClick={() => {
+                                    setStreetViewPosition({
+                                        lat: selectedAsset.lat,
+                                        lng: selectedAsset.lng,
+                                    });
+                                    setShowStreetView((prev) => !prev);
+                                }}
+                            >
+                                <Navigation className="w-4 h-4" />
+                                {showStreetView
+                                    ? "Ocultar vista de calle"
+                                    : "Abrir vista de calle"}
+                            </button>
+                            <button
+                                className="w-full flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-2.5 px-4 rounded-xl hover:bg-neutral-200 transition-colors font-medium text-sm"
+                                type="button"
+                                onClick={() => openGoogleMaps(selectedAsset)}
+                            >
+                                <Navigation className="w-4 h-4" />
+                                Abrir en Google Maps
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

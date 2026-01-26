@@ -10,6 +10,13 @@ type AssetPayload = {
     c_number: string;
     inventory_status: "active" | "maintenance" | "baja";
     operation_type_id?: number;
+    owner_name?: string;
+    registry_date?: string;
+    registry_section?: string;
+    registry_volume?: string;
+    registry_id?: number;
+    category?: Record<string, unknown>;
+    location?: Record<string, unknown>;
     status?: "active" | "maintenance" | "baja";
     description?: string;
     colony?: string;
@@ -37,6 +44,7 @@ export type AssetListParams = {
     q?: string;
     category_id?: string;
     location_id?: string;
+    registry_id?: string;
     status?: "active" | "maintenance" | "baja";
     operation_type_id?: number;
     operation_type_name?: string;
@@ -93,6 +101,9 @@ function buildAssetListQuery(params?: AssetListParams) {
     }
     if (params.location_id) {
         search.set("location_id", params.location_id);
+    }
+    if (params.registry_id) {
+        search.set("registry_id", params.registry_id);
     }
     if (params.status) {
         search.set("status", params.status);

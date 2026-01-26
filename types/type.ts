@@ -28,6 +28,21 @@ export const OperationTypeSchema = z
 
 export type OperationType = z.infer<typeof OperationTypeSchema>;
 
+export const LookupValueSchema = z
+    .object({
+        id: z.number().int(),
+        kind: z.string().optional(),
+        key: z.union([z.string(), z.number()]).nullable().optional(),
+        name: z.string().optional(),
+        position: z.number().int().nullable().optional(),
+        active: z.boolean().nullable().optional(),
+        created_at: z.string().optional(),
+        updated_at: z.string().optional(),
+    })
+    .passthrough();
+
+export type LookupValue = z.infer<typeof LookupValueSchema>;
+
 export const UbicacionSchema = z
     .object({
         id: z.number().int().optional(),
@@ -128,8 +143,8 @@ export type BienApi = z.infer<typeof BienApiSchema>;
 
 export const RegistryApiSchema = z
     .object({
-        id: z.number().int(),
-        name: z.string().optional(),
+        id: z.union([z.string(), z.number()]),
+        name: z.string().nullable().optional(),
         rpp_number: z.string().nullable().optional(),
         rpp_volume: z.string().nullable().optional(),
         rpp_section: z.string().nullable().optional(),
@@ -253,6 +268,7 @@ export type ArchivoFormValues = z.infer<typeof ArchivoFormSchema>;
 
 export const RolListSchema = z.array(RolSchema);
 export const OperationTypeListSchema = z.array(OperationTypeSchema);
+export const LookupValueListSchema = z.array(LookupValueSchema);
 export const UbicacionListSchema = z.array(UbicacionSchema);
 export const UsuarioListSchema = z.array(UsuarioSchema);
 export const BienListSchema = z.array(BienSchema);

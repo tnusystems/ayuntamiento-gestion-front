@@ -19,11 +19,22 @@ interface WizardStep1Props {
         actoJuridico: string;
         responsable: string;
         observaciones: string;
+        rppNumber: string;
+        claveCatastral: string;
+    };
+    errors?: {
+        tipoProceso?: string;
+        actoJuridico?: string;
+        responsable?: string;
     };
     updateFormData: (data: Partial<WizardStep1Props["formData"]>) => void;
 }
 
-export function WizardStep1({ formData, updateFormData }: WizardStep1Props) {
+export function WizardStep1({
+    formData,
+    errors,
+    updateFormData,
+}: WizardStep1Props) {
     const operationTypes = useOperationTypes();
 
     return (
@@ -36,7 +47,10 @@ export function WizardStep1({ formData, updateFormData }: WizardStep1Props) {
                         updateFormData({ tipoProceso: value })
                     }
                 >
-                    <SelectTrigger id="tipoProceso">
+                    <SelectTrigger
+                        id="tipoProceso"
+                        aria-invalid={!!errors?.tipoProceso}
+                    >
                         <SelectValue placeholder="Seleccionar tipo de proceso" />
                     </SelectTrigger>
                     <SelectContent>
@@ -47,6 +61,19 @@ export function WizardStep1({ formData, updateFormData }: WizardStep1Props) {
                         ))}
                     </SelectContent>
                 </Select>
+                {errors?.tipoProceso ? (
+                    <p className="text-xs text-red-600">{errors.tipoProceso}</p>
+                ) : null}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="rppNumber">RPP</Label>
+                <Input
+                    id="rppNumber"
+                    placeholder="RPP"
+                    value={formData.rppNumber}
+                    readOnly
+                />
             </div>
 
             <div className="space-y-2">
@@ -57,7 +84,10 @@ export function WizardStep1({ formData, updateFormData }: WizardStep1Props) {
                         updateFormData({ actoJuridico: value })
                     }
                 >
-                    <SelectTrigger id="actoJuridico">
+                    <SelectTrigger
+                        id="actoJuridico"
+                        aria-invalid={!!errors?.actoJuridico}
+                    >
                         <SelectValue placeholder="Seleccionar acto jurídico" />
                     </SelectTrigger>
                     <SelectContent>
@@ -74,7 +104,7 @@ export function WizardStep1({ formData, updateFormData }: WizardStep1Props) {
                             return (
                                 <SelectItem
                                     key={operationType.id}
-                                    value={label}
+                                    value={String(operationType.id)}
                                 >
                                     {label}
                                 </SelectItem>
@@ -82,6 +112,26 @@ export function WizardStep1({ formData, updateFormData }: WizardStep1Props) {
                         })}
                     </SelectContent>
                 </Select>
+                {errors?.actoJuridico ? (
+                    <p className="text-xs text-red-600">
+                        {errors.actoJuridico}
+                    </p>
+                ) : null}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="claveCatastral">Clave Catastral</Label>
+                <Input
+                    id="claveCatastral"
+                    type="number"
+                    inputMode="numeric"
+                    step="1"
+                    placeholder="Clave catastral"
+                    value={formData.claveCatastral}
+                    onChange={(e) =>
+                        updateFormData({ claveCatastral: e.target.value })
+                    }
+                />
             </div>
 
             <div className="space-y-2 sm:col-span-2">
@@ -93,7 +143,11 @@ export function WizardStep1({ formData, updateFormData }: WizardStep1Props) {
                     onChange={(e) =>
                         updateFormData({ responsable: e.target.value })
                     }
+                    aria-invalid={!!errors?.responsable}
                 />
+                {errors?.responsable ? (
+                    <p className="text-xs text-red-600">{errors.responsable}</p>
+                ) : null}
             </div>
 
             <div className="space-y-2 sm:col-span-2">
