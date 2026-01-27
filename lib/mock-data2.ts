@@ -34,12 +34,12 @@ export interface Proceso {
     id: string;
     bienId: string;
     tipo:
-    | "ALTA"
-    | "BAJA"
-    | "MODIFICACION"
-    | "REGULARIZACION"
-    | "REACTIVACION"
-    | "PI";
+        | "ALTA"
+        | "BAJA"
+        | "MODIFICACION"
+        | "REGULARIZACION"
+        | "REACTIVACION"
+        | "PI";
     actoJuridico: string;
     responsable: string;
     fechaInicio: string;
@@ -56,7 +56,7 @@ export const expedientes: Expediente[] = [
         status: "activo",
         rppNumber: "RPP-2024-001",
         bNumber: "B-001",
-        fecha_alta: "2024-01-15"
+        fecha_alta: "2024-01-15",
     },
     {
         id: "2",
@@ -64,7 +64,7 @@ export const expedientes: Expediente[] = [
         status: "activo",
         rppNumber: "RPP-2024-002",
         bNumber: "B-002",
-        fecha_alta: "2024-02-20"
+        fecha_alta: "2024-02-20",
     },
     {
         id: "3",
@@ -72,7 +72,7 @@ export const expedientes: Expediente[] = [
         status: "en_tramite",
         rppNumber: "RPP-2024-004",
         bNumber: "B-004",
-        fecha_alta: "2024-04-05"
+        fecha_alta: "2024-04-05",
     },
     {
         id: "4",
@@ -80,7 +80,7 @@ export const expedientes: Expediente[] = [
         status: "activo",
         rppNumber: "RPP-2024-006",
         bNumber: "B-006",
-        fecha_alta: "2024-05-20"
+        fecha_alta: "2024-05-20",
     },
     {
         id: "5",
@@ -88,8 +88,8 @@ export const expedientes: Expediente[] = [
         status: "en_tramite",
         rppNumber: "RPP-2024-008",
         bNumber: "B-008",
-        fecha_alta: "2024-07-10"
-    }
+        fecha_alta: "2024-07-10",
+    },
 ];
 
 // Bienes actualizados con expedienteId
@@ -103,7 +103,8 @@ export const bienes: Bien[] = [
         rppNumero: "RPP-2024-001",
         cNumero: "C-001",
         nombre: "Terreno Centro Cívico Norte",
-        descripcion: "Terreno destinado para construcción del centro cívico municipal",
+        descripcion:
+            "Terreno destinado para construcción del centro cívico municipal",
         estatus: "activo",
         fechaAlta: "2024-01-15",
         ubicacion: "Col. Centro, Calle Serdán #123",
@@ -282,7 +283,6 @@ export const categorias = [
 
 export const tiposProceso = [
     { value: "alta", label: "Alta" },
-    { value: "baja", label: "Baja" },
     { value: "reactivacion", label: "Reactivación" },
     { value: "pi", label: "Por ingresar" },
 ];
@@ -301,15 +301,17 @@ export const actosJuridicos = [
 
 // Función auxiliar para obtener bienes por expediente
 export function getBienesByExpediente(expedienteId: string): Bien[] {
-    return bienes.filter(bien => bien.expedienteId === expedienteId);
+    return bienes.filter((bien) => bien.expedienteId === expedienteId);
 }
 
 // Función para obtener un bien por ID
 export function getBienById(bienId: string): Bien | undefined {
-    return bienes.find(bien => bien.id === bienId);
+    return bienes.find((bien) => bien.id === bienId);
 }
 
 // Función para obtener un expediente por ID
-export function getExpedienteById(expedienteId: string): Expediente | undefined {
-    return expedientes.find(exp => exp.id === expedienteId);
+export function getExpedienteById(
+    expedienteId: string,
+): Expediente | undefined {
+    return expedientes.find((exp) => exp.id === expedienteId);
 }

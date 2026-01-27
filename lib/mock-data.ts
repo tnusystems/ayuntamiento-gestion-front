@@ -207,7 +207,6 @@ export const categorias = [
 
 export const tiposProceso = [
     { value: "alta", label: "Alta" },
-    { value: "baja", label: "Baja" },
     { value: "reactivacion", label: "Reactivación" },
     { value: "pi", label: "Por ingresar" },
 ];

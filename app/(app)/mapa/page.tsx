@@ -7,6 +7,7 @@ import {
     useLoadScript,
 } from "@react-google-maps/api";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FileText, Navigation, Search, X } from "lucide-react";
 import Image from "next/image";
 import { fetchRegistries, fetchRegistry } from "@/lib/api/registries";
@@ -31,6 +32,8 @@ type AssetMarker = {
 };
 
 export default function MapaPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const { isLoaded } = useLoadScript({
         googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
     });
@@ -45,6 +48,9 @@ export default function MapaPage() {
 
     const [registryId, setRegistryId] = useState<string | number | null>(null);
     const [registryName, setRegistryName] = useState<string | null>(null);
+    const selectedAssetId = searchParams.get("asset_id");
+    const registryIdParam = searchParams.get("registry_id");
+    const isDeepLink = Boolean(selectedAssetId && registryIdParam);
 
     const [assetQuery, setAssetQuery] = useState("");
     const [debouncedAssetQuery, setDebouncedAssetQuery] = useState("");
@@ -64,6 +70,37 @@ export default function MapaPage() {
         }, 400);
         return () => clearTimeout(timeoutId);
     }, [query]);
+
+    useEffect(() => {
+        let isActive = true;
+
+        const hydrateFromParams = async () => {
+            if (!registryIdParam) return;
+            setRegistryId(registryIdParam);
+            setIsRegistrySelected(true);
+            try {
+                const response = await fetchRegistry(registryIdParam);
+                if (!isActive) return;
+                const label =
+                    response?.name ??
+                    response?.rpp_number ??
+                    String(registryIdParam);
+                setRegistryName(label);
+                setQuery(label);
+            } catch {
+                // ignore
+            }
+            if (selectedAssetId) {
+                setAssetQuery("");
+                setDebouncedAssetQuery("");
+            }
+        };
+
+        void hydrateFromParams();
+        return () => {
+            isActive = false;
+        };
+    }, [registryIdParam, selectedAssetId]);
 
     useEffect(() => {
         let isActive = true;
@@ -125,7 +162,7 @@ export default function MapaPage() {
         let isActive = true;
 
         const loadAssets = async () => {
-            if (!registryId || !debouncedAssetQuery) {
+            if (!registryId || (!debouncedAssetQuery && !selectedAssetId)) {
                 setAssets([]);
                 setAssetError(null);
                 return;
@@ -133,10 +170,14 @@ export default function MapaPage() {
             setIsAssetSearching(true);
             setAssetError(null);
             try {
+                const queryValue =
+                    debouncedAssetQuery && !isDeepLink
+                        ? debouncedAssetQuery
+                        : undefined;
                 const response = await fetchAssets({
                     page: 1,
-                    per_page: 10,
-                    q: debouncedAssetQuery,
+                    per_page: 100,
+                    q: queryValue,
                     registry_id: String(registryId),
                 });
                 if (!isActive) return;
@@ -157,9 +198,16 @@ export default function MapaPage() {
                         } as AssetMarker;
                     })
                     .filter((asset): asset is AssetMarker => Boolean(asset));
-                const limitedAssets = nextAssets.slice(0, 10);
+                const limitedAssets = nextAssets.slice(0, 100);
                 setAssets(limitedAssets);
-                setSelectedAsset(null);
+                if (selectedAssetId) {
+                    const match = limitedAssets.find(
+                        (asset) => String(asset.id) === String(selectedAssetId),
+                    );
+                    setSelectedAsset(match ?? null);
+                } else {
+                    setSelectedAsset(null);
+                }
             } catch (error) {
                 if (!isActive) return;
                 setAssets([]);
@@ -180,7 +228,7 @@ export default function MapaPage() {
         return () => {
             isActive = false;
         };
-    }, [debouncedAssetQuery, registryId]);
+    }, [debouncedAssetQuery, registryId, selectedAssetId]);
 
     const handleSelectRegistry = async (registry: RegistryItem) => {
         setRegistryId(registry.id ?? null);
@@ -450,6 +498,19 @@ export default function MapaPage() {
                                 {showStreetView
                                     ? "Ocultar vista de calle"
                                     : "Abrir vista de calle"}
+                            </button>
+                            <button
+                                className="w-full flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-2.5 px-4 rounded-xl hover:bg-neutral-200 transition-colors font-medium text-sm"
+                                type="button"
+                                onClick={() => {
+                                    if (!registryId) return;
+                                    router.push(
+                                        `/assets/${registryId}/detail/${selectedAsset.id}`,
+                                    );
+                                }}
+                            >
+                                <FileText className="w-4 h-4" />
+                                Ver bien
                             </button>
                             <button
                                 className="w-full flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-2.5 px-4 rounded-xl hover:bg-neutral-200 transition-colors font-medium text-sm"

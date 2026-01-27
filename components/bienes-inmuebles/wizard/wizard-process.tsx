@@ -11,7 +11,6 @@ import {
     MapPin,
     Upload,
     ClipboardCheck,
-    Save,
     Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,8 +26,27 @@ import { WizardStep1 } from "./wizard-step-1";
 import { WizardStep2 } from "./wizard-step-2";
 import { WizardStep3 } from "./wizard-step-3";
 import { WizardStep5 } from "./wizard-step-5";
-import { createAsset } from "@/lib/api/assets";
+import ProcessLoader from "./process-loader";
+import { createAsset, createAssetDocument } from "@/lib/api/assets";
 import { fetchRegistry } from "@/lib/api/registries";
+import { createInventoryProcess } from "@/lib/api/inventory-processes";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface ProcesoWizardProps {
     bienId?: string;
@@ -67,6 +85,25 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
     const searchParams = useSearchParams();
     const [currentStep, setCurrentStep] = useState(1);
     const [createdAssetId, setCreatedAssetId] = useState<number | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitStage, setSubmitStage] = useState<
+        "idle" | "creating" | "uploading" | "done" | "error"
+    >("idle");
+    const [uploadProgress, setUploadProgress] = useState({
+        total: 0,
+        done: 0,
+    });
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [showNoDocsDialog, setShowNoDocsDialog] = useState(false);
+    const [assetStatus, setAssetStatus] = useState<
+        "pending" | "loading" | "completed"
+    >("pending");
+    const [processStatus, setProcessStatus] = useState<
+        "pending" | "loading" | "completed"
+    >("pending");
+    const [documentsStatus, setDocumentsStatus] = useState<
+        "pending" | "loading" | "completed"
+    >("pending");
     const [step1Errors, setStep1Errors] = useState<{
         tipoProceso?: string;
         actoJuridico?: string;
@@ -75,12 +112,21 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
     const resolvedBackPath =
         backPath ??
         (bienId ? `/bienes-inmuebles/${bienId}` : "/bienes-inmuebles");
+    const documentKindMap: Record<string, string> = {
+        escritura: "es_publica",
+        fotos: "foto_bien",
+        plano: "catastro_plano",
+        oficio: "solicitud",
+        certificado: "certificado",
+        avaluo: "avaluo",
+        extraordinario: "extraordinario",
+    };
 
     const tipoFromUrl = searchParams.get("tipo") || "";
     const [formData, setFormData] = useState({
         // Step 1
         tipoProceso: tipoFromUrl,
-        actoJuridico: tipoFromUrl === "BAJA" ? "Desincorporación" : "",
+        actoJuridico: "",
         responsable: "",
         observaciones: "",
         rppNumber: "",
@@ -202,7 +248,14 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
         router.push(resolvedBackPath);
     };
 
+    const countDocuments = () =>
+        formData.documentosDetalle.reduce(
+            (acc, group) => acc + group.files.length,
+            0,
+        );
+
     const handleSubmit = async () => {
+        if (isSubmitting) return;
         const toNumber = (value: string) => {
             const trimmed = value.trim();
             if (!trimmed) return 0;
@@ -220,6 +273,11 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
             block: formData.manzana.trim(),
             colony: formData.colonia.trim(),
             street: formData.calle.trim(),
+            zone_id: formData.zona.trim(),
+            domain_id: formData.dominio.trim(),
+            stage_definition_id: formData.stageDefinition.trim(),
+            land_use_id: formData.operacionU.trim(),
+            operation_type: formData.actoJuridico.trim(),
             total_area: toNumber(formData.superficieTerreno),
             built_area: toNumber(formData.superficieConstruccion),
             cadastral_value: toNumber(formData.valorCatastral),
@@ -240,12 +298,108 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
         };
 
         try {
+            setIsSubmitting(true);
+            setSubmitError(null);
+            setSubmitStage("creating");
+            setAssetStatus("loading");
+            setProcessStatus("pending");
+            setDocumentsStatus("pending");
+            setUploadProgress({ total: 0, done: 0 });
             console.log("Wizard payload:", payload);
             const response = await createAsset(payload);
-            setCreatedAssetId(response?.id ?? null);
+            const assetId = response?.id ?? null;
+            setCreatedAssetId(assetId);
+            setAssetStatus("completed");
             console.log("Create asset response:", response);
+
+            if (assetId) {
+                setProcessStatus("loading");
+                await createInventoryProcess({
+                    asset_id: assetId,
+                    process_type: formData.tipoProceso.trim().toLowerCase(),
+                    status: "ABIERTA",
+                    closed_at: now,
+                    notes: formData.observaciones.trim() || undefined,
+                });
+                setProcessStatus("completed");
+                const totalDocs = countDocuments();
+                setUploadProgress({ total: totalDocs, done: 0 });
+                if (totalDocs > 0) {
+                    setSubmitStage("uploading");
+                    setDocumentsStatus("loading");
+                } else {
+                    setDocumentsStatus("completed");
+                }
+                let position = 1;
+                for (const group of formData.documentosDetalle) {
+                    const kind = documentKindMap[group.docTypeId];
+                    if (!kind) {
+                        console.warn(
+                            "Unknown document kind for docTypeId:",
+                            group.docTypeId,
+                        );
+                        continue;
+                    }
+                    for (const file of group.files) {
+                        await createAssetDocument(assetId, {
+                            file: file.file,
+                            name: file.name,
+                            kind,
+                            position,
+                        });
+                        position += 1;
+                        setUploadProgress((prev) => ({
+                            total: prev.total,
+                            done: prev.done + 1,
+                        }));
+                    }
+                }
+            }
+            if (countDocuments() > 0) {
+                setDocumentsStatus("completed");
+            }
+            setSubmitStage("done");
         } catch (error) {
+            setSubmitError(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo completar el proceso.",
+            );
             console.error("Create asset error:", error);
+            setAssetStatus("pending");
+            setProcessStatus("pending");
+            setDocumentsStatus("pending");
+            setSubmitStage("idle");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSubmitRequest = () => {
+        if (isSubmitting) return;
+        if (countDocuments() === 0) {
+            setShowNoDocsDialog(true);
+            return;
+        }
+        void handleSubmit();
+    };
+
+    const handleConfirmSubmitWithoutDocs = () => {
+        setShowNoDocsDialog(false);
+        void handleSubmit();
+    };
+
+    const handleCloseSuccess = () => {
+        setSubmitStage("idle");
+        setAssetStatus("pending");
+        setProcessStatus("pending");
+        setDocumentsStatus("pending");
+        if (backPath === "/registry" && bienId) {
+            router.push(`/assets/${bienId}`);
+            return;
+        }
+        if (backPath) {
+            router.push(backPath);
         }
     };
 
@@ -306,10 +460,14 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                                     )}
                                     <button
                                         onClick={() =>
+                                            !isSubmitting &&
                                             step.id <= currentStep &&
                                             setCurrentStep(step.id)
                                         }
-                                        disabled={step.id > currentStep}
+                                        disabled={
+                                            isSubmitting ||
+                                            step.id > currentStep
+                                        }
                                         className={cn(
                                             "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors",
                                             step.id === currentStep
@@ -386,7 +544,7 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                 <Button
                     variant="outline"
                     onClick={handlePrevious}
-                    disabled={currentStep === 1}
+                    disabled={currentStep === 1 || isSubmitting}
                 >
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Anterior
@@ -394,18 +552,82 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
 
                 <div className="flex gap-3">
                     {currentStep === 4 ? (
-                        <Button onClick={handleSubmit}>
+                        <Button
+                            onClick={handleSubmitRequest}
+                            disabled={isSubmitting}
+                        >
                             <Send className="mr-2 h-4 w-4" />
-                            Enviar a Aprobación
+                            Guardar Asset
                         </Button>
                     ) : (
-                        <Button onClick={handleNext}>
+                        <Button onClick={handleNext} disabled={isSubmitting}>
                             Siguiente
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                     )}
                 </div>
             </div>
+
+            {submitError && (
+                <p className="text-sm text-destructive">{submitError}</p>
+            )}
+
+            <Dialog
+                open={submitStage !== "idle"}
+                onOpenChange={() => {
+                    if (submitStage === "done") {
+                        handleCloseSuccess();
+                    }
+                }}
+            >
+                <DialogContent
+                    onPointerDownOutside={(event) => event.preventDefault()}
+                    onEscapeKeyDown={(event) => event.preventDefault()}
+                >
+                    <DialogHeader>
+                        <DialogTitle className="sr-only">
+                            Progreso de guardado del asset
+                        </DialogTitle>
+                    </DialogHeader>
+                    <ProcessLoader
+                        assetStatus={assetStatus}
+                        processStatus={processStatus}
+                        documentsStatus={documentsStatus}
+                        documentsProgress={uploadProgress}
+                        embedded
+                    />
+                    {submitStage === "done" && (
+                        <DialogFooter>
+                            <Button onClick={handleCloseSuccess}>Cerrar</Button>
+                        </DialogFooter>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog
+                open={showNoDocsDialog}
+                onOpenChange={setShowNoDocsDialog}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Continuar sin documentos
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            No se han cargado documentos. ¿Deseas crear el bien
+                            de todas formas?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleConfirmSubmitWithoutDocs}
+                        >
+                            Crear sin documentos
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

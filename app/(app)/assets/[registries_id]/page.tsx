@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -12,7 +12,15 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
-import { getBienesByExpediente, getExpedienteById } from "@/lib/mock-data2";
+import { fetchAssets } from "@/lib/api/assets";
+import { fetchRegistry } from "@/lib/api/registries";
+import {
+    BienesTableContent,
+    type BienRow,
+} from "@/components/assets/bienes-table-content";
+
+type RegistryItem = Awaited<ReturnType<typeof fetchRegistry>>;
+type AssetItem = Awaited<ReturnType<typeof fetchAssets>>["data"][number];
 
 // Componente de Filtros
 function BienesTableFilters({
@@ -69,7 +77,7 @@ function BienesTableFilters({
                     onChange={(e) => setCategoriaFilter(e.target.value)}
                     className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-40"
                 >
-                    <option value="todos">Todas las categorías</option>
+                    <option value="todos">Todas las claves catastrales</option>
                     {categorias.map((cat) => (
                         <option key={cat} value={cat}>
                             {cat}
@@ -94,7 +102,7 @@ function BienesTablePagination({
     totalPages: number;
     startIndex: number;
     itemsPerPage: number;
-    filteredBienes: any[];
+    filteredBienes: BienRow[];
     setCurrentPage: (page: number | ((prev: number) => number)) => void;
 }) {
     return (
@@ -113,21 +121,26 @@ function BienesTablePagination({
                     ← Anterior
                 </button>
                 <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                        <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 w-8 ${currentPage === page
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                    : "hover:bg-accent hover:text-accent-foreground"
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                        (page) => (
+                            <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 w-8 ${
+                                    currentPage === page
+                                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                        : "hover:bg-accent hover:text-accent-foreground"
                                 }`}
-                        >
-                            {page}
-                        </button>
-                    ))}
+                            >
+                                {page}
+                            </button>
+                        ),
+                    )}
                 </div>
                 <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
                     disabled={currentPage === totalPages}
                     className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
                 >
@@ -138,113 +151,10 @@ function BienesTablePagination({
     );
 }
 
-// Componente de Tabla
-function BienesTableContent({
-    bienes,
-    router,
-}: {
-    bienes: any[];
-    router: any;
-}) {
-    const estatusConfig = {
-        activo: {
-            label: "Activo",
-            className: "bg-green-100 text-green-800 border-green-200",
-        },
-        baja: {
-            label: "Baja",
-            className: "bg-red-100 text-red-800 border-red-200",
-        },
-        en_tramite: {
-            label: "En Trámite",
-            className: "bg-yellow-100 text-yellow-800 border-yellow-200",
-        },
-    };
-
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat("es-MX", {
-            style: "currency",
-            currency: "MXN",
-        }).format(value);
-    };
-
-    return (
-        <div className="overflow-x-auto">
-            <table className="w-full">
-                <thead>
-                    <tr className="border-b border-border">
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Bien
-                        </th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Categoría
-                        </th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Ubicación
-                        </th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Valor Catastral
-                        </th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Estatus
-                        </th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                            Acciones
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {bienes.map((bien) => (
-                        <tr
-                            key={bien.id}
-                            className="border-b border-border hover:bg-muted/50"
-                        >
-                            <td className="p-4 align-middle">
-                                <div>
-                                    <div className="font-medium">{bien.nombre}</div>
-                                    <div className="text-sm text-muted-foreground capitalize">
-                                        {bien.tipo}
-                                    </div>
-                                </div>
-                            </td>
-                            <td className="p-4 align-middle">{bien.categoria}</td>
-                            <td className="p-4 align-middle">
-                                <span className="text-sm text-gray-600">{bien.ubicacion}</span>
-                            </td>
-                            <td className="p-4 align-middle font-medium">
-                                {formatCurrency(bien.valorCatastral)}
-                            </td>
-                            <td className="p-4 align-middle">
-                                <span
-                                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${estatusConfig[bien.estatus as keyof typeof estatusConfig]
-                                            ?.className || "bg-gray-100 text-gray-800 border-gray-200"
-                                        }`}
-                                >
-                                    {estatusConfig[bien.estatus as keyof typeof estatusConfig]
-                                        ?.label || bien.estatus}
-                                </span>
-                            </td>
-                            <td className="p-4 align-middle">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => router.push(`/bienes-inmuebles/${bien.id}`)}
-                                >
-                                    Ver Detalles
-                                </Button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-}
-
 export default function AssetsPage() {
     const params = useParams();
     const router = useRouter();
-    const expedienteId = params.id as string;
+    const expedienteId = params.registries_id as string;
 
     // Estados para filtros y paginación
     const [searchTerm, setSearchTerm] = useState("");
@@ -254,15 +164,157 @@ export default function AssetsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    // Obtener expediente y bienes
-    const expediente = getExpedienteById(expedienteId);
-    const bienes = getBienesByExpediente(expedienteId);
+    const [expediente, setExpediente] = useState<RegistryItem>(null);
+    const [bienes, setBienes] = useState<AssetItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadData = async () => {
+            setIsLoading(true);
+            setLoadError(null);
+            try {
+                const [registryResponse, assetsResponse] = await Promise.all([
+                    fetchRegistry(expedienteId),
+                    fetchAssets({
+                        page: 1,
+                        per_page: 200,
+                        registry_id: expedienteId,
+                    }),
+                ]);
+
+                if (!active) return;
+                setExpediente(registryResponse ?? null);
+                setBienes(assetsResponse.data ?? []);
+            } catch (error) {
+                if (!active) return;
+                setLoadError(
+                    error instanceof Error
+                        ? error.message
+                        : "Error al cargar bienes del expediente.",
+                );
+                setExpediente(null);
+                setBienes([]);
+            } finally {
+                if (active) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        void loadData();
+        return () => {
+            active = false;
+        };
+    }, [expedienteId]);
+
+    const normalizedBienes = useMemo<BienRow[]>(
+        () =>
+            bienes.map((bien) => {
+                const categoryValue = bien.c_number ?? "—";
+                const ubicacionValue =
+                    [bien.street, bien.colony].filter(Boolean).join(", ") ||
+                    bien.location?.name ||
+                    bien.location?.address ||
+                    "—";
+                const nombreValue =
+                    bien.description ||
+                    bien.colony ||
+                    bien.street ||
+                    `Bien ${bien.id}`;
+                const tipoValue = bien.operation_type_name || "—";
+                const valorCatastralNumber = Number(bien.cadastral_value);
+                const valorCatastral = Number.isFinite(valorCatastralNumber)
+                    ? valorCatastralNumber
+                    : 0;
+
+                const processType =
+                    typeof (
+                        bien as {
+                            latest_inventory_process?: {
+                                process_type?: string;
+                            };
+                        }
+                    ).latest_inventory_process?.process_type === "string"
+                        ? (
+                              bien as {
+                                  latest_inventory_process?: {
+                                      process_type?: string;
+                                  };
+                              }
+                          ).latest_inventory_process?.process_type
+                        : "";
+                const rawStatus =
+                    typeof bien.inventory_status === "string"
+                        ? bien.inventory_status
+                        : "";
+                const estatus =
+                    processType === "baja"
+                        ? "baja"
+                        : processType === "en_tramite"
+                          ? "en_tramite"
+                          : processType === "activo"
+                            ? "activo"
+                            : rawStatus === "active"
+                              ? "activo"
+                              : rawStatus === "maintenance"
+                                ? "en_tramite"
+                                : rawStatus === "baja"
+                                  ? "baja"
+                                  : rawStatus || "activo";
+
+                return {
+                    id: bien.id,
+                    nombre: nombreValue,
+                    tipo: tipoValue,
+                    categoria: categoryValue,
+                    ubicacion: ubicacionValue,
+                    valorCatastral,
+                    estatus,
+                    descripcion: bien.description,
+                };
+            }),
+        [bienes],
+    );
+
+    if (isLoading) {
+        return (
+            <div className="container mx-auto py-8">
+                <div className="text-center">
+                    <p className="text-muted-foreground">
+                        Cargando expediente...
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    if (loadError) {
+        return (
+            <div className="container mx-auto py-8">
+                <div className="text-center space-y-4">
+                    <p className="text-destructive">{loadError}</p>
+                    <Button
+                        onClick={() => router.push("/registry")}
+                        variant="outline"
+                    >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Volver a expedientes
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     if (!expediente) {
         return (
             <div className="container mx-auto py-8">
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold">Expediente no encontrado</h1>
+                    <h1 className="text-2xl font-bold">
+                        Expediente no encontrado
+                    </h1>
                     <Button
                         onClick={() => router.push("/registry")}
                         className="mt-4"
@@ -284,12 +336,23 @@ export default function AssetsPage() {
             label: "En Trámite",
             className: "bg-yellow-100 text-yellow-800",
         },
-    };
+        default: {
+            label: "Sin estatus",
+            className: "bg-gray-100 text-gray-800",
+        },
+    } as const;
+    const statusKey: keyof typeof statusConfig =
+        expediente.status &&
+        Object.prototype.hasOwnProperty.call(statusConfig, expediente.status)
+            ? (expediente.status as keyof typeof statusConfig)
+            : "default";
 
     // Filtrar bienes
-    const categoriasUnicas = Array.from(new Set(bienes.map((b) => b.categoria)));
+    const categoriasUnicas = Array.from(
+        new Set(normalizedBienes.map((b) => b.categoria).filter(Boolean)),
+    );
 
-    const filteredBienes = bienes.filter((bien) => {
+    const filteredBienes = normalizedBienes.filter((bien) => {
         const matchesSearch =
             bien.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
             bien.ubicacion.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -305,7 +368,9 @@ export default function AssetsPage() {
         const matchesCategoria =
             categoriaFilter === "todos" || bien.categoria === categoriaFilter;
 
-        return matchesSearch && matchesEstatus && matchesTipo && matchesCategoria;
+        return (
+            matchesSearch && matchesEstatus && matchesTipo && matchesCategoria
+        );
     });
 
     // Paginación
@@ -329,17 +394,24 @@ export default function AssetsPage() {
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Volver a expedientes
                     </Button>
-                    <h1 className="text-3xl font-bold mt-4">{expediente.name}</h1>
+                    <h1 className="text-3xl font-bold mt-4">
+                        {expediente.name}
+                    </h1>
                     <div className="flex items-center gap-4 mt-2">
-                        <Badge className={statusConfig[expediente.status].className}>
-                            {statusConfig[expediente.status].label}
+                        <Badge className={statusConfig[statusKey].className}>
+                            {statusConfig[statusKey].label}
                         </Badge>
                         <p className="text-muted-foreground">
-                            RPP: {expediente.rppNumber || "—"} • B:{" "}
-                            {expediente.bNumber || "—"}
+                            RPP: {expediente.rpp_number ?? "—"} • B:{" "}
+                            {expediente.b_number ?? "—"}
                         </p>
                     </div>
                 </div>
+                <Button
+                    onClick={() => router.push(`/assets/new/${expedienteId}`)}
+                >
+                    Agregar asset
+                </Button>
             </div>
 
             {/* Filtros */}
@@ -373,7 +445,11 @@ export default function AssetsPage() {
                     ) : (
                         <div className="space-y-4">
                             <div className="rounded-lg border border-border bg-white">
-                                <BienesTableContent bienes={paginatedBienes} router={router} />
+                                <BienesTableContent
+                                    bienes={paginatedBienes}
+                                    router={router}
+                                    expedienteId={expedienteId}
+                                />
 
                                 <BienesTablePagination
                                     currentPage={currentPage}

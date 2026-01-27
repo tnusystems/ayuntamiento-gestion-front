@@ -29,11 +29,17 @@ type AssetPayload = {
     commercial_value?: string | number;
     latitude?: string | number;
     longitude?: string | number;
+    domain_id?: string;
+    operation_type?: string;
+    land_use_id?: string;
+    stage_definition_id?: string;
+    zone_id?: string;
 };
 
 type AssetDocumentPayload = {
     file: File;
     name?: string;
+    kind?: string;
     position?: number;
     metadata?: Record<string, unknown>;
 };
@@ -165,7 +171,11 @@ export async function createAssetDocument(
     if (payload.name) {
         formData.append("document[name]", payload.name);
     }
-    formData.append("document[document_type_id]", "171");
+    if (payload.kind) {
+        formData.append("document[kind]", payload.kind);
+    } else {
+        formData.append("document[document_type_id]", "171");
+    }
     if (payload.position !== undefined) {
         formData.append("document[position]", String(payload.position));
     }

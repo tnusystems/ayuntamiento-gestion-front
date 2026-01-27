@@ -6,40 +6,73 @@ import BienPerfilVigente from "./bien-perfil-vigente";
 import BienProcesos from "./bien-procesos";
 import BienDocumentos from "./bien-documentos";
 interface BienDetailTabsProps {
-  bien: any;
-  bienId: string;
-  procesosCount?: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    bien: any;
+    bienId: string;
+    procesos?: Array<{
+        id?: string | number;
+        tipo?: string;
+        status?: string | null;
+        opened_at?: string | null;
+        closed_at?: string | null;
+        notes?: string | null;
+    }>;
+    documentos?: Array<{
+        id?: string | number;
+        name?: string | null;
+        filename?: string | null;
+        byte_size?: number | null;
+        created_at?: string | null;
+        download_url?: string | null;
+        url?: string | null;
+    }>;
+    registry?: {
+        rpp_number?: string | null;
+        rpp_date?: string | null;
+        rpp_volume?: string | null;
+        rpp_section?: string | null;
+        e_number?: string | null;
+        e_date?: string | null;
+        e_notary?: string | null;
+        b_number?: string | null;
+        b_date?: string | null;
+        co_number?: string | null;
+    } | null;
 }
 
 export default function BienDetailTabs({
-  bien,
-  bienId,
-  procesosCount = 0,
+    bien,
+    bienId,
+    procesos = [],
+    documentos = [],
+    registry = null,
 }: BienDetailTabsProps) {
-  return (
-    <Tabs defaultValue="general" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="general">Información General</TabsTrigger>
-        <TabsTrigger value="perfil">Perfil Vigente</TabsTrigger>
-        <TabsTrigger value="procesos">Procesos ({procesosCount})</TabsTrigger>
-        <TabsTrigger value="documentos">Documentos</TabsTrigger>
-      </TabsList>
+    return (
+        <Tabs defaultValue="general" className="space-y-4">
+            <TabsList>
+                <TabsTrigger value="general">Información General</TabsTrigger>
+                <TabsTrigger value="perfil">Perfil Vigente</TabsTrigger>
+                <TabsTrigger value="procesos">
+                    Procesos ({procesos.length})
+                </TabsTrigger>
+                <TabsTrigger value="documentos">Documentos</TabsTrigger>
+            </TabsList>
 
-      <TabsContent value="general">
-        <BienGeneralInfo bien={bien} />
-      </TabsContent>
+            <TabsContent value="general">
+                <BienGeneralInfo bien={bien} registry={registry} />
+            </TabsContent>
 
-      <TabsContent value="perfil">
-        <BienPerfilVigente bien={bien} />
-      </TabsContent>
+            <TabsContent value="perfil">
+                <BienPerfilVigente bien={bien} />
+            </TabsContent>
 
-      <TabsContent value="procesos">
-        <BienProcesos bienId={bienId} />
-      </TabsContent>
+            <TabsContent value="procesos">
+                <BienProcesos bienId={bienId} procesos={procesos} />
+            </TabsContent>
 
-      <TabsContent value="documentos">
-        <BienDocumentos />
-      </TabsContent>
-    </Tabs>
-  );
+            <TabsContent value="documentos">
+                <BienDocumentos documentos={documentos} />
+            </TabsContent>
+        </Tabs>
+    );
 }
