@@ -7,7 +7,7 @@ import {
     useLoadScript,
 } from "@react-google-maps/api";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { FileText, Navigation, Search, X } from "lucide-react";
 import Image from "next/image";
 import { fetchRegistries, fetchRegistry } from "@/lib/api/registries";
@@ -29,10 +29,16 @@ type AssetMarker = {
     name?: string | null;
 };
 
-export default function MapaClient() {
+export default function MapaClient({
+    initialRegistryId,
+    initialAssetId,
+}: {
+    initialRegistryId?: string | number | null;
+    initialAssetId?: string | number | null;
+}) {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const { isLoaded } = useLoadScript({
+    const { isLoaded, loadError } = useLoadScript({
+        id: "google-maps-script",
         googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
     });
 
@@ -46,8 +52,8 @@ export default function MapaClient() {
 
     const [registryId, setRegistryId] = useState<string | number | null>(null);
     const [registryName, setRegistryName] = useState<string | null>(null);
-    const selectedAssetId = searchParams.get("asset_id");
-    const registryIdParam = searchParams.get("registry_id");
+    const selectedAssetId = initialAssetId;
+    const registryIdParam = initialRegistryId;
     const isDeepLink = Boolean(selectedAssetId && registryIdParam);
 
     const [assetQuery, setAssetQuery] = useState("");
@@ -312,6 +318,14 @@ export default function MapaClient() {
         return (
             <div className="flex items-center justify-center h-screen bg-neutral-50">
                 <p className="text-neutral-600">Cargando mapa...</p>
+            </div>
+        );
+    }
+
+    if (loadError) {
+        return (
+            <div className="p-4 text-red-600">
+                Error cargando Google Maps: {String(loadError)}
             </div>
         );
     }
