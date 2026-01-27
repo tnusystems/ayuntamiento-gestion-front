@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +55,7 @@ const formatDate = (value?: string | null) => {
 
 export default function RegistryPage() {
     const [searchTerm, setSearchTerm] = useState("");
+    const router = useRouter();
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("todos");
     const [currentPage, setCurrentPage] = useState(1);
@@ -90,20 +92,14 @@ export default function RegistryPage() {
 
                 if (!active) return;
                 setData(response.data ?? []);
-                const responsePage =
-                    response.pagination?.current_page ?? currentPage;
+                const responsePage = response.pagination?.current_page ?? currentPage;
                 if (responsePage !== currentPage) {
                     setCurrentPage(responsePage);
                 }
                 setPagination({
                     currentPage: responsePage,
-                    totalPages: Math.max(
-                        1,
-                        response.pagination?.total_pages ?? 1,
-                    ),
-                    totalCount:
-                        response.pagination?.total_count ??
-                        response.data.length,
+                    totalPages: Math.max(1, response.pagination?.total_pages ?? 1),
+                    totalCount: response.pagination?.total_count ?? response.data.length,
                     perPage: response.pagination?.per_page ?? itemsPerPage,
                 });
             } catch (error) {
@@ -112,9 +108,7 @@ export default function RegistryPage() {
                     return;
                 }
                 setLoadError(
-                    error instanceof Error
-                        ? error.message
-                        : "Error al cargar registros.",
+                    error instanceof Error ? error.message : "Error al cargar registros.",
                 );
                 setData([]);
                 setPagination({
@@ -171,14 +165,10 @@ export default function RegistryPage() {
                             <SelectValue placeholder="Estatus" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="todos">
-                                Todos los estatus
-                            </SelectItem>
+                            <SelectItem value="todos">Todos los estatus</SelectItem>
                             <SelectItem value="activo">Activo</SelectItem>
                             <SelectItem value="baja">Baja</SelectItem>
-                            <SelectItem value="en_tramite">
-                                En trámite
-                            </SelectItem>
+                            <SelectItem value="en_tramite">En trámite</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -235,7 +225,11 @@ export default function RegistryPage() {
                                     ? statusValue
                                     : "default";
                                 return (
-                                    <TableRow key={item.id}>
+                                    <TableRow
+                                        key={item.id}
+                                        className="cursor-pointer hover:bg-muted/50"
+                                        onClick={() => router.push(`/assets/${item.id}`)}
+                                    >
                                         <TableCell className="pl-4 font-medium">
                                             {item.name ?? "—"}
                                         </TableCell>
@@ -250,19 +244,13 @@ export default function RegistryPage() {
                                                     </span>
                                                 </p>
                                                 <p className="text-muted-foreground">
-                                                    <span className="text-xs">
-                                                        Volumen:
-                                                    </span>{" "}
+                                                    <span className="text-xs">Volumen:</span>{" "}
                                                     {item.rpp_volume ?? "—"} ·{" "}
-                                                    <span className="text-xs">
-                                                        Sección:
-                                                    </span>{" "}
+                                                    <span className="text-xs">Sección:</span>{" "}
                                                     {item.rpp_section ?? "—"}
                                                 </p>
                                                 <p className="text-muted-foreground">
-                                                    <span className="text-xs">
-                                                        RPP Fecha:
-                                                    </span>{" "}
+                                                    <span className="text-xs">RPP Fecha:</span>{" "}
                                                     {formatDate(item.rpp_date)}
                                                 </p>
                                             </div>
@@ -278,15 +266,11 @@ export default function RegistryPage() {
                                                     </span>
                                                 </p>
                                                 <p className="text-muted-foreground">
-                                                    <span className="text-xs">
-                                                        Volumen:
-                                                    </span>{" "}
+                                                    <span className="text-xs">Volumen:</span>{" "}
                                                     {item.b_volume ?? "—"}
                                                 </p>
                                                 <p className="text-muted-foreground">
-                                                    <span className="text-xs">
-                                                        Fecha:
-                                                    </span>{" "}
+                                                    <span className="text-xs">Fecha:</span>{" "}
                                                     {formatDate(item.b_date)}
                                                 </p>
                                             </div>
@@ -302,15 +286,11 @@ export default function RegistryPage() {
                                                     </span>
                                                 </p>
                                                 <p className="text-muted-foreground">
-                                                    <span className="text-xs">
-                                                        Notaría:
-                                                    </span>{" "}
+                                                    <span className="text-xs">Notaría:</span>{" "}
                                                     {item.e_notary ?? "—"}
                                                 </p>
                                                 <p className="text-muted-foreground">
-                                                    <span className="text-xs">
-                                                        Fecha:
-                                                    </span>{" "}
+                                                    <span className="text-xs">Fecha:</span>{" "}
                                                     {formatDate(item.e_date)}
                                                 </p>
                                             </div>
@@ -326,9 +306,7 @@ export default function RegistryPage() {
                                                     </span>
                                                 </p>
                                                 <p className="text-muted-foreground">
-                                                    <span className="text-xs">
-                                                        Fecha:
-                                                    </span>{" "}
+                                                    <span className="text-xs">Fecha:</span>{" "}
                                                     {formatDate(item.co_date)}
                                                 </p>
                                             </div>
@@ -336,28 +314,16 @@ export default function RegistryPage() {
                                         <TableCell>
                                             <div className="text-sm text-muted-foreground">
                                                 <p>
-                                                    <span className="text-xs">
-                                                        Alta:
-                                                    </span>{" "}
-                                                    {formatDate(
-                                                        item.fecha_alta,
-                                                    )}
+                                                    <span className="text-xs">Alta:</span>{" "}
+                                                    {formatDate(item.fecha_alta)}
                                                 </p>
                                                 <p>
-                                                    <span className="text-xs">
-                                                        Creado:
-                                                    </span>{" "}
-                                                    {formatDate(
-                                                        item.created_at,
-                                                    )}
+                                                    <span className="text-xs">Creado:</span>{" "}
+                                                    {formatDate(item.created_at)}
                                                 </p>
                                                 <p>
-                                                    <span className="text-xs">
-                                                        Actualizado:
-                                                    </span>{" "}
-                                                    {formatDate(
-                                                        item.updated_at,
-                                                    )}
+                                                    <span className="text-xs">Actualizado:</span>{" "}
+                                                    {formatDate(item.updated_at)}
                                                 </p>
                                             </div>
                                         </TableCell>
@@ -365,19 +331,12 @@ export default function RegistryPage() {
                                             <div className="space-y-2">
                                                 <Badge
                                                     variant="outline"
-                                                    className={
-                                                        statusConfig[statusKey]
-                                                            .className
-                                                    }
+                                                    className={statusConfig[statusKey].className}
                                                 >
-                                                    {
-                                                        statusConfig[statusKey]
-                                                            .label
-                                                    }
+                                                    {statusConfig[statusKey].label}
                                                 </Badge>
                                                 <p className="text-xs text-muted-foreground">
-                                                    Baja:{" "}
-                                                    {item.st_baja ? "Sí" : "No"}
+                                                    Baja: {item.st_baja ? "Sí" : "No"}
                                                 </p>
                                             </div>
                                         </TableCell>
@@ -390,16 +349,14 @@ export default function RegistryPage() {
 
                 <div className="flex items-center justify-between border-t border-border px-4 py-3">
                     <p className="text-sm text-muted-foreground">
-                        Mostrando {displayFrom} a {displayTo} de{" "}
-                        {pagination.totalCount} registros
+                        Mostrando {displayFrom} a {displayTo} de {pagination.totalCount}{" "}
+                        registros
                     </p>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                                setCurrentPage((p) => Math.max(1, p - 1))
-                            }
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                             disabled={pagination.currentPage <= 1 || isLoading}
                         >
                             Anterior
@@ -408,13 +365,10 @@ export default function RegistryPage() {
                             variant="outline"
                             size="sm"
                             onClick={() =>
-                                setCurrentPage((p) =>
-                                    Math.min(pagination.totalPages, p + 1),
-                                )
+                                setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
                             }
                             disabled={
-                                pagination.currentPage >=
-                                    pagination.totalPages || isLoading
+                                pagination.currentPage >= pagination.totalPages || isLoading
                             }
                         >
                             Siguiente

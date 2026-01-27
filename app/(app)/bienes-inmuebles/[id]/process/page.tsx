@@ -1,33 +1,37 @@
+// app/(app)/bienes-inmuebles/[id]/process/page.tsx
 "use client";
-import { useParams } from "next/navigation";
-import useGetAssetByID from "@/lib/hooks/assets";
-import AssetLoader from "@/components/bienes-inmuebles/asset-loader";
-import { ProcesoWizard } from "@/components/bienes-inmuebles/wizard/wizard-process";
 
-export default function ProcessPage() {
-    const params = useParams<{ id: string }>();
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-    const { asset, isLoading, isError } = useGetAssetByID(params.id);
+interface ProcessPageProps {
+  params: {
+    id: string;
+  };
+}
 
-    console.log(asset);
+export default function ProcessPage({ params }: ProcessPageProps) {
+  const router = useRouter();
 
-    if (isLoading) {
-        return <AssetLoader id={params.id} />;
-    }
-
-    if (isError) {
-        return (
-            <div className="text-sm text-red-600">
-                No se pudo cargar el bien #{params.id}. Intenta nuevamente.
-            </div>
-        );
-    }
-
-    return (
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
         <div>
-            <div className="p-6">
-                <ProcesoWizard bienId={params.id} />
-            </div>
+          <h1 className="text-3xl font-bold tracking-tight">Nuevo Proceso</h1>
+          <p className="text-gray-600 mt-1">
+            Crear nuevo proceso para el bien ID: {params.id}
+          </p>
         </div>
-    );
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <p>Formulario para crear nuevo proceso...</p>
+        {/* Aquí va tu formulario para crear procesos */}
+      </div>
+    </div>
+  );
 }
