@@ -6,7 +6,6 @@ import {
     FileText,
     MapPin,
     Upload,
-    ListChecks,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,19 +26,14 @@ interface WizardStep5Props {
         superficieConstruccion: string;
         zona: string;
         dominio: string;
-        situacion: string;
+        stageDefinition: string;
+        operacionU: string;
         valorCatastral: string;
         valorComercial: string;
         lat: string;
         alt: string;
         observacionesTecnicas: string;
         documentos: string[];
-        etapas: Array<{
-            nombre: string;
-            completada: boolean;
-            fecha: string;
-            observaciones: string;
-        }>;
     };
 }
 
@@ -47,10 +41,6 @@ export function WizardStep5({ formData }: WizardStep5Props) {
     const tipoProcesoLabel =
         tiposProceso.find((t) => t.value === formData.tipoProceso)?.label ||
         formData.tipoProceso;
-    const etapasCompletadas = formData.etapas.filter(
-        (e) => e.completada,
-    ).length;
-
     const isComplete = (section: string) => {
         switch (section) {
             case "proceso":
@@ -63,8 +53,6 @@ export function WizardStep5({ formData }: WizardStep5Props) {
                 return formData.colonia && formData.calle;
             case "documentos":
                 return formData.documentos.length > 0;
-            case "etapas":
-                return true;
             default:
                 return false;
         }
@@ -256,49 +244,6 @@ export function WizardStep5({ formData }: WizardStep5Props) {
                                 )}
                             </ul>
                         )}
-                    </CardContent>
-                </Card>
-
-                {/* Stages */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <ListChecks className="h-4 w-4" />
-                                Etapas del Trámite
-                            </CardTitle>
-                            <Badge
-                                variant="outline"
-                                className="bg-info/10 text-info border-info/20"
-                            >
-                                {etapasCompletadas}/{formData.etapas.length}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="text-sm">
-                        <div className="space-y-2">
-                            {formData.etapas.map((etapa, index) => (
-                                <div
-                                    key={index}
-                                    className="flex items-center justify-between"
-                                >
-                                    <span
-                                        className={
-                                            etapa.completada
-                                                ? "text-foreground"
-                                                : "text-muted-foreground"
-                                        }
-                                    >
-                                        {etapa.nombre}
-                                    </span>
-                                    {etapa.completada ? (
-                                        <CheckCircle2 className="h-4 w-4 text-success" />
-                                    ) : (
-                                        <span className="h-4 w-4 rounded-full border border-muted-foreground/30" />
-                                    )}
-                                </div>
-                            ))}
-                        </div>
                     </CardContent>
                 </Card>
             </div>

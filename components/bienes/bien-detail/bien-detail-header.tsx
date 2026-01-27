@@ -25,6 +25,7 @@ export default function BienDetailHeader({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex items-start gap-4">
         <Button variant="ghost" size="icon" asChild>
+          {/* //cambiar link para regresar a assets [id] */}
           <Link href="/bienes-inmuebles">
             <ArrowLeft className="h-5 w-5" />
           </Link>

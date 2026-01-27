@@ -45,6 +45,7 @@ export default function BienDetail({ bienId }: BienDetailProps) {
           El bien solicitado no existe en el sistema
         </p>
         <Button asChild className="mt-4">
+          {/* //cambiar link */}
           <a href="/bienes-inmuebles">Volver al Listado</a>
         </Button>
       </div>

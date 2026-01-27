@@ -33,11 +33,6 @@ const baseNavItems = [
         icon: File,
         path: "/registry",
     },
-    {
-        label: "Archivos",
-        icon: Folder,
-        path: "/archivos",
-    },
 
     {
         label: "Mapas",

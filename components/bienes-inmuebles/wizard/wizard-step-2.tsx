@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +11,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { fetchCatalogs, type LookupCatalogs } from "@/lib/api/lookup-values";
+import type { LookupValue } from "@/types";
 
 interface WizardStep2Props {
     formData: {
@@ -22,7 +25,8 @@ interface WizardStep2Props {
         superficieConstruccion: string;
         zona: string;
         dominio: string;
-        situacion: string;
+        stageDefinition: string;
+        operacionU: string;
         valorCatastral: string;
         valorComercial: string;
         lat: string;
@@ -33,6 +37,82 @@ interface WizardStep2Props {
 }
 
 export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
+    const [catalogs, setCatalogs] = useState<LookupCatalogs | null>(null);
+    const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
+    const [catalogsError, setCatalogsError] = useState<string | null>(null);
+    const [catalogSearch, setCatalogSearch] = useState({
+        zone: "",
+        domain: "",
+        stage_definition: "",
+        operacion_u: "",
+    });
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadCatalogs = async () => {
+            setIsLoadingCatalogs(true);
+            setCatalogsError(null);
+            try {
+                const data = await fetchCatalogs();
+                if (isMounted) {
+                    setCatalogs(data);
+                }
+            } catch (error) {
+                if (isMounted) {
+                    setCatalogs(null);
+                    setCatalogsError(
+                        error instanceof Error
+                            ? error.message
+                            : "No se pudieron cargar los catalogos.",
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setIsLoadingCatalogs(false);
+                }
+            }
+        };
+
+        void loadCatalogs();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    const renderCatalogItems = (items: LookupValue[], searchValue: string) => {
+        if (isLoadingCatalogs) {
+            return (
+                <SelectItem value="__loading" disabled>
+                    Cargando...
+                </SelectItem>
+            );
+        }
+        const normalizedSearch = searchValue.trim().toLowerCase();
+        const filteredItems = normalizedSearch
+            ? items.filter((item) => {
+                  const label = item.name ?? String(item.key ?? item.id);
+                  return label.toLowerCase().includes(normalizedSearch);
+              })
+            : items;
+        if (filteredItems.length === 0) {
+            return (
+                <SelectItem value="__empty" disabled>
+                    Sin opciones
+                </SelectItem>
+            );
+        }
+        return filteredItems.map((item) => {
+            const value = String(item.id);
+            const label = item.name ?? String(item.key ?? item.id);
+            return (
+                <SelectItem key={item.id} value={value}>
+                    {label}
+                </SelectItem>
+            );
+        });
+    };
+
     return (
         <div className="space-y-8">
             {/* Location Section */}
@@ -108,10 +188,22 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 <SelectValue placeholder="Seleccionar zona" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="norte">Norte</SelectItem>
-                                <SelectItem value="sur">Sur</SelectItem>
-                                <SelectItem value="este">Este</SelectItem>
-                                <SelectItem value="oeste">Oeste</SelectItem>
+                                <div className="p-2">
+                                    <Input
+                                        placeholder="Buscar zona..."
+                                        value={catalogSearch.zone}
+                                        onChange={(e) =>
+                                            setCatalogSearch((prev) => ({
+                                                ...prev,
+                                                zone: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                {renderCatalogItems(
+                                    catalogs?.zone ?? [],
+                                    catalogSearch.zone,
+                                )}
                             </SelectContent>
                         </Select>
                     </div>
@@ -168,30 +260,99 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 <SelectValue placeholder="Seleccionar" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="publico">Público</SelectItem>
-                                <SelectItem value="privado">Privado</SelectItem>
+                                <div className="p-2">
+                                    <Input
+                                        placeholder="Buscar dominio..."
+                                        value={catalogSearch.domain}
+                                        onChange={(e) =>
+                                            setCatalogSearch((prev) => ({
+                                                ...prev,
+                                                domain: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                {renderCatalogItems(
+                                    catalogs?.domain ?? [],
+                                    catalogSearch.domain,
+                                )}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            </div>
+
+            {/* Catalogs Section */}
+            <div>
+                <h3 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    Catálogos
+                </h3>
+                {catalogsError ? (
+                    <p className="mb-4 text-sm text-red-600">{catalogsError}</p>
+                ) : null}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="stageDefinition">
+                            Etapa del Trámite
+                        </Label>
+                        <Select
+                            value={formData.stageDefinition}
+                            onValueChange={(value) =>
+                                updateFormData({ stageDefinition: value })
+                            }
+                        >
+                            <SelectTrigger id="stageDefinition">
+                                <SelectValue placeholder="Seleccionar etapa" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <div className="p-2">
+                                    <Input
+                                        placeholder="Buscar etapa..."
+                                        value={catalogSearch.stage_definition}
+                                        onChange={(e) =>
+                                            setCatalogSearch((prev) => ({
+                                                ...prev,
+                                                stage_definition:
+                                                    e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                {renderCatalogItems(
+                                    catalogs?.stage_definition ?? [],
+                                    catalogSearch.stage_definition,
+                                )}
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="situacion">Situación Jurídica</Label>
+                        <Label htmlFor="operacionU">Uso de suelo</Label>
                         <Select
-                            value={formData.situacion}
+                            value={formData.operacionU}
                             onValueChange={(value) =>
-                                updateFormData({ situacion: value })
+                                updateFormData({ operacionU: value })
                             }
                         >
-                            <SelectTrigger id="situacion">
+                            <SelectTrigger id="operacionU">
                                 <SelectValue placeholder="Seleccionar" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="regular">Regular</SelectItem>
-                                <SelectItem value="irregular">
-                                    Irregular
-                                </SelectItem>
-                                <SelectItem value="en_proceso">
-                                    En Proceso
-                                </SelectItem>
+                                <div className="p-2">
+                                    <Input
+                                        placeholder="Buscar uso de suelo..."
+                                        value={catalogSearch.operacion_u}
+                                        onChange={(e) =>
+                                            setCatalogSearch((prev) => ({
+                                                ...prev,
+                                                operacion_u: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                {renderCatalogItems(
+                                    catalogs?.operacion_u ?? [],
+                                    catalogSearch.operacion_u,
+                                )}
                             </SelectContent>
                         </Select>
                     </div>
@@ -240,6 +401,9 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                         <Label htmlFor="lat">Lat</Label>
                         <Input
                             id="lat"
+                            type="number"
+                            inputMode="decimal"
+                            step="any"
                             placeholder="29.0729"
                             value={formData.lat}
                             onChange={(e) =>
@@ -251,6 +415,9 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                         <Label htmlFor="alt">Alt</Label>
                         <Input
                             id="alt"
+                            type="number"
+                            inputMode="numeric"
+                            step="1"
                             placeholder="200"
                             value={formData.alt}
                             onChange={(e) =>
