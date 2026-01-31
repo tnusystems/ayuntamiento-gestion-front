@@ -12,6 +12,8 @@ import {
     Map,
     Users,
     File,
+    ClipboardList,
+    ShieldCheck,
 } from "lucide-react";
 
 type SidebarProps = {
@@ -60,6 +62,16 @@ export default function AppSidebar({
         ? [
               ...baseNavItems,
               { label: "Usuarios", icon: Users, path: "/usuarios" },
+              {
+                  label: "Auditoría",
+                  icon: ShieldCheck,
+                  path: "/admin/auditoria",
+              },
+              {
+                  label: "Solicitudes de cambio",
+                  icon: ClipboardList,
+                  path: "/admin/solicitudes-cambio",
+              },
           ]
         : baseNavItems;
     const activePath = currentPath || pathname;
