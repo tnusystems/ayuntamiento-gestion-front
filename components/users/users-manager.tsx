@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Edit, Shield, ToggleLeft, ToggleRight, UserPlus } from "lucide-react";
-import { createUser, fetchUsers } from "@/lib/api/users";
-import type { Usuario } from "@/types";
+import { createUser, fetchRoles, fetchUsers } from "@/lib/api/users";
+import type { Rol, Usuario } from "@/types";
 
 type UserRecord = {
     id: string;
     name: string;
     email: string;
     role: string;
+    roles: string[];
     isActive: boolean;
 };
 
@@ -19,25 +20,37 @@ type CreateUserForm = {
     password: string;
     passwordConfirmation: string;
     role: string;
+    fatherLastName: string;
+    motherLastName: string;
+    employeeNumber: string;
+    address: string;
+    roles: number[];
 };
 
-const ROLE_OPTIONS = ["Todos", "Admin", "User"];
+const DEFAULT_ROLE_OPTIONS = ["Todos", "Sin rol"];
 
 export default function UsersManager() {
     const [users, setUsers] = useState<UserRecord[]>([]);
+    const [roles, setRoles] = useState<Rol[]>([]);
     const [query, setQuery] = useState("");
-    const [roleFilter, setRoleFilter] = useState(ROLE_OPTIONS[0]);
+    const [roleFilter, setRoleFilter] = useState(DEFAULT_ROLE_OPTIONS[0]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
     const [createForm, setCreateForm] = useState<CreateUserForm>({
         name: "",
         email: "",
         password: "",
         passwordConfirmation: "",
         role: "user",
+        fatherLastName: "",
+        motherLastName: "",
+        employeeNumber: "",
+        address: "",
+        roles: [],
     });
 
     useEffect(() => {
@@ -47,9 +60,13 @@ export default function UsersManager() {
             setIsLoading(true);
             setLoadError(null);
             try {
-                const data = await fetchUsers();
+                const [usersData, rolesData] = await Promise.all([
+                    fetchUsers(),
+                    fetchRoles(),
+                ]);
                 if (!isMounted) return;
-                setUsers(data.map(toUserRecord));
+                setUsers(usersData.map(toUserRecord));
+                setRoles(rolesData);
             } catch (error) {
                 if (!isMounted) return;
                 setLoadError(
@@ -87,7 +104,11 @@ export default function UsersManager() {
                 user.email.toLowerCase().includes(normalizedQuery);
             const matchesRole =
                 normalizedRole === "todos" ||
-                user.role.toLowerCase() === normalizedRole;
+                (normalizedRole === "sin rol" && user.roles.length === 0) ||
+                user.role.toLowerCase() === normalizedRole ||
+                user.roles.some(
+                    (roleName) => roleName.toLowerCase() === normalizedRole,
+                );
             return matchesQuery && matchesRole;
         });
     }, [users, query, roleFilter]);
@@ -122,6 +143,18 @@ export default function UsersManager() {
         setCreateForm((prev) => ({ ...prev, [field]: value }));
     };
 
+    const handleToggleCreateRole = (roleId: number) => {
+        setCreateForm((prev) => {
+            const exists = prev.roles.includes(roleId);
+            return {
+                ...prev,
+                roles: exists
+                    ? prev.roles.filter((id) => id !== roleId)
+                    : [...prev.roles, roleId],
+            };
+        });
+    };
+
     const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setCreateError(null);
@@ -140,6 +173,11 @@ export default function UsersManager() {
                 password: createForm.password,
                 password_confirmation: createForm.passwordConfirmation,
                 role: "user",
+                father_last_name: createForm.fatherLastName.trim() || null,
+                mother_last_name: createForm.motherLastName.trim() || null,
+                employee_number: createForm.employeeNumber.trim() || null,
+                address: createForm.address.trim() || null,
+                roles: createForm.roles,
             };
             const created = await createUser(payload);
             setUsers((prev) => [toUserRecord(created), ...prev]);
@@ -149,6 +187,11 @@ export default function UsersManager() {
                 password: "",
                 passwordConfirmation: "",
                 role: "user",
+                fatherLastName: "",
+                motherLastName: "",
+                employeeNumber: "",
+                address: "",
+                roles: [],
             });
             setIsCreateOpen(false);
         } catch (error) {
@@ -208,6 +251,38 @@ export default function UsersManager() {
                         </div>
                         <div>
                             <label className="text-xs font-semibold text-neutral-500">
+                                Apellido paterno
+                            </label>
+                            <input
+                                type="text"
+                                value={createForm.fatherLastName}
+                                onChange={(event) =>
+                                    handleCreateChange(
+                                        "fatherLastName",
+                                        event.target.value,
+                                    )
+                                }
+                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-neutral-500">
+                                Apellido materno
+                            </label>
+                            <input
+                                type="text"
+                                value={createForm.motherLastName}
+                                onChange={(event) =>
+                                    handleCreateChange(
+                                        "motherLastName",
+                                        event.target.value,
+                                    )
+                                }
+                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-neutral-500">
                                 Correo
                             </label>
                             <input
@@ -225,15 +300,30 @@ export default function UsersManager() {
                         </div>
                         <div>
                             <label className="text-xs font-semibold text-neutral-500">
-                                Contrasena
+                                Número de empleado
                             </label>
                             <input
-                                type="password"
-                                required
-                                value={createForm.password}
+                                type="text"
+                                value={createForm.employeeNumber}
                                 onChange={(event) =>
                                     handleCreateChange(
-                                        "password",
+                                        "employeeNumber",
+                                        event.target.value,
+                                    )
+                                }
+                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-semibold text-neutral-500">
+                                Dirección
+                            </label>
+                            <input
+                                type="text"
+                                value={createForm.address}
+                                onChange={(event) =>
+                                    handleCreateChange(
+                                        "address",
                                         event.target.value,
                                     )
                                 }
@@ -242,20 +332,69 @@ export default function UsersManager() {
                         </div>
                         <div>
                             <label className="text-xs font-semibold text-neutral-500">
+                                Contrasena
+                            </label>
+                            <div className="relative mt-1">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    value={createForm.password}
+                                    onChange={(event) =>
+                                        handleCreateChange(
+                                            "password",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 pr-10 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setShowPassword((prev) => !prev)
+                                    }
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-500 hover:text-neutral-700"
+                                    aria-label={
+                                        showPassword
+                                            ? "Ocultar contrasena"
+                                            : "Mostrar contrasena"
+                                    }
+                                >
+                                    {showPassword ? "Ocultar" : "Ver"}
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold text-neutral-500">
                                 Confirmacion
                             </label>
-                            <input
-                                type="password"
-                                required
-                                value={createForm.passwordConfirmation}
-                                onChange={(event) =>
-                                    handleCreateChange(
-                                        "passwordConfirmation",
-                                        event.target.value,
-                                    )
-                                }
-                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                            />
+                            <div className="relative mt-1">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    value={createForm.passwordConfirmation}
+                                    onChange={(event) =>
+                                        handleCreateChange(
+                                            "passwordConfirmation",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 pr-10 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setShowPassword((prev) => !prev)
+                                    }
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-500 hover:text-neutral-700"
+                                    aria-label={
+                                        showPassword
+                                            ? "Ocultar contrasena"
+                                            : "Mostrar contrasena"
+                                    }
+                                >
+                                    {showPassword ? "Ocultar" : "Ver"}
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label className="text-xs font-semibold text-neutral-500">
@@ -267,6 +406,45 @@ export default function UsersManager() {
                                 disabled
                                 className="mt-1 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-500"
                             />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-semibold text-neutral-500">
+                                Roles del sistema
+                            </label>
+                            <div className="mt-2 flex flex-wrap gap-3">
+                                {roles.length === 0 && (
+                                    <span className="text-xs text-neutral-500">
+                                        Sin roles disponibles.
+                                    </span>
+                                )}
+                                {roles.map((role) => {
+                                    const isSelected =
+                                        createForm.roles.includes(role.id);
+                                    return (
+                                        <label
+                                            key={role.id}
+                                            className={[
+                                                "flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium",
+                                                isSelected
+                                                    ? "border-blue-300 bg-blue-50 text-blue-700"
+                                                    : "border-neutral-200 bg-white text-neutral-600",
+                                            ].join(" ")}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={() =>
+                                                    handleToggleCreateRole(
+                                                        role.id,
+                                                    )
+                                                }
+                                                className="h-3.5 w-3.5"
+                                            />
+                                            {role.name}
+                                        </label>
+                                    );
+                                })}
+                            </div>
                         </div>
                         <div className="flex items-end gap-3">
                             <button
@@ -330,7 +508,10 @@ export default function UsersManager() {
                             }
                             className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:max-w-[220px]"
                         >
-                            {ROLE_OPTIONS.map((role) => (
+                            {[
+                                ...DEFAULT_ROLE_OPTIONS,
+                                ...roles.map((r) => r.name),
+                            ].map((role) => (
                                 <option key={role} value={role}>
                                     {role}
                                 </option>
@@ -353,6 +534,7 @@ export default function UsersManager() {
                                     Correo
                                 </th>
                                 <th className="px-3 py-2 font-medium">Rol</th>
+                                <th className="px-3 py-2 font-medium">Roles</th>
                                 <th className="px-3 py-2 font-medium">
                                     Estado
                                 </th>
@@ -365,7 +547,7 @@ export default function UsersManager() {
                             {isLoading && (
                                 <tr>
                                     <td
-                                        colSpan={5}
+                                        colSpan={6}
                                         className="px-3 py-8 text-center text-sm text-neutral-500"
                                     >
                                         Cargando usuarios...
@@ -375,7 +557,7 @@ export default function UsersManager() {
                             {!isLoading && loadError && (
                                 <tr>
                                     <td
-                                        colSpan={5}
+                                        colSpan={6}
                                         className="px-3 py-8 text-center text-sm text-red-600"
                                     >
                                         {loadError}
@@ -401,6 +583,11 @@ export default function UsersManager() {
                                     </td>
                                     <td className="px-3 py-3">{user.email}</td>
                                     <td className="px-3 py-3">{user.role}</td>
+                                    <td className="px-3 py-3">
+                                        {user.roles.length > 0
+                                            ? user.roles.join(", ")
+                                            : "Sin roles"}
+                                    </td>
                                     <td className="px-3 py-3">
                                         <span
                                             className={[
@@ -469,7 +656,7 @@ export default function UsersManager() {
                                 filteredUsers.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="px-3 py-8 text-center text-sm text-neutral-500"
                                         >
                                             No hay usuarios que coincidan con el
@@ -491,11 +678,15 @@ function toUserRecord(user: Usuario): UserRecord {
             ? user.role
             : (user.role?.name ?? "Sin rol"),
     );
+    const roleNames = Array.isArray(user.roles)
+        ? user.roles.map((item) => item.name).filter(Boolean)
+        : [];
     return {
         id: String(user.id ?? ""),
         name: user.name ?? "Sin nombre",
         email: user.email ?? "Sin correo",
         role: roleValue,
+        roles: roleNames,
         isActive: true,
     };
 }

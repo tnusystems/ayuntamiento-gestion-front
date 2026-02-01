@@ -16,6 +16,10 @@ type LoginResponse = {
         id: number;
         email: string;
         role?: string;
+        roles?: Array<{
+            id: number;
+            name: string;
+        }>;
         name?: string;
     };
 };
@@ -23,6 +27,10 @@ type LoginResponse = {
 type ExtendedUser = User & {
     id: number | string;
     role?: string;
+    roles?: Array<{
+        id: number;
+        name: string;
+    }>;
     accessToken?: string;
     refreshToken?: string;
     expiresIn?: number;
@@ -88,18 +96,21 @@ export const authOptions: NextAuthOptions = {
                     return null;
                 }
 
-                const response = await fetch(new URL("/login", apiBaseUrl), {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        user: {
-                            email,
-                            password,
+                const response = await fetch(
+                    new URL("/api/v1/auth/login", apiBaseUrl),
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
                         },
-                    }),
-                });
+                        body: JSON.stringify({
+                            user: {
+                                email,
+                                password,
+                            },
+                        }),
+                    },
+                );
 
                 if (!response.ok) {
                     return null;
@@ -116,6 +127,7 @@ export const authOptions: NextAuthOptions = {
                     email: data.user.email,
                     name: data.user.name,
                     role: data.user.role,
+                    roles: data.user.roles,
                     accessToken: data.token,
                     refreshToken: data.refresh_token,
                     expiresIn: data.expires_in,
@@ -139,6 +151,7 @@ export const authOptions: NextAuthOptions = {
                         id: authUser.id,
                         email: authUser.email,
                         role: authUser.role,
+                        roles: authUser.roles,
                         name: authUser.name ?? null,
                     },
                 } as JWT;
@@ -162,6 +175,7 @@ export const authOptions: NextAuthOptions = {
                 id: token.user?.id,
                 email: token.user?.email,
                 role: token.user?.role,
+                roles: token.user?.roles,
                 name: token.user?.name ?? session.user?.name ?? null,
             };
             return session;

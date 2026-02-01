@@ -76,6 +76,7 @@ export const UsuarioSchema = z
         email: z.string(),
         name: z.string().nullable().optional(),
         role: z.union([z.string(), RolSchema]).optional(),
+        roles: RolSchema.array().optional(),
     })
     .passthrough();
 

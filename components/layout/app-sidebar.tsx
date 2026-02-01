@@ -52,12 +52,8 @@ export default function AppSidebar({
 }: SidebarProps) {
     const pathname = usePathname();
     const { data: session } = useSession();
-    const userName = session?.user?.name?.trim().toLowerCase() ?? "";
     const userRole = session?.user?.role?.trim().toLowerCase() ?? "";
-    const isAdmin =
-        userName === "admin" ||
-        userRole === "admin" ||
-        userRole === "administrador";
+    const isAdmin = userRole === "admin";
     const navItems = isAdmin
         ? [
               ...baseNavItems,
