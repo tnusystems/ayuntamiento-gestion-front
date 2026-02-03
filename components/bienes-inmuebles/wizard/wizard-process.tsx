@@ -94,6 +94,7 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
         done: 0,
     });
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [submitNotice, setSubmitNotice] = useState<string | null>(null);
     const [showNoDocsDialog, setShowNoDocsDialog] = useState(false);
     const [assetStatus, setAssetStatus] = useState<
         "pending" | "loading" | "completed"
@@ -300,6 +301,7 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
         try {
             setIsSubmitting(true);
             setSubmitError(null);
+            setSubmitNotice(null);
             setSubmitStage("creating");
             setAssetStatus("loading");
             setProcessStatus("pending");
@@ -307,7 +309,28 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
             setUploadProgress({ total: 0, done: 0 });
             console.log("Wizard payload:", payload);
             const response = await createAsset(payload);
-            const assetId = response?.id ?? null;
+            const approvalResponse =
+                response &&
+                typeof response === "object" &&
+                "approval_request" in response
+                    ? (response as {
+                          message?: string;
+                          approval_request?: { id?: number };
+                      })
+                    : null;
+            if (approvalResponse?.approval_request) {
+                setSubmitNotice("Solicitud enviada para aprobación.");
+                setAssetStatus("completed");
+                setProcessStatus("completed");
+                setDocumentsStatus("completed");
+                setSubmitStage("done");
+                return;
+            }
+
+            const assetId =
+                response && typeof response === "object" && "id" in response
+                    ? ((response as { id?: number }).id ?? null)
+                    : null;
             setCreatedAssetId(assetId);
             setAssetStatus("completed");
             console.log("Create asset response:", response);
@@ -414,10 +437,10 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                 </Button>
                 <div>
                     <h1 className="text-2xl font-semibold">
-                        Crear Nuevo Proceso
+                        Solicitud de aprobación
                     </h1>
                     <p className="text-muted-foreground">
-                        Complete los pasos para registrar el trámite
+                        Complete los pasos para enviar la solicitud del bien
                     </p>
                 </div>
             </div>
@@ -557,7 +580,7 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                             disabled={isSubmitting}
                         >
                             <Send className="mr-2 h-4 w-4" />
-                            Guardar Asset
+                            Enviar solicitud de aprobación
                         </Button>
                     ) : (
                         <Button onClick={handleNext} disabled={isSubmitting}>
@@ -586,7 +609,7 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                 >
                     <DialogHeader>
                         <DialogTitle className="sr-only">
-                            Progreso de guardado del asset
+                            Progreso de envío de solicitud
                         </DialogTitle>
                     </DialogHeader>
                     <ProcessLoader
@@ -596,6 +619,11 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                         documentsProgress={uploadProgress}
                         embedded
                     />
+                    {submitStage === "done" && submitNotice ? (
+                        <p className="text-sm text-muted-foreground">
+                            {submitNotice}
+                        </p>
+                    ) : null}
                     {submitStage === "done" && (
                         <DialogFooter>
                             <Button onClick={handleCloseSuccess}>Cerrar</Button>
@@ -611,11 +639,11 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
-                            Continuar sin documentos
+                            Enviar sin documentos
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            No se han cargado documentos. ¿Deseas crear el bien
-                            de todas formas?
+                            No se han cargado documentos. ¿Deseas enviar la
+                            solicitud de aprobación de todas formas?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -623,7 +651,7 @@ export function ProcesoWizard({ bienId, backPath }: ProcesoWizardProps) {
                         <AlertDialogAction
                             onClick={handleConfirmSubmitWithoutDocs}
                         >
-                            Crear sin documentos
+                            Enviar sin documentos
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

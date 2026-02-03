@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createInventoryProcess } from "@/lib/api/inventory-processes";
+import { createBajaInventoryProcess } from "@/lib/api/inventory-processes";
 import BienDetailHeader from "./bien-detail-header";
 import BienDetailTabs from "./bien-detail-tabs";
 import BajaConfirmModal from "@/components/modals/baja-confirm-modal";
@@ -30,6 +30,11 @@ interface BienDetailProps {
         lot?: string;
         zone?: string;
         domain?: string;
+        numero?: string;
+        situacion?: string;
+        zoneId?: number;
+        domainId?: number;
+        operationTypeId?: number;
         totalArea?: string | number;
         builtArea?: string | number;
         latitude?: string | number;
@@ -64,6 +69,7 @@ interface BienDetailProps {
         download_url?: string | null;
         url?: string | null;
     }>;
+    registryId?: string;
     backPath?: string;
     hideCreateProcess?: boolean;
     viewLocationHref?: string;
@@ -89,12 +95,15 @@ export default function BienDetail({
     registry,
     procesos = [],
     documentos = [],
+    registryId,
     backPath = "/assets",
     hideCreateProcess = false,
     viewLocationHref,
 }: BienDetailProps) {
     const [showBajaDialog, setShowBajaDialog] = useState(false);
     const [isBajaSubmitting, setIsBajaSubmitting] = useState(false);
+    const [bajaReason, setBajaReason] = useState("");
+    const [bajaError, setBajaError] = useState<string | null>(null);
 
     if (!bien) {
         return (
@@ -115,22 +124,33 @@ export default function BienDetail({
 
     const handleIniciarBaja = async () => {
         if (isBajaSubmitting) return;
+        if (!bajaReason.trim()) {
+            setBajaError("Indica el motivo de la baja.");
+            return;
+        }
+        setBajaError(null);
         setShowBajaDialog(false);
         try {
             setIsBajaSubmitting(true);
             const now = new Date().toISOString();
-            await createInventoryProcess({
-                asset_id: Number(bien.id),
-                process_type: "baja",
-                status: "CERRADA",
-                closed_at: now,
-                notes: "",
+            await createBajaInventoryProcess(Number(bien.id), {
+                opened_at: now,
+                notes: bajaReason.trim(),
+                status: "PENDIENTE",
+                domain_id: bien.domainId ?? 0,
+                operation_type_id: bien.operationTypeId ?? 0,
+                verification_status_id: 0,
+                zone_id: bien.zoneId ?? 0,
+                observations: bajaReason.trim(),
+                legacy_status: bien.estatus ?? "",
+                reason: bajaReason.trim(),
             });
             window.location.reload();
         } catch (error) {
             console.error("Baja process error:", error);
         } finally {
             setIsBajaSubmitting(false);
+            setBajaReason("");
         }
     };
 
@@ -154,13 +174,29 @@ export default function BienDetail({
                 procesos={procesos}
                 documentos={documentos}
                 registry={registry}
+                registryId={registryId}
             />
 
             <BajaConfirmModal
                 open={showBajaDialog}
-                onOpenChange={setShowBajaDialog}
+                onOpenChange={(open) => {
+                    setShowBajaDialog(open);
+                    if (!open) {
+                        setBajaReason("");
+                        setBajaError(null);
+                    }
+                }}
                 bienNombre={bien.nombre}
                 onConfirm={handleIniciarBaja}
+                reason={bajaReason}
+                onReasonChange={(value) => {
+                    setBajaReason(value);
+                    if (bajaError) {
+                        setBajaError(null);
+                    }
+                }}
+                errorMessage={bajaError}
+                isSubmitting={isBajaSubmitting}
             />
         </div>
     );

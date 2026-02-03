@@ -140,6 +140,19 @@ export default function AssetDetailPage() {
             "—";
         const valorCatastralNumber = Number(assetValue.cadastral_value);
         const valorComercialNumber = Number(assetValue.commercial_value);
+        const toOptionalNumber = (value: unknown): number | undefined => {
+            if (value === null || value === undefined) {
+                return undefined;
+            }
+            if (typeof value === "number") {
+                return Number.isFinite(value) ? value : undefined;
+            }
+            if (typeof value === "string") {
+                const parsed = Number(value);
+                return Number.isFinite(parsed) ? parsed : undefined;
+            }
+            return undefined;
+        };
         const toOptionalString = (value: unknown): string | undefined => {
             if (value === null || value === undefined) {
                 return undefined;
@@ -158,6 +171,7 @@ export default function AssetDetailPage() {
             nombre: nombreValue,
             tipo: tipoValue,
             categoria: assetValue.c_number ?? "—",
+            numero: assetValue.c_number ?? undefined,
             estatus,
             rppNumero: assetValue.rpp_number ?? "—",
             cNumero: assetValue.c_number ?? "—",
@@ -181,6 +195,11 @@ export default function AssetDetailPage() {
             lot: assetValue.lot ?? undefined,
             zone: toOptionalString(assetValue.zone_id),
             domain: toOptionalString(assetValue.domain_id),
+            situacion:
+                assetValue.status ?? assetValue.inventory_status ?? undefined,
+            zoneId: toOptionalNumber(assetValue.zone_id),
+            domainId: toOptionalNumber(assetValue.domain_id),
+            operationTypeId: toOptionalNumber(assetValue.operation_type_id),
             totalArea: assetValue.total_area ?? undefined,
             builtArea: assetValue.built_area ?? undefined,
             latitude: assetValue.latitude ?? undefined,
@@ -279,6 +298,7 @@ export default function AssetDetailPage() {
                 registry={registry}
                 procesos={procesos}
                 documentos={documentos}
+                registryId={registryId}
                 backPath={`/assets/${registryId}`}
                 hideCreateProcess
                 viewLocationHref={`/mapa?registry_id=${registryId}&asset_id=${assetId}`}

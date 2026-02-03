@@ -252,6 +252,132 @@ export const ArchivoSchema = z
 
 export type Archivo = z.infer<typeof ArchivoSchema>;
 
+export const ActivityUserSchema = z
+    .object({
+        id: z.number().int(),
+        email: z.string(),
+        name: z.string().nullable().optional(),
+    })
+    .passthrough();
+
+export const ActivitySchema = z
+    .object({
+        id: z.number().int(),
+        user_id: z.number().int(),
+        trackable_type: z.string(),
+        trackable_id: z.number().int(),
+        action: z.string(),
+        details: z.record(z.string(), z.unknown()).optional(),
+        created_at: z.string(),
+        updated_at: z.string(),
+        user: ActivityUserSchema.optional(),
+    })
+    .passthrough();
+
+export type Activity = z.infer<typeof ActivitySchema>;
+
+export const ReportSchema = z
+    .object({
+        id: z.number().int(),
+        report_type: z.string().nullable().optional(),
+        status: z.string().nullable().optional(),
+        created_at: z.string().nullable().optional(),
+        file_name: z.string().nullable().optional(),
+        filename: z.string().nullable().optional(),
+        file_url: z.string().nullable().optional(),
+    })
+    .passthrough();
+
+export type Report = z.infer<typeof ReportSchema>;
+
+export const ChangeLogUserSchema = z
+    .object({
+        id: z.number().int(),
+        name: z.string().nullable().optional(),
+        email: z.string().nullable().optional(),
+    })
+    .passthrough();
+
+export const ChangeLogSchema = z
+    .object({
+        id: z.number().int(),
+        event: z.string().optional(),
+        item_type: z.string().optional(),
+        item_id: z.number().int().nullable().optional(),
+        created_at: z.string().optional(),
+        user: ChangeLogUserSchema.nullable().optional(),
+        changes: z.record(z.string(), z.unknown()).nullable().optional(),
+        item: z.record(z.string(), z.unknown()).nullable().optional(),
+        comparison: z
+            .object({
+                current_state: z.record(z.string(), z.unknown()).optional(),
+                versioned_state: z.record(z.string(), z.unknown()).optional(),
+                differences: z.array(z.unknown()).optional(),
+            })
+            .nullable()
+            .optional(),
+    })
+    .passthrough();
+
+export type ChangeLog = z.infer<typeof ChangeLogSchema>;
+
+export const ApprovalRequestUserSchema = z
+    .object({
+        id: z.number().int(),
+        name: z.string().nullable().optional(),
+        email: z.string().nullable().optional(),
+    })
+    .passthrough();
+
+export const ApprovalRequestPayloadSchema = z
+    .object({
+        attributes: z.record(z.string(), z.unknown()).optional(),
+    })
+    .passthrough();
+
+export const ApprovalRequestSchema = z
+    .object({
+        id: z.number().int(),
+        subject_type: z.string().nullable().optional(),
+        subject_id: z.number().int().nullable().optional(),
+        requested_by_id: z.number().int().nullable().optional(),
+        approved_by_id: z.number().int().nullable().optional(),
+        executed_by_id: z.number().int().nullable().optional(),
+        action: z.string().optional(),
+        payload: ApprovalRequestPayloadSchema.optional(),
+        status: z.string().optional(),
+        reason: z.string().nullable().optional(),
+        decision_comment: z.string().nullable().optional(),
+        requested_at: z.string().nullable().optional(),
+        decided_at: z.string().nullable().optional(),
+        executed_at: z.string().nullable().optional(),
+        created_at: z.string().nullable().optional(),
+        updated_at: z.string().nullable().optional(),
+        idempotency_key: z.string().nullable().optional(),
+        failure_message: z.string().nullable().optional(),
+        failed_at: z.string().nullable().optional(),
+        execute_attempts: z.number().int().optional(),
+        approved_at: z.string().nullable().optional(),
+        requested_by: ApprovalRequestUserSchema.optional(),
+        approved_by: ApprovalRequestUserSchema.optional(),
+        executed_by: ApprovalRequestUserSchema.optional(),
+        subject: z.record(z.string(), z.unknown()).optional(),
+    })
+    .passthrough();
+
+export type ApprovalRequest = z.infer<typeof ApprovalRequestSchema>;
+
+export const ApprovalRequestCreateResponseSchema = z
+    .object({
+        message: z.string().optional(),
+        approval_request: ApprovalRequestSchema,
+    })
+    .passthrough();
+
+export type ApprovalRequestCreateResponse = z.infer<
+    typeof ApprovalRequestCreateResponseSchema
+>;
+
 export const ArchivoFormSchema = z.object({
     file: z
         .custom<File>(
@@ -275,6 +401,10 @@ export const UsuarioListSchema = z.array(UsuarioSchema);
 export const BienListSchema = z.array(BienSchema);
 export const BienApiListSchema = z.array(BienApiSchema);
 export const ArchivoApiListSchema = z.array(ArchivoApiSchema);
+export const ActivityListSchema = z.array(ActivitySchema);
+export const ReportListSchema = z.array(ReportSchema);
+export const ChangeLogListSchema = z.array(ChangeLogSchema);
+export const ApprovalRequestListSchema = z.array(ApprovalRequestSchema);
 export const RegistryApiListSchema = z.array(RegistryApiSchema);
 
 export const PaginationSchema = z
@@ -298,6 +428,34 @@ export const BienApiListResponseSchema = z
 export const RegistryApiListResponseSchema = z
     .object({
         data: RegistryApiListSchema,
+        pagination: PaginationSchema.optional(),
+    })
+    .passthrough();
+
+export const ActivityListResponseSchema = z
+    .object({
+        data: ActivityListSchema,
+        pagination: PaginationSchema.optional(),
+    })
+    .passthrough();
+
+export const ReportListResponseSchema = z
+    .object({
+        data: ReportListSchema,
+        pagination: PaginationSchema.optional(),
+    })
+    .passthrough();
+
+export const ChangeLogListResponseSchema = z
+    .object({
+        data: ChangeLogListSchema,
+        pagination: PaginationSchema.optional(),
+    })
+    .passthrough();
+
+export const ApprovalRequestListResponseSchema = z
+    .object({
+        data: ApprovalRequestListSchema,
         pagination: PaginationSchema.optional(),
     })
     .passthrough();

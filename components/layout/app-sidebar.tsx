@@ -14,6 +14,8 @@ import {
     File,
     ClipboardList,
     ShieldCheck,
+    Activity,
+    FileBarChart2,
 } from "lucide-react";
 
 type SidebarProps = {
@@ -34,6 +36,11 @@ const baseNavItems = [
         label: "Registros",
         icon: File,
         path: "/registry",
+    },
+    {
+        label: "Reportes",
+        icon: FileBarChart2,
+        path: "/reportes",
     },
 
     {
@@ -62,6 +69,11 @@ export default function AppSidebar({
                   label: "Auditoría",
                   icon: ShieldCheck,
                   path: "/admin/auditoria",
+              },
+              {
+                  label: "Actividades",
+                  icon: Activity,
+                  path: "/admin/actividades",
               },
               {
                   label: "Solicitudes de cambio",

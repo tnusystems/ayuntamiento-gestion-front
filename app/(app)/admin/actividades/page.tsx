@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ClipboardList } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardList } from "lucide-react";
 import {
     Card,
     CardContent,
@@ -10,6 +9,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
@@ -20,8 +20,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { fetchChangeLogs } from "@/lib/api/changelogs";
-import type { ChangeLog } from "@/types";
+import { fetchActivities } from "@/lib/api/activities";
+import type { Activity } from "@/types";
 
 type AuditLevel = "info" | "advertencia" | "critico";
 
@@ -51,17 +51,17 @@ const levelConfig: Record<AuditLevel, { label: string; className: string }> = {
 };
 
 const actionLabels: Record<string, string> = {
-    create: "Creó",
-    update: "Actualizó",
-    delete: "Eliminó",
-    destroy: "Eliminó",
+    created: "Creó",
+    updated: "Actualizó",
+    deleted: "Eliminó",
+    destroyed: "Eliminó",
 };
 
 const actionLevels: Record<string, AuditLevel> = {
-    create: "info",
-    update: "advertencia",
-    delete: "critico",
-    destroy: "critico",
+    created: "info",
+    updated: "advertencia",
+    deleted: "critico",
+    destroyed: "critico",
 };
 
 const trackableLabels: Record<string, string> = {
@@ -83,34 +83,33 @@ const formatDate = (value?: string | null) => {
     });
 };
 
-const resolveActionLabel = (action?: string | null) => {
-    const key = action?.toLowerCase() ?? "";
+const resolveActionLabel = (action: string) => {
+    const key = action.toLowerCase();
     return actionLabels[key] ?? action;
 };
 
-const resolveActionLevel = (action?: string | null): AuditLevel => {
-    const key = action?.toLowerCase() ?? "";
+const resolveActionLevel = (action: string): AuditLevel => {
+    const key = action.toLowerCase();
     return actionLevels[key] ?? "info";
 };
 
-const buildDetailsLabel = (log: ChangeLog) => {
-    const item = log.item as Record<string, unknown> | null | undefined;
-    if (!item) return undefined;
+const buildDetailsLabel = (activity: Activity) => {
+    if (!activity.details) return undefined;
+    const details = activity.details as Record<string, unknown>;
     const parts: string[] = [];
-    const rpp = typeof item.rpp_number === "string" ? item.rpp_number : null;
-    const name = typeof item.name === "string" ? item.name : null;
-    const status = typeof item.status === "string" ? item.status : null;
-    const assetId = typeof item.asset_id === "number" ? item.asset_id : null;
-    if (rpp) {
-        parts.push(`RPP: ${rpp}`);
-    } else if (name) {
-        parts.push(`Nombre: ${name}`);
+    if (details.rpp_number) {
+        parts.push(`RPP: ${details.rpp_number}`);
+    } else if (details.name) {
+        parts.push(`RPP: ${details.name}`);
     }
-    if (assetId !== null) {
-        parts.push(`Asset ID: ${assetId}`);
+    if (details.asset_id) {
+        parts.push(`Asset ID: ${details.asset_id}`);
     }
-    if (status) {
-        parts.push(`Estado: ${status}`);
+    if (details.registry_id) {
+        parts.push(`Registro ID: ${details.registry_id}`);
+    }
+    if (details.inventory_process_id) {
+        parts.push(`Proceso ID: ${details.inventory_process_id}`);
     }
     if (parts.length === 0) return undefined;
     if (parts.length === 2) {
@@ -119,57 +118,73 @@ const buildDetailsLabel = (log: ChangeLog) => {
     return parts.join(" · ");
 };
 
-const buildTargetLabel = (log: ChangeLog) => {
+const buildTargetLabel = (activity: Activity) => {
     const targetType =
-        trackableLabels[log.item_type ?? ""] ?? log.item_type ?? "Elemento";
-    const targetId =
-        log.item_id !== null && log.item_id !== undefined
-            ? `#${log.item_id}`
-            : "";
-    return `${targetType} ${targetId}`.trim();
+        trackableLabels[activity.trackable_type] ?? activity.trackable_type;
+    return `${targetType} #${activity.trackable_id}`;
 };
 
-const mapChangeLogToLog = (log: ChangeLog): AuditLogItem => {
-    const userName = log.user?.name?.trim();
-    const userEmail = log.user?.email?.trim();
+const mapActivityToLog = (activity: Activity): AuditLogItem => {
+    const userName = activity.user?.name?.trim();
+    const userEmail = activity.user?.email?.trim();
     const actor = userName
         ? userEmail
             ? `${userName} (${userEmail})`
             : userName
-        : userEmail || `Usuario #${log.user?.id ?? "—"}`;
+        : userEmail || `Usuario #${activity.user_id}`;
     return {
-        id: String(log.id),
+        id: String(activity.id),
         actor,
-        action: resolveActionLabel(log.event) ?? "—",
-        target: buildTargetLabel(log),
-        details: buildDetailsLabel(log),
-        created_at: log.created_at ?? "",
-        level: resolveActionLevel(log.event),
+        action: resolveActionLabel(activity.action),
+        target: buildTargetLabel(activity),
+        details: buildDetailsLabel(activity),
+        created_at: activity.created_at,
+        level: resolveActionLevel(activity.action),
     };
 };
 
-export default function AdminAuditPage() {
+export default function AdminActivitiesPage() {
     const [logs, setLogs] = useState<AuditLogItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const router = useRouter();
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 25;
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        totalPages: 1,
+        totalCount: 0,
+        perPage: itemsPerPage,
+    });
 
     useEffect(() => {
         let active = true;
 
-        const loadChangeLogs = async () => {
+        const loadActivities = async () => {
             setIsLoading(true);
             setLoadError(null);
             try {
-                const response = await fetchChangeLogs();
+                const response = await fetchActivities({
+                    page: currentPage,
+                    per_page: itemsPerPage,
+                });
                 if (!active) return;
-                setLogs(response.data.map(mapChangeLogToLog));
+                setLogs(response.data.map(mapActivityToLog));
+                const responsePage = response.pagination?.current_page ?? 1;
+                const totalPages = response.pagination?.total_pages ?? 1;
+                const totalCount = response.pagination?.total_count ?? 0;
+                const perPage = response.pagination?.per_page ?? itemsPerPage;
+                setPagination({
+                    currentPage: responsePage,
+                    totalPages,
+                    totalCount,
+                    perPage,
+                });
             } catch (error) {
                 if (!active) return;
                 setLoadError(
                     error instanceof Error
                         ? error.message
-                        : "Error al cargar auditoría.",
+                        : "Error al cargar actividades.",
                 );
                 setLogs([]);
             } finally {
@@ -179,28 +194,35 @@ export default function AdminAuditPage() {
             }
         };
 
-        loadChangeLogs();
+        loadActivities();
         return () => {
             active = false;
         };
-    }, []);
+    }, [currentPage]);
+
+    const totalPages = Math.max(1, pagination.totalPages || 1);
+    const startIndex = (currentPage - 1) * pagination.perPage;
+    const endIndex = Math.min(
+        startIndex + pagination.perPage,
+        pagination.totalCount || logs.length,
+    );
 
     return (
         <div className="container mx-auto py-8 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-semibold">Auditoría</h1>
+                    <h1 className="text-2xl font-semibold">Actividades</h1>
                     <p className="text-sm text-muted-foreground">
-                        Registro de cambios y acciones sobre las entidades.
+                        Registro de eventos y acciones del sistema.
                     </p>
                 </div>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Auditoría reciente</CardTitle>
+                    <CardTitle>Actividad reciente</CardTitle>
                     <CardDescription>
-                        Cambios recientes en el sistema.
+                        Eventos más recientes del sistema.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -250,15 +272,7 @@ export default function AdminAuditPage() {
                                 </TableRow>
                             ) : (
                                 logs.map((log) => (
-                                    <TableRow
-                                        key={log.id}
-                                        className="cursor-pointer"
-                                        onClick={() =>
-                                            router.push(
-                                                `/admin/auditoria/${log.id}`,
-                                            )
-                                        }
-                                    >
+                                    <TableRow key={log.id}>
                                         <TableCell className="font-medium">
                                             {log.actor}
                                         </TableCell>
@@ -292,6 +306,62 @@ export default function AdminAuditPage() {
                             )}
                         </TableBody>
                     </Table>
+                    <div className="flex items-center justify-between border-t border-border px-4 py-3">
+                        <p className="text-sm text-muted-foreground">
+                            Mostrando {logs.length === 0 ? 0 : startIndex + 1} a{" "}
+                            {logs.length === 0 ? 0 : endIndex} de{" "}
+                            {pagination.totalCount || logs.length} actividades
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                    setCurrentPage((p) => Math.max(1, p - 1))
+                                }
+                                disabled={currentPage === 1 || isLoading}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Anterior
+                            </Button>
+                            <div className="flex items-center gap-1">
+                                {Array.from(
+                                    { length: totalPages },
+                                    (_, i) => i + 1,
+                                ).map((page) => (
+                                    <Button
+                                        key={page}
+                                        variant={
+                                            currentPage === page
+                                                ? "default"
+                                                : "ghost"
+                                        }
+                                        size="sm"
+                                        className="w-8"
+                                        onClick={() => setCurrentPage(page)}
+                                        disabled={isLoading}
+                                    >
+                                        {page}
+                                    </Button>
+                                ))}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                    setCurrentPage((p) =>
+                                        Math.min(totalPages, p + 1),
+                                    )
+                                }
+                                disabled={
+                                    currentPage === totalPages || isLoading
+                                }
+                            >
+                                Siguiente
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
         </div>

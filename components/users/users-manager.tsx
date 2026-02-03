@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Edit, Shield, ToggleLeft, ToggleRight, UserPlus } from "lucide-react";
-import { createUser, fetchRoles, fetchUsers } from "@/lib/api/users";
+import { UserPlus } from "lucide-react";
+import {
+    createUser,
+    fetchRoles,
+    fetchUsers,
+    assignUserRole,
+} from "@/lib/api/users";
 import type { Rol, Usuario } from "@/types";
 
 type UserRecord = {
@@ -24,7 +29,6 @@ type CreateUserForm = {
     motherLastName: string;
     employeeNumber: string;
     address: string;
-    roles: number[];
 };
 
 const DEFAULT_ROLE_OPTIONS = ["Todos", "Sin rol"];
@@ -40,6 +44,14 @@ export default function UsersManager() {
     const [isCreating, setIsCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
+    const [roleDialog, setRoleDialog] = useState<{
+        open: boolean;
+        userId?: string;
+        roleId?: number;
+    }>({ open: false });
+    const [roleError, setRoleError] = useState<string | null>(null);
+    const [roleNotice, setRoleNotice] = useState<string | null>(null);
+    const [isAssigningRole, setIsAssigningRole] = useState(false);
     const [createForm, setCreateForm] = useState<CreateUserForm>({
         name: "",
         email: "",
@@ -50,7 +62,6 @@ export default function UsersManager() {
         motherLastName: "",
         employeeNumber: "",
         address: "",
-        roles: [],
     });
 
     useEffect(() => {
@@ -113,46 +124,64 @@ export default function UsersManager() {
         });
     }, [users, query, roleFilter]);
 
-    const handleToggleStatus = (id: string) => {
-        setUsers((prev) =>
-            prev.map((user) =>
-                user.id === id ? { ...user, isActive: !user.isActive } : user,
-            ),
-        );
-    };
-
-    const handleEdit = (id: string) => {
-        const user = users.find((item) => item.id === id);
-        if (!user) {
-            return;
-        }
-        alert(`Editar usuario: ${user.name}`);
-    };
-
-    const handleReset = (id: string) => {
-        const user = users.find((item) => item.id === id);
-        if (!user) {
-            return;
-        }
-        if (confirm(`Restablecer acceso para ${user.name}?`)) {
-            alert("Solicitud enviada.");
-        }
-    };
-
     const handleCreateChange = (field: keyof CreateUserForm, value: string) => {
         setCreateForm((prev) => ({ ...prev, [field]: value }));
     };
 
-    const handleToggleCreateRole = (roleId: number) => {
-        setCreateForm((prev) => {
-            const exists = prev.roles.includes(roleId);
-            return {
-                ...prev,
-                roles: exists
-                    ? prev.roles.filter((id) => id !== roleId)
-                    : [...prev.roles, roleId],
-            };
+    const openAssignRole = (userId: string) => {
+        setRoleError(null);
+        setRoleNotice(null);
+        const defaultRoleId = roles[0]?.id;
+        setRoleDialog({
+            open: true,
+            userId,
+            roleId: defaultRoleId,
         });
+    };
+
+    const closeAssignRole = () => {
+        setRoleDialog({ open: false });
+        setRoleError(null);
+        setRoleNotice(null);
+        setIsAssigningRole(false);
+    };
+
+    const handleAssignRole = async () => {
+        if (!roleDialog.userId || !roleDialog.roleId) {
+            setRoleError("Selecciona un rol.");
+            return;
+        }
+        const role = roles.find((item) => item.id === roleDialog.roleId);
+        if (!role) {
+            setRoleError("Selecciona un rol válido.");
+            return;
+        }
+        setRoleError(null);
+        setRoleNotice(null);
+        setIsAssigningRole(true);
+        try {
+            const updated = await assignUserRole(roleDialog.userId, {
+                role_id: role.id,
+                name: role.name,
+            });
+            setUsers((prev) =>
+                prev.map((user) =>
+                    user.id === String(updated.id)
+                        ? toUserRecord(updated)
+                        : user,
+                ),
+            );
+            setRoleNotice("Rol asignado.");
+            closeAssignRole();
+        } catch (error) {
+            setRoleError(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo asignar el rol.",
+            );
+        } finally {
+            setIsAssigningRole(false);
+        }
     };
 
     const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -177,7 +206,6 @@ export default function UsersManager() {
                 mother_last_name: createForm.motherLastName.trim() || null,
                 employee_number: createForm.employeeNumber.trim() || null,
                 address: createForm.address.trim() || null,
-                roles: createForm.roles,
             };
             const created = await createUser(payload);
             setUsers((prev) => [toUserRecord(created), ...prev]);
@@ -191,7 +219,6 @@ export default function UsersManager() {
                 motherLastName: "",
                 employeeNumber: "",
                 address: "",
-                roles: [],
             });
             setIsCreateOpen(false);
         } catch (error) {
@@ -206,469 +233,465 @@ export default function UsersManager() {
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-semibold text-neutral-900">
-                        Usuarios
-                    </h1>
-                    <p className="text-sm text-neutral-500">
-                        Administra el acceso y los permisos del personal.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
-                    onClick={() => setIsCreateOpen((prev) => !prev)}
-                >
-                    <UserPlus className="h-4 w-4" />
-                    Nuevo usuario
-                </button>
-            </div>
-
-            {isCreateOpen && (
-                <section className="rounded-xl border border-neutral-200 bg-white p-4">
-                    <form
-                        className="grid gap-4 md:grid-cols-2"
-                        onSubmit={handleCreateSubmit}
-                    >
-                        <div>
-                            <label className="text-xs font-semibold text-neutral-500">
-                                Nombre
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                value={createForm.name}
-                                onChange={(event) =>
-                                    handleCreateChange(
-                                        "name",
-                                        event.target.value,
-                                    )
-                                }
-                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-neutral-500">
-                                Apellido paterno
-                            </label>
-                            <input
-                                type="text"
-                                value={createForm.fatherLastName}
-                                onChange={(event) =>
-                                    handleCreateChange(
-                                        "fatherLastName",
-                                        event.target.value,
-                                    )
-                                }
-                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-neutral-500">
-                                Apellido materno
-                            </label>
-                            <input
-                                type="text"
-                                value={createForm.motherLastName}
-                                onChange={(event) =>
-                                    handleCreateChange(
-                                        "motherLastName",
-                                        event.target.value,
-                                    )
-                                }
-                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-neutral-500">
-                                Correo
-                            </label>
-                            <input
-                                type="email"
-                                required
-                                value={createForm.email}
-                                onChange={(event) =>
-                                    handleCreateChange(
-                                        "email",
-                                        event.target.value,
-                                    )
-                                }
-                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-neutral-500">
-                                Número de empleado
-                            </label>
-                            <input
-                                type="text"
-                                value={createForm.employeeNumber}
-                                onChange={(event) =>
-                                    handleCreateChange(
-                                        "employeeNumber",
-                                        event.target.value,
-                                    )
-                                }
-                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                            />
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="text-xs font-semibold text-neutral-500">
-                                Dirección
-                            </label>
-                            <input
-                                type="text"
-                                value={createForm.address}
-                                onChange={(event) =>
-                                    handleCreateChange(
-                                        "address",
-                                        event.target.value,
-                                    )
-                                }
-                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-neutral-500">
-                                Contrasena
-                            </label>
-                            <div className="relative mt-1">
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    required
-                                    value={createForm.password}
-                                    onChange={(event) =>
-                                        handleCreateChange(
-                                            "password",
-                                            event.target.value,
-                                        )
-                                    }
-                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 pr-10 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowPassword((prev) => !prev)
-                                    }
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-500 hover:text-neutral-700"
-                                    aria-label={
-                                        showPassword
-                                            ? "Ocultar contrasena"
-                                            : "Mostrar contrasena"
-                                    }
-                                >
-                                    {showPassword ? "Ocultar" : "Ver"}
-                                </button>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-neutral-500">
-                                Confirmacion
-                            </label>
-                            <div className="relative mt-1">
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    required
-                                    value={createForm.passwordConfirmation}
-                                    onChange={(event) =>
-                                        handleCreateChange(
-                                            "passwordConfirmation",
-                                            event.target.value,
-                                        )
-                                    }
-                                    className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 pr-10 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowPassword((prev) => !prev)
-                                    }
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-500 hover:text-neutral-700"
-                                    aria-label={
-                                        showPassword
-                                            ? "Ocultar contrasena"
-                                            : "Mostrar contrasena"
-                                    }
-                                >
-                                    {showPassword ? "Ocultar" : "Ver"}
-                                </button>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-neutral-500">
-                                Rol
-                            </label>
-                            <input
-                                type="text"
-                                value="user"
-                                disabled
-                                className="mt-1 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-500"
-                            />
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="text-xs font-semibold text-neutral-500">
-                                Roles del sistema
-                            </label>
-                            <div className="mt-2 flex flex-wrap gap-3">
-                                {roles.length === 0 && (
-                                    <span className="text-xs text-neutral-500">
-                                        Sin roles disponibles.
-                                    </span>
-                                )}
-                                {roles.map((role) => {
-                                    const isSelected =
-                                        createForm.roles.includes(role.id);
-                                    return (
-                                        <label
-                                            key={role.id}
-                                            className={[
-                                                "flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium",
-                                                isSelected
-                                                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                                                    : "border-neutral-200 bg-white text-neutral-600",
-                                            ].join(" ")}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={isSelected}
-                                                onChange={() =>
-                                                    handleToggleCreateRole(
-                                                        role.id,
-                                                    )
-                                                }
-                                                className="h-3.5 w-3.5"
-                                            />
-                                            {role.name}
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                        <div className="flex items-end gap-3">
-                            <button
-                                type="submit"
-                                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                                disabled={isCreating}
-                            >
-                                {isCreating ? "Guardando..." : "Crear usuario"}
-                            </button>
-                            <button
-                                type="button"
-                                className="rounded-lg border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-neutral-50"
-                                onClick={() => setIsCreateOpen(false)}
-                            >
-                                Cancelar
-                            </button>
-                        </div>
-                        {createError && (
-                            <p className="text-sm text-red-600">
-                                {createError}
-                            </p>
-                        )}
-                    </form>
-                </section>
-            )}
-
-            <div className="grid gap-4 md:grid-cols-3">
-                {[
-                    { label: "Total", value: stats.total },
-                    { label: "Activos", value: stats.active },
-                    { label: "Inactivos", value: stats.inactive },
-                ].map((item) => (
-                    <div
-                        key={item.label}
-                        className="rounded-xl border border-neutral-200 bg-white p-4"
-                    >
-                        <p className="text-xs uppercase tracking-[0.2em] text-neutral-400">
-                            {item.label}
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                            {item.value}
+        <>
+            <div className="space-y-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-semibold text-neutral-900">
+                            Usuarios
+                        </h1>
+                        <p className="text-sm text-neutral-500">
+                            Administra el acceso y los permisos del personal.
                         </p>
                     </div>
-                ))}
-            </div>
+                    <button
+                        type="button"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+                        onClick={() => setIsCreateOpen((prev) => !prev)}
+                    >
+                        <UserPlus className="h-4 w-4" />
+                        Nuevo usuario
+                    </button>
+                </div>
 
-            <section className="rounded-xl border border-neutral-200 bg-white p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-1 flex-col gap-3 sm:flex-row">
-                        <input
-                            type="search"
-                            placeholder="Buscar por nombre o correo"
-                            value={query}
-                            onChange={(event) => setQuery(event.target.value)}
-                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                        />
-                        <select
-                            value={roleFilter}
-                            onChange={(event) =>
-                                setRoleFilter(event.target.value)
-                            }
-                            className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:max-w-[220px]"
+                {isCreateOpen && (
+                    <section className="rounded-xl border border-neutral-200 bg-white p-4">
+                        <form
+                            className="grid gap-4 md:grid-cols-2"
+                            onSubmit={handleCreateSubmit}
                         >
-                            {[
-                                ...DEFAULT_ROLE_OPTIONS,
-                                ...roles.map((r) => r.name),
-                            ].map((role) => (
-                                <option key={role} value={role}>
-                                    {role}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="text-sm text-neutral-500">
-                        {filteredUsers.length} usuario(s)
-                    </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Nombre
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={createForm.name}
+                                    onChange={(event) =>
+                                        handleCreateChange(
+                                            "name",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Apellido paterno
+                                </label>
+                                <input
+                                    type="text"
+                                    value={createForm.fatherLastName}
+                                    onChange={(event) =>
+                                        handleCreateChange(
+                                            "fatherLastName",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Apellido materno
+                                </label>
+                                <input
+                                    type="text"
+                                    value={createForm.motherLastName}
+                                    onChange={(event) =>
+                                        handleCreateChange(
+                                            "motherLastName",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Correo
+                                </label>
+                                <input
+                                    type="email"
+                                    required
+                                    value={createForm.email}
+                                    onChange={(event) =>
+                                        handleCreateChange(
+                                            "email",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Número de empleado
+                                </label>
+                                <input
+                                    type="text"
+                                    value={createForm.employeeNumber}
+                                    onChange={(event) =>
+                                        handleCreateChange(
+                                            "employeeNumber",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Dirección
+                                </label>
+                                <input
+                                    type="text"
+                                    value={createForm.address}
+                                    onChange={(event) =>
+                                        handleCreateChange(
+                                            "address",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Contrasena
+                                </label>
+                                <div className="relative mt-1">
+                                    <input
+                                        type={
+                                            showPassword ? "text" : "password"
+                                        }
+                                        required
+                                        value={createForm.password}
+                                        onChange={(event) =>
+                                            handleCreateChange(
+                                                "password",
+                                                event.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 pr-10 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowPassword((prev) => !prev)
+                                        }
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-500 hover:text-neutral-700"
+                                        aria-label={
+                                            showPassword
+                                                ? "Ocultar contrasena"
+                                                : "Mostrar contrasena"
+                                        }
+                                    >
+                                        {showPassword ? "Ocultar" : "Ver"}
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Confirmacion
+                                </label>
+                                <div className="relative mt-1">
+                                    <input
+                                        type={
+                                            showPassword ? "text" : "password"
+                                        }
+                                        required
+                                        value={createForm.passwordConfirmation}
+                                        onChange={(event) =>
+                                            handleCreateChange(
+                                                "passwordConfirmation",
+                                                event.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 pr-10 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowPassword((prev) => !prev)
+                                        }
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-neutral-500 hover:text-neutral-700"
+                                        aria-label={
+                                            showPassword
+                                                ? "Ocultar contrasena"
+                                                : "Mostrar contrasena"
+                                        }
+                                    >
+                                        {showPassword ? "Ocultar" : "Ver"}
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex items-end gap-3">
+                                <button
+                                    type="submit"
+                                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    disabled={isCreating}
+                                >
+                                    {isCreating
+                                        ? "Guardando..."
+                                        : "Crear usuario"}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="rounded-lg border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-neutral-50"
+                                    onClick={() => setIsCreateOpen(false)}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                            {createError && (
+                                <p className="text-sm text-red-600">
+                                    {createError}
+                                </p>
+                            )}
+                        </form>
+                    </section>
+                )}
+
+                <div className="grid gap-4 md:grid-cols-3">
+                    {[
+                        { label: "Total", value: stats.total },
+                        { label: "Activos", value: stats.active },
+                        { label: "Inactivos", value: stats.inactive },
+                    ].map((item) => (
+                        <div
+                            key={item.label}
+                            className="rounded-xl border border-neutral-200 bg-white p-4"
+                        >
+                            <p className="text-xs uppercase tracking-[0.2em] text-neutral-400">
+                                {item.label}
+                            </p>
+                            <p className="mt-2 text-2xl font-semibold text-neutral-900">
+                                {item.value}
+                            </p>
+                        </div>
+                    ))}
                 </div>
 
-                <div className="mt-4 overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="border-b border-neutral-200 text-left text-neutral-500">
-                                <th className="px-3 py-2 font-medium">
-                                    Usuario
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Correo
-                                </th>
-                                <th className="px-3 py-2 font-medium">Rol</th>
-                                <th className="px-3 py-2 font-medium">Roles</th>
-                                <th className="px-3 py-2 font-medium">
-                                    Estado
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Acciones
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {isLoading && (
-                                <tr>
-                                    <td
-                                        colSpan={6}
-                                        className="px-3 py-8 text-center text-sm text-neutral-500"
-                                    >
-                                        Cargando usuarios...
-                                    </td>
+                <section className="rounded-xl border border-neutral-200 bg-white p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-1 flex-col gap-3 sm:flex-row">
+                            <input
+                                type="search"
+                                placeholder="Buscar por nombre o correo"
+                                value={query}
+                                onChange={(event) =>
+                                    setQuery(event.target.value)
+                                }
+                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            />
+                            <select
+                                value={roleFilter}
+                                onChange={(event) =>
+                                    setRoleFilter(event.target.value)
+                                }
+                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:max-w-[220px]"
+                            >
+                                {[
+                                    ...DEFAULT_ROLE_OPTIONS,
+                                    ...roles.map((r) => r.name),
+                                ].map((role) => (
+                                    <option key={role} value={role}>
+                                        {role}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="text-sm text-neutral-500">
+                            {filteredUsers.length} usuario(s)
+                        </div>
+                    </div>
+
+                    <div className="mt-4 overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-neutral-200 text-left text-neutral-500">
+                                    <th className="px-3 py-2 font-medium">
+                                        Usuario
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Correo
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Rol
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Roles
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Estado
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Acciones
+                                    </th>
                                 </tr>
-                            )}
-                            {!isLoading && loadError && (
-                                <tr>
-                                    <td
-                                        colSpan={6}
-                                        className="px-3 py-8 text-center text-sm text-red-600"
-                                    >
-                                        {loadError}
-                                    </td>
-                                </tr>
-                            )}
-                            {filteredUsers.map((user) => (
-                                <tr
-                                    key={user.id}
-                                    className="border-b border-neutral-100 text-neutral-700"
-                                >
-                                    <td className="px-3 py-3">
-                                        <div className="flex items-center gap-3">
-                                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-                                                {user.name
-                                                    .charAt(0)
-                                                    .toUpperCase()}
-                                            </span>
-                                            <span className="font-medium text-neutral-900">
-                                                {user.name}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-3 py-3">{user.email}</td>
-                                    <td className="px-3 py-3">{user.role}</td>
-                                    <td className="px-3 py-3">
-                                        {user.roles.length > 0
-                                            ? user.roles.join(", ")
-                                            : "Sin roles"}
-                                    </td>
-                                    <td className="px-3 py-3">
-                                        <span
-                                            className={[
-                                                "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
-                                                user.isActive
-                                                    ? "bg-green-100 text-green-700"
-                                                    : "bg-neutral-100 text-neutral-600",
-                                            ].join(" ")}
-                                        >
-                                            {user.isActive
-                                                ? "Activo"
-                                                : "Inactivo"}
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-3">
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleEdit(user.id)
-                                                }
-                                                className="rounded-lg bg-blue-50 p-2 text-blue-600 transition hover:bg-blue-100"
-                                                title="Editar"
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleReset(user.id)
-                                                }
-                                                className="rounded-lg bg-amber-50 p-2 text-amber-600 transition hover:bg-amber-100"
-                                                title="Restablecer acceso"
-                                            >
-                                                <Shield className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleToggleStatus(user.id)
-                                                }
-                                                className={[
-                                                    "rounded-lg p-2 transition",
-                                                    user.isActive
-                                                        ? "bg-red-50 text-red-600 hover:bg-red-100"
-                                                        : "bg-green-50 text-green-600 hover:bg-green-100",
-                                                ].join(" ")}
-                                                title={
-                                                    user.isActive
-                                                        ? "Desactivar"
-                                                        : "Activar"
-                                                }
-                                            >
-                                                {user.isActive ? (
-                                                    <ToggleLeft className="h-4 w-4" />
-                                                ) : (
-                                                    <ToggleRight className="h-4 w-4" />
-                                                )}
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {!isLoading &&
-                                !loadError &&
-                                filteredUsers.length === 0 && (
+                            </thead>
+                            <tbody>
+                                {isLoading && (
                                     <tr>
                                         <td
                                             colSpan={6}
                                             className="px-3 py-8 text-center text-sm text-neutral-500"
                                         >
-                                            No hay usuarios que coincidan con el
-                                            filtro.
+                                            Cargando usuarios...
                                         </td>
                                     </tr>
                                 )}
-                        </tbody>
-                    </table>
+                                {!isLoading && loadError && (
+                                    <tr>
+                                        <td
+                                            colSpan={6}
+                                            className="px-3 py-8 text-center text-sm text-red-600"
+                                        >
+                                            {loadError}
+                                        </td>
+                                    </tr>
+                                )}
+                                {filteredUsers.map((user) => (
+                                    <tr
+                                        key={user.id}
+                                        className="border-b border-neutral-100 text-neutral-700"
+                                    >
+                                        <td className="px-3 py-3">
+                                            <div className="flex items-center gap-3">
+                                                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-700">
+                                                    {user.name
+                                                        .charAt(0)
+                                                        .toUpperCase()}
+                                                </span>
+                                                <span className="font-medium text-neutral-900">
+                                                    {user.name}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-3">
+                                            {user.email}
+                                        </td>
+                                        <td className="px-3 py-3">
+                                            {user.role}
+                                        </td>
+                                        <td className="px-3 py-3">
+                                            {user.roles.length > 0
+                                                ? user.roles.join(", ")
+                                                : "Sin roles"}
+                                        </td>
+                                        <td className="px-3 py-3">
+                                            <span
+                                                className={[
+                                                    "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
+                                                    user.isActive
+                                                        ? "bg-green-100 text-green-700"
+                                                        : "bg-neutral-100 text-neutral-600",
+                                                ].join(" ")}
+                                            >
+                                                {user.isActive
+                                                    ? "Activo"
+                                                    : "Inactivo"}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-3">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    openAssignRole(user.id)
+                                                }
+                                                className="rounded-lg border border-neutral-200 px-3 py-1 text-xs text-neutral-600 transition hover:bg-neutral-50"
+                                            >
+                                                Asignar rol
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {!isLoading &&
+                                    !loadError &&
+                                    filteredUsers.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={6}
+                                                className="px-3 py-8 text-center text-sm text-neutral-500"
+                                            >
+                                                No hay usuarios que coincidan
+                                                con el filtro.
+                                            </td>
+                                        </tr>
+                                    )}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+            {roleDialog.open && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+                    <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+                        <h2 className="text-lg font-semibold text-neutral-900">
+                            Asignar rol
+                        </h2>
+                        <p className="mt-1 text-sm text-neutral-500">
+                            Selecciona el rol que deseas asignar al usuario.
+                        </p>
+                        <div className="mt-4 space-y-2">
+                            <label className="text-xs font-semibold text-neutral-500">
+                                Rol
+                            </label>
+                            <select
+                                value={roleDialog.roleId ?? ""}
+                                onChange={(event) =>
+                                    setRoleDialog((prev) => ({
+                                        ...prev,
+                                        roleId: Number(event.target.value),
+                                    }))
+                                }
+                                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            >
+                                <option value="" disabled>
+                                    Selecciona un rol
+                                </option>
+                                {roles.map((role) => (
+                                    <option key={role.id} value={role.id}>
+                                        {role.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        {roleError ? (
+                            <p className="mt-3 text-sm text-red-600">
+                                {roleError}
+                            </p>
+                        ) : null}
+                        {roleNotice ? (
+                            <p className="mt-3 text-sm text-green-600">
+                                {roleNotice}
+                            </p>
+                        ) : null}
+                        <div className="mt-6 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                className="rounded-lg border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-neutral-50"
+                                onClick={closeAssignRole}
+                                disabled={isAssigningRole}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                onClick={handleAssignRole}
+                                disabled={isAssigningRole}
+                            >
+                                {isAssigningRole ? "Asignando..." : "Asignar"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </section>
-        </div>
+            )}
+        </>
     );
 }
 

@@ -2,6 +2,7 @@ import {
     ArchivoApiSchema,
     BienApiListResponseSchema,
     BienApiSchema,
+    ApprovalRequestCreateResponseSchema,
 } from "@/types";
 import { api } from "./client";
 
@@ -75,8 +76,24 @@ function parseAsset(data: unknown) {
     return parsed.data;
 }
 
+function parseUpdateAssetResponse(data: unknown) {
+    const approvalParsed = ApprovalRequestCreateResponseSchema.safeParse(data);
+    if (approvalParsed.success) {
+        return approvalParsed.data;
+    }
+    return parseAsset(data);
+}
+
+function parseCreateAssetResponse(data: unknown) {
+    const approvalParsed = ApprovalRequestCreateResponseSchema.safeParse(data);
+    if (approvalParsed.success) {
+        return approvalParsed.data;
+    }
+    return parseAsset(data);
+}
+
 export async function fetchAsset(id: number | string) {
-    const data = await api<unknown>(`/assets/${id}`);
+    const data = await api<unknown>(`/api/v1/assets/${id}`);
     return parseAsset(data);
 }
 
@@ -131,35 +148,29 @@ export async function fetchAssets(params?: AssetListParams) {
         per_page: params?.per_page ?? 10,
     };
     const data = await api<unknown>(
-        `/assets${buildAssetListQuery(normalizedParams)}`,
+        `/api/v1/assets${buildAssetListQuery(normalizedParams)}`,
     );
     return parseAssetList(data);
 }
 
 export async function createAsset(payload: AssetPayload) {
-    const data = await api<unknown>("/assets", {
+    const data = await api<unknown>("/api/v1/assets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
-    return parseAsset(data);
+    return parseCreateAssetResponse(data);
 }
 
 export async function updateAsset(id: number, payload: AssetPayload) {
     //console.log("updateAsset not implemented yet", { id, payload });
 
-    const data = await api<unknown>(`/assets/${id}`, {
+    const data = await api<unknown>(`/api/v1/assets/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
-    return parseAsset(data);
-}
-
-export async function deleteAsset(id: number) {
-    await api<unknown>(`/assets/${id}`, {
-        method: "DELETE",
-    });
+    return parseUpdateAssetResponse(data);
 }
 
 export async function createAssetDocument(

@@ -9,6 +9,7 @@ interface BienDetailTabsProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     bien: any;
     bienId: string;
+    registryId?: string;
     procesos?: Array<{
         id?: string | number;
         tipo?: string;
@@ -43,6 +44,7 @@ interface BienDetailTabsProps {
 export default function BienDetailTabs({
     bien,
     bienId,
+    registryId,
     procesos = [],
     documentos = [],
     registry = null,
@@ -59,7 +61,11 @@ export default function BienDetailTabs({
             </TabsList>
 
             <TabsContent value="general">
-                <BienGeneralInfo bien={bien} registry={registry} />
+                <BienGeneralInfo
+                    bien={bien}
+                    registry={registry}
+                    registryId={registryId}
+                />
             </TabsContent>
 
             <TabsContent value="perfil">

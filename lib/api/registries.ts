@@ -1,4 +1,8 @@
-import { RegistryApiListResponseSchema, RegistryApiSchema } from "@/types";
+import {
+    ApprovalRequestCreateResponseSchema,
+    RegistryApiListResponseSchema,
+    RegistryApiSchema,
+} from "@/types";
 import { api } from "./client";
 
 export type RegistryListParams = {
@@ -52,6 +56,14 @@ function parseRegistry(data: unknown) {
     return parsed.data;
 }
 
+function parseRegistryUpdateResponse(data: unknown) {
+    const approvalParsed = ApprovalRequestCreateResponseSchema.safeParse(data);
+    if (approvalParsed.success) {
+        return approvalParsed.data;
+    }
+    return parseRegistry(data);
+}
+
 function buildRegistryListQuery(params?: RegistryListParams) {
     if (!params) {
         return "";
@@ -80,13 +92,13 @@ export async function fetchRegistries(params?: RegistryListParams) {
         per_page: params?.per_page ?? 10,
     };
     const data = await api<unknown>(
-        `/registries${buildRegistryListQuery(normalizedParams)}`,
+        `/api/v1/registries${buildRegistryListQuery(normalizedParams)}`,
     );
     return parseRegistryList(data);
 }
 
 export async function createRegistry(payload: RegistryPayload) {
-    const data = await api<unknown>("/registries", {
+    const data = await api<unknown>("/api/v1/registries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -94,7 +106,19 @@ export async function createRegistry(payload: RegistryPayload) {
     return parseRegistry(data);
 }
 
+export async function updateRegistry(
+    id: number | string,
+    payload: Partial<RegistryPayload>,
+) {
+    const data = await api<unknown>(`/api/v1/registries/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    return parseRegistryUpdateResponse(data);
+}
+
 export async function fetchRegistry(id: number | string) {
-    const data = await api<unknown>(`/registries/${id}`);
+    const data = await api<unknown>(`/api/v1/registries/${id}`);
     return parseRegistry(data);
 }

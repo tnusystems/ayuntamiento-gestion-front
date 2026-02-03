@@ -14,7 +14,6 @@ type BienesInmueblesResultsProps = {
     data: BienesInmueblesTableRow[];
     isLoading?: boolean;
     onEdit: (row: BienesInmueblesTableRow) => void;
-    onDelete: (row: BienesInmueblesTableRow) => void;
     onAttach: (row: BienesInmueblesTableRow) => void;
     onSearch: (query: string) => void;
     page: number;
@@ -27,7 +26,6 @@ export default function BienesInmueblesResults({
     data,
     isLoading = false,
     onEdit,
-    onDelete,
     onAttach,
     onSearch,
     page,
@@ -87,7 +85,6 @@ export default function BienesInmueblesResults({
                     data={data}
                     isLoading={isLoading}
                     onEdit={onEdit}
-                    onDelete={onDelete}
                     onAttach={onAttach}
                     page={page}
                     totalPages={totalPages}

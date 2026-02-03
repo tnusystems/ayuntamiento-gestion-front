@@ -1,6 +1,7 @@
 "use client";
 
-import { MapPin, Calendar } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MapPin, Calendar, Pencil } from "lucide-react";
 import {
     Card,
     CardContent,
@@ -8,10 +9,14 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { updateRegistry } from "@/lib/api/registries";
 
 interface BienGeneralInfoProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     bien: any;
+    registryId?: string;
     registry?: {
         rpp_number?: string | null;
         rpp_date?: string | null;
@@ -28,8 +33,33 @@ interface BienGeneralInfoProps {
 
 export default function BienGeneralInfo({
     bien,
+    registryId,
     registry = null,
 }: BienGeneralInfoProps) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
+    const [formValues, setFormValues] = useState({
+        e_number: registry?.e_number ?? "",
+        e_date: registry?.e_date ?? "",
+        e_notary: registry?.e_notary ?? "",
+        rpp_number: registry?.rpp_number ?? "",
+        co_number: registry?.co_number ?? "",
+    });
+    const [currentRegistry, setCurrentRegistry] = useState(registry);
+
+    useEffect(() => {
+        setCurrentRegistry(registry);
+        setFormValues({
+            e_number: registry?.e_number ?? "",
+            e_date: registry?.e_date ?? "",
+            e_notary: registry?.e_notary ?? "",
+            rpp_number: registry?.rpp_number ?? "",
+            co_number: registry?.co_number ?? "",
+        });
+    }, [registry]);
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat("es-MX", {
             style: "currency",
@@ -44,6 +74,60 @@ export default function BienGeneralInfo({
             month: "long",
             day: "numeric",
         });
+    };
+
+    const isBaja = bien?.estatus === "baja";
+
+    const handleSave = async () => {
+        if (!registryId) {
+            setError("No se encontró el expediente.");
+            return;
+        }
+        setError(null);
+        setNotice(null);
+        setIsSaving(true);
+        try {
+            const payload = {
+                e_number: formValues.e_number || undefined,
+                e_date: formValues.e_date || undefined,
+                e_notary: formValues.e_notary || undefined,
+                rpp_number: formValues.rpp_number || undefined,
+                co_number: formValues.co_number || undefined,
+            };
+            const updated = await updateRegistry(registryId, payload);
+            if (
+                updated &&
+                typeof updated === "object" &&
+                "approval_request" in updated
+            ) {
+                setNotice("Solicitud enviada para aprobación.");
+                setIsEditing(false);
+                return;
+            }
+            setCurrentRegistry(updated ?? currentRegistry);
+            setIsEditing(false);
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "No se pudo actualizar el expediente.",
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCancel = () => {
+        setFormValues({
+            e_number: currentRegistry?.e_number ?? "",
+            e_date: currentRegistry?.e_date ?? "",
+            e_notary: currentRegistry?.e_notary ?? "",
+            rpp_number: currentRegistry?.rpp_number ?? "",
+            co_number: currentRegistry?.co_number ?? "",
+        });
+        setError(null);
+        setNotice(null);
+        setIsEditing(false);
     };
 
     return (
@@ -96,53 +180,178 @@ export default function BienGeneralInfo({
             </div>
 
             <Card>
-                <CardHeader>
-                    <CardTitle>Datos del Expediente</CardTitle>
-                    <CardDescription>
-                        Información legal y documental del bien
-                    </CardDescription>
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <CardTitle>Datos del Expediente</CardTitle>
+                        <CardDescription>
+                            Información legal y documental del bien
+                        </CardDescription>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {isEditing ? (
+                            <>
+                                <Button
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                >
+                                    {isSaving
+                                        ? "Enviando..."
+                                        : "Enviar aprobación"}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleCancel}
+                                    disabled={isSaving}
+                                >
+                                    Cancelar
+                                </Button>
+                            </>
+                        ) : isBaja ? (
+                            <Button variant="outline" disabled>
+                                Reactivar
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsEditing(true)}
+                            >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar
+                            </Button>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent>
+                    {error ? (
+                        <div className="mb-4 text-sm text-destructive">
+                            {error}
+                        </div>
+                    ) : null}
+                    {notice ? (
+                        <div className="mb-4 text-sm text-success">
+                            {notice}
+                        </div>
+                    ) : null}
+                    {isBaja ? (
+                        <div className="mb-4 text-sm text-muted-foreground">
+                            Para editar este bien debes reactivarlo primero.
+                        </div>
+                    ) : null}
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <div>
                             <p className="text-sm text-muted-foreground">
                                 Número de Escritura
                             </p>
-                            <p className="font-medium">
-                                {registry?.e_number ?? "—"}
-                            </p>
+                            {isEditing ? (
+                                <Input
+                                    id="e_number"
+                                    value={formValues.e_number}
+                                    onChange={(event) =>
+                                        setFormValues((prev) => ({
+                                            ...prev,
+                                            e_number: event.target.value,
+                                        }))
+                                    }
+                                    disabled={isSaving}
+                                />
+                            ) : (
+                                <p className="font-medium">
+                                    {currentRegistry?.e_number ?? "—"}
+                                </p>
+                            )}
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">
                                 Fecha de Escritura
                             </p>
-                            <p className="font-medium">
-                                {formatDate(registry?.e_date)}
-                            </p>
+                            {isEditing ? (
+                                <Input
+                                    id="e_date"
+                                    type="date"
+                                    value={
+                                        formValues.e_date
+                                            ? formValues.e_date.slice(0, 10)
+                                            : ""
+                                    }
+                                    onChange={(event) =>
+                                        setFormValues((prev) => ({
+                                            ...prev,
+                                            e_date: event.target.value,
+                                        }))
+                                    }
+                                    disabled={isSaving}
+                                />
+                            ) : (
+                                <p className="font-medium">
+                                    {formatDate(currentRegistry?.e_date)}
+                                </p>
+                            )}
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">
                                 Notaría
                             </p>
-                            <p className="font-medium">
-                                {registry?.e_notary ?? "—"}
-                            </p>
+                            {isEditing ? (
+                                <Input
+                                    id="e_notary"
+                                    value={formValues.e_notary}
+                                    onChange={(event) =>
+                                        setFormValues((prev) => ({
+                                            ...prev,
+                                            e_notary: event.target.value,
+                                        }))
+                                    }
+                                    disabled={isSaving}
+                                />
+                            ) : (
+                                <p className="font-medium">
+                                    {currentRegistry?.e_notary ?? "—"}
+                                </p>
+                            )}
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">
                                 Boleta Registral
                             </p>
-                            <p className="font-medium">
-                                {registry?.rpp_number ?? "—"}
-                            </p>
+                            {isEditing ? (
+                                <Input
+                                    id="rpp_number"
+                                    value={formValues.rpp_number}
+                                    onChange={(event) =>
+                                        setFormValues((prev) => ({
+                                            ...prev,
+                                            rpp_number: event.target.value,
+                                        }))
+                                    }
+                                    disabled={isSaving}
+                                />
+                            ) : (
+                                <p className="font-medium">
+                                    {currentRegistry?.rpp_number ?? "—"}
+                                </p>
+                            )}
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">
                                 Certificado de Libertad
                             </p>
-                            <p className="font-medium">
-                                {registry?.co_number ?? "—"}
-                            </p>
+                            {isEditing ? (
+                                <Input
+                                    id="co_number"
+                                    value={formValues.co_number}
+                                    onChange={(event) =>
+                                        setFormValues((prev) => ({
+                                            ...prev,
+                                            co_number: event.target.value,
+                                        }))
+                                    }
+                                    disabled={isSaving}
+                                />
+                            ) : (
+                                <p className="font-medium">
+                                    {currentRegistry?.co_number ?? "—"}
+                                </p>
+                            )}
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">

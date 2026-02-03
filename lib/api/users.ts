@@ -11,7 +11,7 @@ type CreateUserPayload = {
     mother_last_name: string | null;
     employee_number: string | null;
     address: string | null;
-    roles: number[];
+    roles?: number[];
 };
 
 function parseRoles(data: unknown): Rol[] {
@@ -81,4 +81,16 @@ export async function fetchRoles(): Promise<Rol[]> {
 export async function fetchUserRoles(userId: string | number): Promise<Rol[]> {
     const data = await api<unknown>(`/api/v1/users/${userId}/roles`);
     return parseRoles(data);
+}
+
+export async function assignUserRole(
+    userId: string | number,
+    payload: { role_id: number; name: string },
+): Promise<Usuario> {
+    const data = await api<unknown>(`/api/v1/users/${userId}/roles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    return parseUser(data);
 }
