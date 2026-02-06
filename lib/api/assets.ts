@@ -55,6 +55,9 @@ export type AssetListParams = {
     status?: "active" | "maintenance" | "baja";
     operation_type_id?: number;
     operation_type_name?: string;
+    inventory_process_type?: "alta" | "baja";
+    order?: "asc" | "desc";
+    order_by?: string;
 };
 
 function parseAssetList(data: unknown) {
@@ -136,6 +139,15 @@ function buildAssetListQuery(params?: AssetListParams) {
     }
     if (params.operation_type_name) {
         search.set("operation_type_name", params.operation_type_name.trim());
+    }
+    if (params.inventory_process_type) {
+        search.set("inventory_process_type", params.inventory_process_type);
+    }
+    if (params.order) {
+        search.set("order", params.order);
+    }
+    if (params.order_by) {
+        search.set("order_by", params.order_by);
     }
     const query = search.toString();
     return query ? `?${query}` : "";

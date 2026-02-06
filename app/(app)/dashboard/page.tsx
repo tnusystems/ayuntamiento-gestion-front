@@ -168,6 +168,74 @@ const mapAssetRow = (asset: BienApi): DashboardAsset => ({
     createdAt: asset.created_at ?? "",
 });
 
+function resolveTotalCount(data: DashboardAsset[], totalCount?: number | null) {
+    if (typeof totalCount === "number" && Number.isFinite(totalCount)) {
+        return totalCount;
+    }
+    return data.length;
+}
+
+function PieChart({ alta, baja }: { alta: number; baja: number }) {
+    const total = alta + baja;
+    const altaPercent = total ? (alta / total) * 100 : 0;
+    const bajaPercent = total ? (baja / total) * 100 : 0;
+    const radius = 15.9155;
+    const circumferenceOffset = 25;
+
+    return (
+        <div className="flex flex-col items-center gap-4">
+            <svg viewBox="0 0 36 36" className="h-40 w-40">
+                <circle
+                    cx="18"
+                    cy="18"
+                    r={radius}
+                    fill="none"
+                    stroke="#e5e7eb"
+                    strokeWidth="3"
+                />
+                <circle
+                    cx="18"
+                    cy="18"
+                    r={radius}
+                    fill="none"
+                    stroke="#10b981"
+                    strokeWidth="3"
+                    strokeDasharray={`${altaPercent} ${100 - altaPercent}`}
+                    strokeDashoffset={circumferenceOffset}
+                    strokeLinecap="round"
+                />
+                <circle
+                    cx="18"
+                    cy="18"
+                    r={radius}
+                    fill="none"
+                    stroke="#ef4444"
+                    strokeWidth="3"
+                    strokeDasharray={`${bajaPercent} ${100 - bajaPercent}`}
+                    strokeDashoffset={circumferenceOffset + altaPercent}
+                    strokeLinecap="round"
+                />
+            </svg>
+            <div className="grid w-full grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-emerald-500" />
+                    <span className="text-muted-foreground">Altas</span>
+                    <span className="ml-auto font-semibold text-neutral-900">
+                        {alta}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-red-500" />
+                    <span className="text-muted-foreground">Bajas</span>
+                    <span className="ml-auto font-semibold text-neutral-900">
+                        {baja}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 const mapRegistryRow = (registry: RegistryApi): DashboardRegistry => ({
     id: registry.id ?? "—",
     rpp: registry.rpp_number ?? "—",
@@ -192,9 +260,16 @@ export default function DashboardPage() {
     const userName = session?.user?.name ?? "Usuario";
     const userEmail = session?.user?.email ?? "—";
     const userImage = session?.user?.image ?? "";
-    const userInitial = getUserInitial(session?.user?.name, session?.user?.email);
+    const userInitial = getUserInitial(
+        session?.user?.name,
+        session?.user?.email,
+    );
 
     const [assets, setAssets] = useState<DashboardAsset[]>([]);
+    const [altaAssets, setAltaAssets] = useState<DashboardAsset[]>([]);
+    const [bajaAssets, setBajaAssets] = useState<DashboardAsset[]>([]);
+    const [altaTotal, setAltaTotal] = useState(0);
+    const [bajaTotal, setBajaTotal] = useState(0);
     const [registries, setRegistries] = useState<DashboardRegistry[]>([]);
     const [activities, setActivities] = useState<AuditLogItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -207,14 +282,33 @@ export default function DashboardPage() {
             setIsLoading(true);
             setLoadError(null);
             try {
-                const [assetsResponse, registriesResponse, activitiesResponse] =
-                    await Promise.all([
-                        fetchAssets({ page: 1, per_page: 5 }),
-                        fetchRegistries({ page: 1, per_page: 5 }),
-                        isAdmin
-                            ? fetchActivities({ page: 1, per_page: 10 })
-                            : Promise.resolve(null),
-                    ]);
+                const [
+                    assetsResponse,
+                    registriesResponse,
+                    activitiesResponse,
+                    altaResponse,
+                    bajaResponse,
+                ] = await Promise.all([
+                    fetchAssets({ page: 1, per_page: 5, order: "desc" }),
+                    fetchRegistries({ page: 1, per_page: 5 }),
+                    isAdmin
+                        ? fetchActivities({ page: 1, per_page: 10 })
+                        : Promise.resolve(null),
+                    fetchAssets({
+                        page: 1,
+                        per_page: 5,
+                        inventory_process_type: "alta",
+                        order: "desc",
+                        order_by: "created_at",
+                    }),
+                    fetchAssets({
+                        page: 1,
+                        per_page: 5,
+                        inventory_process_type: "baja",
+                        order: "desc",
+                        order_by: "created_at",
+                    }),
+                ]);
                 if (!active) return;
                 setAssets(assetsResponse.data.map(mapAssetRow));
                 setRegistries(registriesResponse.data.map(mapRegistryRow));
@@ -222,6 +316,22 @@ export default function DashboardPage() {
                     activitiesResponse
                         ? activitiesResponse.data.map(mapActivityToLog)
                         : [],
+                );
+                const altaMapped = altaResponse.data.map(mapAssetRow);
+                const bajaMapped = bajaResponse.data.map(mapAssetRow);
+                setAltaAssets(altaMapped);
+                setBajaAssets(bajaMapped);
+                setAltaTotal(
+                    resolveTotalCount(
+                        altaMapped,
+                        altaResponse.pagination?.total_count ?? null,
+                    ),
+                );
+                setBajaTotal(
+                    resolveTotalCount(
+                        bajaMapped,
+                        bajaResponse.pagination?.total_count ?? null,
+                    ),
                 );
             } catch (error) {
                 if (!active) return;
@@ -371,7 +481,7 @@ export default function DashboardPage() {
                         </Table>
                         <div className="pt-3 text-sm">
                             <Link
-                                href="/bienes-inmuebles"
+                                href="/assets"
                                 className="text-primary hover:underline"
                             >
                                 Ver todos los bienes
@@ -440,6 +550,148 @@ export default function DashboardPage() {
                                 className="text-primary hover:underline"
                             >
                                 Ver todos los registros
+                            </Link>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-3">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Altas vs Bajas</CardTitle>
+                        <CardDescription>
+                            Distribución de procesos de inventario.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? (
+                            <div className="py-10 text-center text-sm text-muted-foreground">
+                                Cargando gráfica...
+                            </div>
+                        ) : (
+                            <PieChart alta={altaTotal} baja={bajaTotal} />
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Bienes en alta</CardTitle>
+                        <CardDescription>
+                            Últimos bienes con proceso de alta.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>ID</TableHead>
+                                    <TableHead>RPP</TableHead>
+                                    <TableHead>Clave</TableHead>
+                                    <TableHead>Fecha</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4}>
+                                            <div className="py-4 text-center text-sm text-muted-foreground">
+                                                Cargando bienes...
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : altaAssets.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4}>
+                                            <div className="py-4 text-center text-sm text-muted-foreground">
+                                                No hay bienes en alta.
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    altaAssets.map((asset) => (
+                                        <TableRow key={`alta-${asset.id}`}>
+                                            <TableCell>#{asset.id}</TableCell>
+                                            <TableCell>{asset.rpp}</TableCell>
+                                            <TableCell>
+                                                {asset.cNumber}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDate(asset.createdAt)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                        <div className="pt-3 text-sm">
+                            <Link
+                                href="/assets?inventory_process_type=alta&order=desc"
+                                className="text-primary hover:underline"
+                            >
+                                Ver todos los bienes en alta
+                            </Link>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Bienes en baja</CardTitle>
+                        <CardDescription>
+                            Últimos bienes con proceso de baja.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>ID</TableHead>
+                                    <TableHead>RPP</TableHead>
+                                    <TableHead>Clave</TableHead>
+                                    <TableHead>Fecha</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4}>
+                                            <div className="py-4 text-center text-sm text-muted-foreground">
+                                                Cargando bienes...
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : bajaAssets.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4}>
+                                            <div className="py-4 text-center text-sm text-muted-foreground">
+                                                No hay bienes en baja.
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    bajaAssets.map((asset) => (
+                                        <TableRow key={`baja-${asset.id}`}>
+                                            <TableCell>#{asset.id}</TableCell>
+                                            <TableCell>{asset.rpp}</TableCell>
+                                            <TableCell>
+                                                {asset.cNumber}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDate(asset.createdAt)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                        <div className="pt-3 text-sm">
+                            <Link
+                                href="/assets?inventory_process_type=baja&order=desc"
+                                className="text-primary hover:underline"
+                            >
+                                Ver todos los bienes en baja
                             </Link>
                         </div>
                     </CardContent>

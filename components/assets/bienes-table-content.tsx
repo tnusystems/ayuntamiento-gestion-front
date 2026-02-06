@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 
 export type BienRow = {
     id: string | number;
+    registryId?: string | number;
     nombre: string;
     tipo: string;
     categoria: string;
@@ -114,11 +115,14 @@ export function BienesTableContent({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
-                                        if (!expedienteId) return;
+                                        const registryId =
+                                            expedienteId ?? bien.registryId;
+                                        if (!registryId) return;
                                         router.push(
-                                            `/assets/${expedienteId}/detail/${bien.id}`,
+                                            `/assets/${registryId}/detail/${bien.id}`,
                                         );
                                     }}
+                                    disabled={!expedienteId && !bien.registryId}
                                 >
                                     Ver Detalles
                                 </Button>
