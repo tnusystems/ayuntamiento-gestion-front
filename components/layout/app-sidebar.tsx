@@ -64,7 +64,7 @@ export default function AppSidebar({
     const navItems = isAdmin
         ? [
               ...baseNavItems,
-              { label: "Usuarios", icon: Users, path: "/usuarios" },
+              { label: "Usuarios", icon: Users, path: "/admin/usuarios" },
               {
                   label: "Auditoría",
                   icon: ShieldCheck,

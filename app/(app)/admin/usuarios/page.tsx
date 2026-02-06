@@ -7,7 +7,7 @@ function normalize(value?: string | null) {
     return value?.trim().toLowerCase() ?? "";
 }
 
-export default async function UsuariosPage() {
+export default async function AdminUsuariosPage() {
     const session = await getServerSession(authOptions);
 
     if (!session) {
@@ -22,8 +22,7 @@ export default async function UsuariosPage() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
             <UsersManager />
-        </div>
+        
     );
 }

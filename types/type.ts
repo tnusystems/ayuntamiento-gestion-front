@@ -77,6 +77,7 @@ export const UsuarioSchema = z
         name: z.string().nullable().optional(),
         role: z.union([z.string(), RolSchema]).optional(),
         roles: RolSchema.array().optional(),
+        updated_at: z.string().nullable().optional(),
     })
     .passthrough();
 

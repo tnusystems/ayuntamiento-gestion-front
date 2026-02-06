@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import { FileText, FolderOpen, Layers } from "lucide-react";
 import {
     Card,
     CardContent,
@@ -178,10 +179,20 @@ function normalize(value?: string | null) {
     return value?.trim().toLowerCase() ?? "";
 }
 
+function getUserInitial(name?: string | null, email?: string | null) {
+    const source = name?.trim() || email?.trim() || "";
+    if (!source) return "U";
+    return source[0]?.toUpperCase() ?? "U";
+}
+
 export default function DashboardPage() {
     const { data: session } = useSession();
     const role = normalize(session?.user?.role);
     const isAdmin = role === "admin";
+    const userName = session?.user?.name ?? "Usuario";
+    const userEmail = session?.user?.email ?? "—";
+    const userImage = session?.user?.image ?? "";
+    const userInitial = getUserInitial(session?.user?.name, session?.user?.email);
 
     const [assets, setAssets] = useState<DashboardAsset[]>([]);
     const [registries, setRegistries] = useState<DashboardRegistry[]>([]);
@@ -252,22 +263,54 @@ export default function DashboardPage() {
             <div className="grid gap-6 lg:grid-cols-3">
                 <Card className="lg:col-span-1">
                     <CardContent className="flex flex-col items-center gap-4 py-6 text-center">
-                        <div className="h-20 w-20 overflow-hidden rounded-full bg-neutral-200">
-                            <Image
-                                width={160}
-                                height={160}
-                                src="/placeholder-user.png"
-                                alt="Usuario"
-                                className="h-full w-full object-cover"
-                            />
+                        <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-neutral-200 text-2xl font-semibold text-neutral-700">
+                            {userImage ? (
+                                <Image
+                                    width={160}
+                                    height={160}
+                                    src={userImage}
+                                    alt={userName}
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <span>{userInitial}</span>
+                            )}
                         </div>
                         <div>
                             <p className="text-lg font-semibold text-neutral-900">
-                                {session?.user?.name ?? "Usuario"}
+                                {userName}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                                {session?.user?.email ?? "—"}
+                                {userEmail}
                             </p>
+                        </div>
+                        <div className="w-full space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Accesos rápidos
+                            </p>
+                            <div className="flex flex-wrap justify-center gap-2">
+                                <Link
+                                    href="/registry"
+                                    className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100"
+                                >
+                                    <FolderOpen className="h-4 w-4" />
+                                    Registros
+                                </Link>
+                                <Link
+                                    href="/reportes"
+                                    className="inline-flex items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 transition-colors hover:bg-sky-100"
+                                >
+                                    <FileText className="h-4 w-4" />
+                                    Reportes
+                                </Link>
+                                <Link
+                                    href="/bienes-inmuebles"
+                                    className="inline-flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-100"
+                                >
+                                    <Layers className="h-4 w-4" />
+                                    Bienes
+                                </Link>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
