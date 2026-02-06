@@ -5,9 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
-    Building2,
-    Folder,
-    Grid,
     Grid2X2CheckIcon,
     Map,
     Users,
@@ -26,29 +23,30 @@ type SidebarProps = {
     onCloseMobile: () => void;
 };
 
-const baseNavItems = [
-    {
-        label: "Tablero",
-        icon: Grid2X2CheckIcon,
-        path: "/dashboard",
-    },
-    {
-        label: "Registros",
-        icon: File,
-        path: "/registry",
-    },
-    {
-        label: "Reportes",
-        icon: FileBarChart2,
-        path: "/reportes",
-    },
+function normalizeRole(value?: string | null) {
+    return value?.trim().toLowerCase() ?? "";
+}
 
-    {
-        label: "Mapas",
-        icon: Map,
-        path: "/mapa",
-    },
-];
+function getRoleKeys(role?: string | null, roles?: Array<{ name?: string }>) {
+    const keys = new Set<string>();
+    const normalizedRole = normalizeRole(role);
+    if (normalizedRole) {
+        keys.add(normalizedRole);
+    }
+    if (Array.isArray(roles)) {
+        for (const item of roles) {
+            const name = normalizeRole(item?.name);
+            if (name) {
+                keys.add(name);
+            }
+        }
+    }
+    return keys;
+}
+
+function canAccessReports(roleKeys: Set<string>) {
+    return !roleKeys.has("viewer");
+}
 
 export default function AppSidebar({
     isOpen,
@@ -59,8 +57,34 @@ export default function AppSidebar({
 }: SidebarProps) {
     const pathname = usePathname();
     const { data: session } = useSession();
-    const userRole = session?.user?.role?.trim().toLowerCase() ?? "";
-    const isAdmin = userRole === "admin";
+    const roleKeys = getRoleKeys(session?.user?.role, session?.user?.roles);
+    const isAdmin = roleKeys.has("admin");
+    const baseNavItems = [
+        {
+            label: "Tablero",
+            icon: Grid2X2CheckIcon,
+            path: "/dashboard",
+        },
+        {
+            label: "Registros",
+            icon: File,
+            path: "/registry",
+        },
+        ...(canAccessReports(roleKeys)
+            ? [
+                  {
+                      label: "Reportes",
+                      icon: FileBarChart2,
+                      path: "/reportes",
+                  },
+              ]
+            : []),
+        {
+            label: "Mapas",
+            icon: Map,
+            path: "/mapa",
+        },
+    ];
     const navItems = isAdmin
         ? [
               ...baseNavItems,

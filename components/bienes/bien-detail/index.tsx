@@ -63,12 +63,14 @@ interface BienDetailProps {
     documentos?: Array<{
         id?: string | number;
         name?: string | null;
+        kind?: string | null;
         filename?: string | null;
         byte_size?: number | null;
         created_at?: string | null;
         download_url?: string | null;
         url?: string | null;
     }>;
+    onUploadDocuments?: () => void;
     registryId?: string;
     backPath?: string;
     hideCreateProcess?: boolean;
@@ -95,6 +97,7 @@ export default function BienDetail({
     registry,
     procesos = [],
     documentos = [],
+    onUploadDocuments,
     registryId,
     backPath = "/assets",
     hideCreateProcess = false,
@@ -173,6 +176,7 @@ export default function BienDetail({
                 bienId={`${bien.id}`}
                 procesos={procesos}
                 documentos={documentos}
+                onUploadDocuments={onUploadDocuments}
                 registry={registry}
                 registryId={registryId}
             />

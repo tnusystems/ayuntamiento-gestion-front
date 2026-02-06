@@ -39,8 +39,8 @@ export default function BajaConfirmModal({
                     <DialogTitle>Iniciar Proceso de Baja</DialogTitle>
                     <DialogDescription>
                         Está a punto de iniciar el proceso de baja para el bien
-                        "{bienNombre}". Este proceso requiere documentación y
-                        aprobación del área correspondiente.
+                        &ldquo;{bienNombre}&rdquo;. Este proceso requiere
+                        documentación y aprobación del área correspondiente.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
     FileUp,
     X,
@@ -95,7 +95,6 @@ const documentTypes = [
 ];
 
 export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
-    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
     const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dropZoneInputRef = useRef<HTMLInputElement>(null);
@@ -165,27 +164,22 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
         );
     };
 
-    useEffect(() => {
-        if (
-            uploadedFiles.length > 0 ||
-            formData.documentosDetalle.length === 0
-        ) {
-            return;
-        }
-        const restored = formData.documentosDetalle.flatMap((group) =>
-            group.files.map((item) => ({
-                id: buildFileId(group.docTypeId, item.file),
-                name: item.name,
-                type: item.type,
-                size: item.size,
-                sizeLabel: formatFileSize(item.size),
-                docTypeId: group.docTypeId,
-                docTypeLabel: group.docTypeLabel,
-                file: item.file,
-            })),
-        );
-        setUploadedFiles(restored);
-    }, [formData.documentosDetalle, uploadedFiles.length]);
+    const uploadedFiles = useMemo<UploadedFile[]>(
+        () =>
+            formData.documentosDetalle.flatMap((group) =>
+                group.files.map((item) => ({
+                    id: buildFileId(group.docTypeId, item.file),
+                    name: item.name,
+                    type: item.type,
+                    size: item.size,
+                    sizeLabel: formatFileSize(item.size),
+                    docTypeId: group.docTypeId,
+                    docTypeLabel: group.docTypeLabel,
+                    file: item.file,
+                })),
+            ),
+        [formData.documentosDetalle],
+    );
 
     const syncFormData = (files: UploadedFile[]) => {
         updateFormData({
@@ -232,7 +226,6 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
             [],
         );
 
-        setUploadedFiles(deduped);
         syncFormData(deduped);
 
         // Reset
@@ -272,7 +265,6 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
             acc.push(item);
             return acc;
         }, []);
-        setUploadedFiles(updatedFiles);
         syncFormData(updatedFiles);
 
         if (dropZoneInputRef.current) {
@@ -305,7 +297,6 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
             acc.push(item);
             return acc;
         }, []);
-        setUploadedFiles(updatedFiles);
         syncFormData(updatedFiles);
     };
 
@@ -315,7 +306,6 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
 
     const handleRemove = (index: number) => {
         const newFiles = uploadedFiles.filter((_, i) => i !== index);
-        setUploadedFiles(newFiles);
         syncFormData(newFiles);
     };
 
@@ -328,7 +318,7 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-7">
             {/* Hidden file inputs */}
             <input
                 type="file"
@@ -347,12 +337,12 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
 
             {/* Document Types */}
             <div>
-                <Label className="text-base">Tipos de Documento</Label>
-                <p className="mb-4 text-sm text-muted-foreground">
+                <Label className="text-lg">Tipos de Documento</Label>
+                <p className="mb-5 text-sm sm:text-base text-muted-foreground">
                     Seleccione el tipo de documento y súbalo al sistema. Los
                     campos con * son obligatorios.
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                     {documentTypes.map((doc) => {
                         const isUploaded = isDocTypeUploaded(doc.id);
                         const uploadedForType = getUploadedFilesForType(doc.id);
@@ -364,7 +354,7 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
                         return (
                             <div
                                 key={doc.id}
-                                className={`relative rounded-lg border-2 transition-all ${
+                                className={`relative rounded-xl border-2 transition-all ${
                                     isUploaded
                                         ? "border-green-500 bg-green-50 dark:bg-green-950/20"
                                         : "border-border bg-transparent hover:border-primary/50 hover:bg-muted/50"
@@ -373,12 +363,12 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    className="h-auto w-full flex-col gap-2 p-4"
+                                    className="h-auto w-full flex-col gap-2 p-5 min-h-[140px]"
                                     onClick={() => handleDocTypeClick(doc.id)}
                                 >
                                     <div className="relative">
                                         <doc.icon
-                                            className={`h-8 w-8 ${isUploaded ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
+                                            className={`h-9 w-9 ${isUploaded ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
                                         />
                                         {isUploaded && (
                                             <div className="absolute -right-1 -top-1 rounded-full bg-green-500 p-0.5">
@@ -386,7 +376,7 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
                                             </div>
                                         )}
                                     </div>
-                                    <span className="text-sm font-medium">
+                                    <span className="text-sm sm:text-base font-medium text-center leading-tight">
                                         {doc.label}
                                         {doc.required && (
                                             <span className="text-destructive">
@@ -396,11 +386,11 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
                                         )}
                                     </span>
                                     {isUploaded && uploadedLabel ? (
-                                        <span className="text-xs text-green-600 dark:text-green-400 truncate max-w-full">
+                                        <span className="text-xs sm:text-sm text-green-600 dark:text-green-400 truncate max-w-full">
                                             {uploadedLabel}
                                         </span>
                                     ) : (
-                                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <span className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
                                             <Upload className="h-3 w-3" />
                                             Click para subir
                                         </span>
@@ -423,8 +413,8 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
             {/* Uploaded Files List */}
             {uploadedFiles.length > 0 && (
                 <div>
-                    <Label className="text-base">Archivos Subidos</Label>
-                    <p className="mb-4 text-sm text-muted-foreground">
+                    <Label className="text-lg">Archivos Subidos</Label>
+                    <p className="mb-4 text-sm sm:text-base text-muted-foreground">
                         {uploadedFiles.length} archivo(s) cargado(s)
                     </p>
                     <div className="space-y-2">
@@ -463,17 +453,17 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
 
             {/* Drop Zone for additional files */}
             <div
-                className="cursor-pointer rounded-lg border-2 border-dashed border-border p-8 text-center transition-colors hover:border-primary/50 hover:bg-muted/50"
+                className="cursor-pointer rounded-xl border-2 border-dashed border-border p-8 sm:p-10 text-center transition-colors hover:border-primary/50 hover:bg-muted/50"
                 onClick={handleDropZoneClick}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
             >
                 <FileUp className="mx-auto h-12 w-12 text-muted-foreground" />
-                <p className="mt-4 text-sm font-medium">
+                <p className="mt-4 text-base font-semibold">
                     Arrastre archivos aquí o haga clic para seleccionar
                     documentos adicionales
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-2 text-sm text-muted-foreground">
                     Formatos aceptados: PDF, JPG, PNG (máx. 10MB por archivo)
                 </p>
             </div>

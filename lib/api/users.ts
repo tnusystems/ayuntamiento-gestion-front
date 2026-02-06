@@ -65,10 +65,10 @@ export async function fetchUsers(): Promise<Usuario[]> {
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<Usuario> {
-    const data = await api<unknown>("/api/v1/users", {
+    const data = await api<unknown>("/api/v1/users/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: payload }),
+        body: JSON.stringify({ user_data: payload }),
     });
     return parseUser(data);
 }

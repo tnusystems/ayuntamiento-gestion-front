@@ -119,56 +119,11 @@ export default function LoginPage() {
                             </Suspense>
                         </CardContent>
 
-                        <CardFooter className="flex justify-center">
-                            <p className="text-center text-xs text-muted-foreground">
-                                Al continuar aceptas los terminos y condiciones.
-                            </p>
-                        </CardFooter>
+                        <CardFooter className="flex justify-center"></CardFooter>
                     </Card>
                 </section>
 
-                <footer className="flex flex-col items-center gap-3 pt-10 text-center text-[11px] text-muted-foreground">
-                    <div className="flex flex-wrap items-center justify-center gap-3">
-                        <Button
-                            type="button"
-                            variant="link"
-                            className="h-auto p-0 text-xs text-muted-foreground"
-                        >
-                            Aviso de Privacidad
-                        </Button>
-                        <span className="text-muted-foreground/40">|</span>
-                        <Button
-                            type="button"
-                            variant="link"
-                            className="h-auto p-0 text-xs text-muted-foreground"
-                        >
-                            Terminos y Condiciones
-                        </Button>
-                        <span className="text-muted-foreground/40">|</span>
-                        <Button
-                            type="button"
-                            variant="link"
-                            className="h-auto p-0 text-xs text-muted-foreground"
-                        >
-                            Reportar un problema
-                        </Button>
-                    </div>
-
-                    <div>
-                        Copyright @ Lorem Ipsum 2025. Todos los derechos
-                        reservados
-                    </div>
-
-                    <div className="flex items-center gap-2 text-foreground/80">
-                        <span className="font-medium">Powered by</span>
-                        <Image
-                            src="/icons/logo_tutor.png"
-                            alt="Tecnologico Nacional de Mexico"
-                            width={80}
-                            height={20}
-                        />
-                    </div>
-                </footer>
+                <footer className="flex flex-col items-center gap-3 pt-10 text-center text-[11px] text-muted-foreground"></footer>
             </div>
         </main>
     );

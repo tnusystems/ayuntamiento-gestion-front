@@ -168,7 +168,6 @@ export const authOptions: NextAuthOptions = {
         },
         async session({ session, token }) {
             session.accessToken = token.accessToken;
-            session.refreshToken = token.refreshToken;
             session.error = token.error;
             session.user = {
                 ...session.user,

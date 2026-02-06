@@ -21,12 +21,14 @@ interface BienDetailTabsProps {
     documentos?: Array<{
         id?: string | number;
         name?: string | null;
+        kind?: string | null;
         filename?: string | null;
         byte_size?: number | null;
         created_at?: string | null;
         download_url?: string | null;
         url?: string | null;
     }>;
+    onUploadDocuments?: () => void;
     registry?: {
         rpp_number?: string | null;
         rpp_date?: string | null;
@@ -47,6 +49,7 @@ export default function BienDetailTabs({
     registryId,
     procesos = [],
     documentos = [],
+    onUploadDocuments,
     registry = null,
 }: BienDetailTabsProps) {
     return (
@@ -77,7 +80,10 @@ export default function BienDetailTabs({
             </TabsContent>
 
             <TabsContent value="documentos">
-                <BienDocumentos documentos={documentos} />
+                <BienDocumentos
+                    documentos={documentos}
+                    onUploadClick={onUploadDocuments}
+                />
             </TabsContent>
         </Tabs>
     );

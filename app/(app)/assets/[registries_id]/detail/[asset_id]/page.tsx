@@ -3,13 +3,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Check, Loader2 } from "lucide-react";
 import BienDetail from "@/components/bienes/bien-detail";
 import { Button } from "@/components/ui/button";
-import { fetchAsset } from "@/lib/api/assets";
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { WizardStep3 } from "@/components/bienes-inmuebles/wizard/wizard-step-3";
+import { createAssetDocument, fetchAsset } from "@/lib/api/assets";
 import { fetchRegistry } from "@/lib/api/registries";
 import { fetchAssetDocuments } from "@/lib/api/files/fileByAsset";
 import { fetchInventoryProcesses } from "@/lib/api/inventory-processes";
+import { getApiBaseUrl } from "@/lib/api/baseUrl";
 
 type AssetDetail = Awaited<ReturnType<typeof fetchAsset>>;
 type RegistryItem = Awaited<ReturnType<typeof fetchRegistry>>;
@@ -35,6 +44,35 @@ export default function AssetDetailPage() {
     const [processes, setProcesses] = useState<InventoryProcessResponse>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [isUploadOpen, setIsUploadOpen] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [uploadNotice, setUploadNotice] = useState<string | null>(null);
+    const [uploadItems, setUploadItems] = useState<
+        Array<{
+            id: string;
+            name: string;
+            typeLabel: string;
+            docTypeId: string;
+            file: File;
+            status: "pending" | "uploading" | "success" | "error";
+            error?: string;
+        }>
+    >([]);
+    const [uploadForm, setUploadForm] = useState({
+        documentos: [] as string[],
+        documentosDetalle: [] as Array<{
+            docTypeId: string;
+            docTypeLabel: string;
+            files: Array<{
+                name: string;
+                type: string;
+                size: number;
+                lastModified: number;
+                file: File;
+            }>;
+        }>,
+    });
 
     useEffect(() => {
         let active = true;
@@ -89,6 +127,16 @@ export default function AssetDetailPage() {
             active = false;
         };
     }, [assetId, registryId]);
+
+    const documentKindMap: Record<string, string> = {
+        escritura: "es_publica",
+        fotos: "foto_bien",
+        plano: "catastro_plano",
+        oficio: "solicitud",
+        certificado: "certificado",
+        avaluo: "avaluo",
+        extraordinario: "extraordinario",
+    };
 
     const bien = useMemo(() => {
         if (!asset) return null;
@@ -238,6 +286,7 @@ export default function AssetDetailPage() {
             documents.map((doc) => ({
                 id: doc.id,
                 name: doc.name ?? null,
+                kind: (doc as { kind?: string }).kind ?? null,
                 filename: doc.file?.filename ?? null,
                 byte_size: doc.file?.byte_size ?? null,
                 created_at: (doc as { created_at?: string }).created_at ?? null,
@@ -246,6 +295,212 @@ export default function AssetDetailPage() {
             })),
         [documents],
     );
+
+    const apiBaseUrl = getApiBaseUrl().replace(/\/$/, "");
+    const withApiBase = (path?: string | null) => {
+        if (!path) return null;
+        if (/^https?:\/\//i.test(path)) return path;
+        return `${apiBaseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
+    };
+
+    const documentosConUrl = useMemo(
+        () =>
+            documentos.map((doc) => ({
+                ...doc,
+                url: withApiBase(doc.url),
+                download_url: withApiBase(doc.download_url),
+            })),
+        [documentos, apiBaseUrl],
+    );
+
+    const resetUploadForm = () => {
+        setUploadForm({
+            documentos: [],
+            documentosDetalle: [],
+        });
+        setUploadError(null);
+        setUploadNotice(null);
+        setUploadItems([]);
+    };
+
+    const handleOpenUpload = () => {
+        resetUploadForm();
+        setIsUploadOpen(true);
+    };
+
+    const handleCloseUpload = () => {
+        if (isUploading) return;
+        setIsUploadOpen(false);
+        resetUploadForm();
+    };
+
+    const uploadItemsSequence = async (
+        assetIdNumber: number,
+        items: Array<{
+            id: string;
+            name: string;
+            typeLabel: string;
+            docTypeId: string;
+            file: File;
+        }>,
+    ) => {
+        let position = 1;
+        let sawError = false;
+        for (const item of items) {
+            const kind = documentKindMap[item.docTypeId];
+            if (!kind) {
+                console.warn(
+                    "Unknown document kind for docTypeId:",
+                    item.docTypeId,
+                );
+                sawError = true;
+                setUploadItems((prev) =>
+                    prev.map((entry) =>
+                        entry.id === item.id
+                            ? {
+                                  ...entry,
+                                  status: "error",
+                                  error: "Tipo de documento desconocido.",
+                              }
+                            : entry,
+                    ),
+                );
+                continue;
+            }
+            setUploadItems((prev) =>
+                prev.map((entry) =>
+                    entry.id === item.id
+                        ? { ...entry, status: "uploading", error: undefined }
+                        : entry,
+                ),
+            );
+            try {
+                await createAssetDocument(assetIdNumber, {
+                    file: item.file,
+                    name: item.name,
+                    kind,
+                    position,
+                });
+                position += 1;
+                setUploadItems((prev) =>
+                    prev.map((entry) =>
+                        entry.id === item.id
+                            ? { ...entry, status: "success" }
+                            : entry,
+                    ),
+                );
+            } catch (error) {
+                sawError = true;
+                setUploadItems((prev) =>
+                    prev.map((entry) =>
+                        entry.id === item.id
+                            ? {
+                                  ...entry,
+                                  status: "error",
+                                  error:
+                                      error instanceof Error
+                                          ? error.message
+                                          : "No se pudo subir.",
+                              }
+                            : entry,
+                    ),
+                );
+            }
+        }
+        const refreshed = await fetchAssetDocuments(assetIdNumber);
+        setDocuments(refreshed ?? []);
+        if (sawError) {
+            setUploadNotice(
+                "Se subieron algunos documentos, revisa los errores.",
+            );
+        } else {
+            setUploadNotice("Documentos subidos correctamente.");
+            setIsUploadOpen(false);
+            resetUploadForm();
+        }
+    };
+
+    const handleUploadDocuments = async () => {
+        if (isUploading) return;
+        const assetIdNumber = Number(assetId);
+        if (!Number.isFinite(assetIdNumber)) {
+            setUploadError("ID de bien invalido.");
+            return;
+        }
+        const filesToUpload = uploadForm.documentosDetalle.flatMap((group) =>
+            group.files.map((file) => ({
+                id: `${group.docTypeId}-${file.file.name}-${file.file.size}-${file.file.lastModified}`,
+                name: file.name,
+                typeLabel: group.docTypeLabel,
+                docTypeId: group.docTypeId,
+                file: file.file,
+            })),
+        );
+        if (filesToUpload.length === 0) {
+            setUploadError("Selecciona al menos un documento.");
+            return;
+        }
+        setIsUploading(true);
+        setUploadError(null);
+        setUploadNotice(null);
+        setUploadItems(
+            filesToUpload.map((item) => ({
+                id: item.id,
+                name: item.name,
+                typeLabel: item.typeLabel,
+                docTypeId: item.docTypeId,
+                file: item.file,
+                status: "pending",
+            })),
+        );
+        try {
+            await uploadItemsSequence(assetIdNumber, filesToUpload);
+        } catch (error) {
+            setUploadError(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudieron subir los documentos.",
+            );
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleRetryFailed = async () => {
+        if (isUploading) return;
+        const assetIdNumber = Number(assetId);
+        if (!Number.isFinite(assetIdNumber)) {
+            setUploadError("ID de bien invalido.");
+            return;
+        }
+        const failedItems = uploadItems.filter(
+            (item) => item.status === "error",
+        );
+        if (failedItems.length === 0) return;
+        setIsUploading(true);
+        setUploadError(null);
+        setUploadNotice(null);
+        try {
+            await uploadItemsSequence(
+                assetIdNumber,
+                failedItems.map((item) => ({
+                    id: item.id,
+                    name: item.name,
+                    typeLabel: item.typeLabel,
+                    docTypeId: item.docTypeId,
+                    file: item.file,
+                })),
+            );
+        } catch (error) {
+            setUploadError(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudieron subir los documentos.",
+            );
+        } finally {
+            setIsUploading(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -297,12 +552,141 @@ export default function AssetDetailPage() {
                 bien={bien}
                 registry={registry}
                 procesos={procesos}
-                documentos={documentos}
+                documentos={documentosConUrl}
+                onUploadDocuments={handleOpenUpload}
                 registryId={registryId}
                 backPath={`/assets/${registryId}`}
                 hideCreateProcess
                 viewLocationHref={`/mapa?registry_id=${registryId}&asset_id=${assetId}`}
             />
+            <Dialog
+                open={isUploadOpen}
+                onOpenChange={(open) => {
+                    if (open) {
+                        setIsUploadOpen(true);
+                    } else {
+                        handleCloseUpload();
+                    }
+                }}
+            >
+                <DialogContent className="max-h-[85vh] w-full max-w-[calc(100%-2rem)] overflow-y-auto sm:max-w-5xl">
+                    <DialogHeader>
+                        <DialogTitle>Subir documentos</DialogTitle>
+                    </DialogHeader>
+                    <WizardStep3
+                        formData={uploadForm}
+                        updateFormData={(data) =>
+                            setUploadForm((prev) => ({ ...prev, ...data }))
+                        }
+                    />
+                    {uploadItems.length > 0 ? (
+                        <div className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                                <span>
+                                    {
+                                        uploadItems.filter(
+                                            (item) => item.status === "success",
+                                        ).length
+                                    }{" "}
+                                    de {uploadItems.length} documentos subidos
+                                </span>
+                                {uploadItems.some(
+                                    (item) => item.status === "error",
+                                ) ? (
+                                    <span className="text-destructive">
+                                        Hay errores en la carga
+                                    </span>
+                                ) : null}
+                            </div>
+                            <div className="space-y-2">
+                                {uploadItems.map((item) => (
+                                    <div
+                                        key={item.id}
+                                        className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="truncate text-sm font-medium">
+                                                {item.name}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {item.typeLabel}
+                                            </p>
+                                            {item.status === "error" &&
+                                            item.error ? (
+                                                <p className="text-xs text-destructive">
+                                                    {item.error}
+                                                </p>
+                                            ) : null}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            {item.status === "uploading" ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                                    <span className="text-primary">
+                                                        Subiendo
+                                                    </span>
+                                                </>
+                                            ) : item.status === "success" ? (
+                                                <>
+                                                    <Check className="h-4 w-4 text-emerald-600" />
+                                                    <span className="text-emerald-600">
+                                                        Listo
+                                                    </span>
+                                                </>
+                                            ) : item.status === "error" ? (
+                                                <>
+                                                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                                                    <span className="text-destructive">
+                                                        Error
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    En espera
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+                    {uploadError ? (
+                        <p className="text-sm text-destructive">
+                            {uploadError}
+                        </p>
+                    ) : null}
+                    {uploadNotice ? (
+                        <p className="text-sm text-muted-foreground">
+                            {uploadNotice}
+                        </p>
+                    ) : null}
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={handleCloseUpload}
+                            disabled={isUploading}
+                        >
+                            Cancelar
+                        </Button>
+                        {uploadItems.some((item) => item.status === "error") ? (
+                            <Button
+                                variant="secondary"
+                                onClick={handleRetryFailed}
+                                disabled={isUploading}
+                            >
+                                Reintentar fallidos
+                            </Button>
+                        ) : null}
+                        <Button
+                            onClick={handleUploadDocuments}
+                            disabled={isUploading}
+                        >
+                            Subir
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

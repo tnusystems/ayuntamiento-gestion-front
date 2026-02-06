@@ -9,7 +9,11 @@ export default function AssetNewFromRegistryPage() {
     return (
         <div>
             <div className="p-6">
-                <ProcesoWizard bienId={params.id} backPath="/registry" />
+                <ProcesoWizard
+                    bienId={params.id}
+                    backPath="/registry"
+                    enableDocuments={false}
+                />
             </div>
         </div>
     );

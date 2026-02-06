@@ -43,6 +43,24 @@ type CreateUserForm = {
 
 const DEFAULT_ROLE_OPTIONS = ["Todos", "Sin rol"];
 
+const ROLE_LABELS: Record<string, string> = {
+    system_admin: "Administrador",
+    siystem_admin: "Administrador",
+    inventory_manager: "Gestor de inventario",
+    inventory_operator: "Operador de inventario",
+    invetory_operator: "Operador de inventario",
+    viewer: "Visitante",
+};
+
+function toRoleKey(role?: string | null) {
+    return role?.trim().toLowerCase() ?? "";
+}
+
+function getRoleLabel(role?: string | null) {
+    const key = toRoleKey(role);
+    return ROLE_LABELS[key] ?? role ?? "";
+}
+
 export default function UsersManager() {
     const [users, setUsers] = useState<UserRecord[]>([]);
     const [roles, setRoles] = useState<Rol[]>([]);
@@ -127,7 +145,7 @@ export default function UsersManager() {
             }
         }
         return roles.map((role) => {
-            const key = role.name.trim().toLowerCase();
+            const key = toRoleKey(role.name);
             return {
                 ...role,
                 count: counts.get(key) ?? 0,
@@ -137,7 +155,7 @@ export default function UsersManager() {
 
     const filteredUsers = useMemo(() => {
         const normalizedQuery = query.trim().toLowerCase();
-        const normalizedRole = roleFilter.trim().toLowerCase();
+        const normalizedRole = toRoleKey(roleFilter);
         const normalizedStatus = statusFilter.trim().toLowerCase();
         return users.filter((user) => {
             const matchesQuery =
@@ -147,9 +165,9 @@ export default function UsersManager() {
             const matchesRole =
                 normalizedRole === "todos" ||
                 (normalizedRole === "sin rol" && user.roles.length === 0) ||
-                user.role.toLowerCase() === normalizedRole ||
+                toRoleKey(user.role) === normalizedRole ||
                 user.roles.some(
-                    (roleName) => roleName.toLowerCase() === normalizedRole,
+                    (roleName) => toRoleKey(roleName) === normalizedRole,
                 );
             const matchesStatus =
                 normalizedStatus === "todos" ||
@@ -419,7 +437,7 @@ export default function UsersManager() {
                                             ...roles.map((r) => r.name),
                                         ].map((role) => (
                                             <option key={role} value={role}>
-                                                {role}
+                                                {getRoleLabel(role)}
                                             </option>
                                         ))}
                                     </select>
@@ -525,9 +543,13 @@ export default function UsersManager() {
                                                 <td className="px-3 py-3">
                                                     <span className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-700">
                                                         {user.roles.length > 0
-                                                            ? user.roles.join(
-                                                                  ", ",
-                                                              )
+                                                            ? user.roles
+                                                                  .map((role) =>
+                                                                      getRoleLabel(
+                                                                          role,
+                                                                      ),
+                                                                  )
+                                                                  .join(", ")
                                                             : "No hay rol asignado"}
                                                     </span>
                                                 </td>
@@ -594,7 +616,7 @@ export default function UsersManager() {
                                             </span>
                                             <div>
                                                 <p className="text-sm font-semibold text-neutral-900">
-                                                    {role.name}
+                                                    {getRoleLabel(role.name)}
                                                 </p>
                                                 <p className="text-xs text-neutral-500">
                                                     {role.description ??
@@ -884,7 +906,7 @@ export default function UsersManager() {
                                 </option>
                                 {roles.map((role) => (
                                     <option key={role.id} value={role.id}>
-                                        {role.name}
+                                        {getRoleLabel(role.name)}
                                     </option>
                                 ))}
                             </select>
