@@ -12,6 +12,7 @@ import {
 import BienDetailHeader from "./bien-detail-header";
 import BienDetailTabs from "./bien-detail-tabs";
 import BajaConfirmModal from "@/components/modals/baja-confirm-modal";
+import ReactivateConfirmModal from "../../modals/reactivate-confirm-modal";
 
 interface BienDetailProps {
     bien: {
@@ -113,6 +114,9 @@ export default function BienDetail({
     const [bajaReason, setBajaReason] = useState("");
     const [bajaError, setBajaError] = useState<string | null>(null);
     const [isReactivating, setIsReactivating] = useState(false);
+    const [showReactivateDialog, setShowReactivateDialog] = useState(false);
+    const [reactivateNote, setReactivateNote] = useState("");
+    const [reactivateError, setReactivateError] = useState<string | null>(null);
 
     if (!bien) {
         return (
@@ -169,14 +173,20 @@ export default function BienDetail({
     const handleReactivar = async () => {
         if (isReactivating) return;
         try {
+            if (!reactivateNote.trim()) {
+                setReactivateError("Indica la nota de reactivación.");
+                return;
+            }
+            setReactivateError(null);
+            setShowReactivateDialog(false);
             setIsReactivating(true);
             const now = new Date().toISOString();
             await createInventoryProcess({
                 asset_id: Number(bien.id),
                 process_type: "alta",
                 status: "ABIERTA",
-                closed_at: now,
-                notes: "Reactivacion del bien",
+                opened_at: now,
+                notes: reactivateNote.trim(),
             });
             window.location.reload();
         } catch (error) {
@@ -194,7 +204,10 @@ export default function BienDetail({
                 canBaja={canBaja}
                 canReactivate={canReactivate}
                 onBajaClick={() => setShowBajaDialog(true)}
-                onReactivateClick={handleReactivar}
+                onReactivateClick={() => {
+                    setReactivateError(null);
+                    setShowReactivateDialog(true);
+                }}
                 backPath={backPath}
                 hideCreateProcess={hideCreateProcess}
                 viewLocationHref={viewLocationHref}
@@ -233,6 +246,27 @@ export default function BienDetail({
                 }}
                 errorMessage={bajaError}
                 isSubmitting={isBajaSubmitting}
+            />
+            <ReactivateConfirmModal
+                open={showReactivateDialog}
+                onOpenChange={(open) => {
+                    setShowReactivateDialog(open);
+                    if (!open) {
+                        setReactivateNote("");
+                        setReactivateError(null);
+                    }
+                }}
+                bienNombre={bien.nombre}
+                onConfirm={handleReactivar}
+                note={reactivateNote}
+                onNoteChange={(value) => {
+                    setReactivateNote(value);
+                    if (reactivateError) {
+                        setReactivateError(null);
+                    }
+                }}
+                errorMessage={reactivateError}
+                isSubmitting={isReactivating}
             />
         </div>
     );

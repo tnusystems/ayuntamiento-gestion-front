@@ -88,6 +88,7 @@ export function ProcesoWizard({
         tipoProceso?: string;
         actoJuridico?: string;
         responsable?: string;
+        observaciones?: string;
     }>({});
     const resolvedBackPath = backPath ?? "/assets";
     const documentKindMap: Record<string, string> = {
@@ -238,6 +239,9 @@ export function ProcesoWizard({
         if (!formData.responsable.trim()) {
             errors.responsable = "Ingresa el nombre del responsable.";
         }
+        if (!formData.observaciones.trim()) {
+            errors.observaciones = "Agrega una nota para el proceso.";
+        }
 
         setStep1Errors(errors);
         return Object.keys(errors).length === 0;
@@ -358,8 +362,8 @@ export function ProcesoWizard({
                     asset_id: assetId,
                     process_type: formData.tipoProceso.trim().toLowerCase(),
                     status: "ABIERTA",
-                    closed_at: now,
-                    notes: formData.observaciones.trim() || undefined,
+                    opened_at: now,
+                    notes: formData.observaciones.trim(),
                 });
                 setProcessStatus("completed");
                 if (enableDocuments) {

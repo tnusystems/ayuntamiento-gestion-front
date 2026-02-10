@@ -26,6 +26,7 @@ interface WizardStep1Props {
         tipoProceso?: string;
         actoJuridico?: string;
         responsable?: string;
+        observaciones?: string;
     };
     updateFormData: (data: Partial<WizardStep1Props["formData"]>) => void;
 }
@@ -151,7 +152,7 @@ export function WizardStep1({
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="observaciones">Observaciones Generales</Label>
+                <Label htmlFor="observaciones">Observaciones Generales *</Label>
                 <Textarea
                     id="observaciones"
                     placeholder="Notas adicionales sobre el proceso..."
@@ -160,7 +161,13 @@ export function WizardStep1({
                     onChange={(e) =>
                         updateFormData({ observaciones: e.target.value })
                     }
+                    aria-invalid={!!errors?.observaciones}
                 />
+                {errors?.observaciones ? (
+                    <p className="text-xs text-red-600">
+                        {errors.observaciones}
+                    </p>
+                ) : null}
             </div>
         </div>
     );

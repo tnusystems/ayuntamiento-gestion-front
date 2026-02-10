@@ -4,8 +4,8 @@ type InventoryProcessPayload = {
     asset_id: number;
     process_type: string;
     status: string;
-    closed_at: string;
-    notes?: string;
+    opened_at: string;
+    notes: string;
 };
 
 export type BajaInventoryProcessPayload = {
@@ -26,10 +26,10 @@ type InventoryProcessListParams = {
 };
 
 export async function createInventoryProcess(payload: InventoryProcessPayload) {
-    return api<unknown>("/inventory_processes", {
+    return api<unknown>("/api/v1/inventory_processes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ inventory_process: payload }),
     });
 }
 
