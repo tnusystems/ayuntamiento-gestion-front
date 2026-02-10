@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 interface BienProcesosProps {
     bienId: string;
+    hideCreateProcess?: boolean;
     procesos?: Array<{
         id?: string | number;
         tipo?: string;
@@ -62,6 +63,7 @@ const procesoEstatusConfig = {
 
 export default function BienProcesos({
     bienId,
+    hideCreateProcess = false,
     procesos = [],
 }: BienProcesosProps) {
     const bienProcesos = procesos;
@@ -89,12 +91,14 @@ export default function BienProcesos({
                         <p className="mt-4 text-muted-foreground">
                             No hay procesos registrados
                         </p>
-                        <Button asChild className="mt-4">
-                            <Link href={`/assets/process/${bienId}`}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Crear Primer Proceso
-                            </Link>
-                        </Button>
+                        {!hideCreateProcess ? (
+                            <Button asChild className="mt-4">
+                                <Link href={`/assets/process/${bienId}`}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Crear Primer Proceso
+                                </Link>
+                            </Button>
+                        ) : null}
                     </div>
                 ) : (
                     <div className="space-y-3">

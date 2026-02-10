@@ -5,7 +5,10 @@
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createBajaInventoryProcess } from "@/lib/api/inventory-processes";
+import {
+    createBajaInventoryProcess,
+    createInventoryProcess,
+} from "@/lib/api/inventory-processes";
 import BienDetailHeader from "./bien-detail-header";
 import BienDetailTabs from "./bien-detail-tabs";
 import BajaConfirmModal from "@/components/modals/baja-confirm-modal";
@@ -75,6 +78,7 @@ interface BienDetailProps {
     backPath?: string;
     hideCreateProcess?: boolean;
     viewLocationHref?: string;
+    canEdit?: boolean;
 }
 
 const estatusConfig = {
@@ -102,11 +106,13 @@ export default function BienDetail({
     backPath = "/assets",
     hideCreateProcess = false,
     viewLocationHref,
+    canEdit = true,
 }: BienDetailProps) {
     const [showBajaDialog, setShowBajaDialog] = useState(false);
     const [isBajaSubmitting, setIsBajaSubmitting] = useState(false);
     const [bajaReason, setBajaReason] = useState("");
     const [bajaError, setBajaError] = useState<string | null>(null);
+    const [isReactivating, setIsReactivating] = useState(false);
 
     if (!bien) {
         return (
@@ -157,7 +163,28 @@ export default function BienDetail({
         }
     };
 
-    const canBaja = bien.estatus === "activo";
+    const canBaja = canEdit && bien.estatus === "activo";
+    const canReactivate = canEdit && bien.estatus === "baja";
+
+    const handleReactivar = async () => {
+        if (isReactivating) return;
+        try {
+            setIsReactivating(true);
+            const now = new Date().toISOString();
+            await createInventoryProcess({
+                asset_id: Number(bien.id),
+                process_type: "alta",
+                status: "ABIERTA",
+                closed_at: now,
+                notes: "Reactivacion del bien",
+            });
+            window.location.reload();
+        } catch (error) {
+            console.error("Reactivate process error:", error);
+        } finally {
+            setIsReactivating(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -165,10 +192,13 @@ export default function BienDetail({
                 bien={bien}
                 estatusConfig={estatusConfig}
                 canBaja={canBaja}
+                canReactivate={canReactivate}
                 onBajaClick={() => setShowBajaDialog(true)}
+                onReactivateClick={handleReactivar}
                 backPath={backPath}
                 hideCreateProcess={hideCreateProcess}
                 viewLocationHref={viewLocationHref}
+                canEdit={canEdit}
             />
 
             <BienDetailTabs
@@ -179,6 +209,8 @@ export default function BienDetail({
                 onUploadDocuments={onUploadDocuments}
                 registry={registry}
                 registryId={registryId}
+                canEdit={canEdit}
+                hideCreateProcess={hideCreateProcess}
             />
 
             <BajaConfirmModal

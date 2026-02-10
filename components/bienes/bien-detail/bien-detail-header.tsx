@@ -13,20 +13,26 @@ interface BienDetailHeaderProps {
         [key: string]: { label: string; className: string };
     };
     canBaja: boolean;
+    canReactivate?: boolean;
     onBajaClick: () => void;
+    onReactivateClick?: () => void;
     backPath: string;
     hideCreateProcess?: boolean;
     viewLocationHref?: string;
+    canEdit?: boolean;
 }
 
 export default function BienDetailHeader({
     bien,
     estatusConfig,
     canBaja,
+    canReactivate = false,
     onBajaClick,
+    onReactivateClick,
     backPath,
     hideCreateProcess = false,
     viewLocationHref,
+    canEdit = true,
 }: BienDetailHeaderProps) {
     const statusKey = estatusConfig[bien.estatus] ? bien.estatus : "activo";
 
@@ -78,7 +84,7 @@ export default function BienDetailHeader({
                 </div>
             </div>
             <div className="flex flex-wrap gap-3 sm:ml-auto">
-                {canBaja && (
+                {canEdit && canBaja && (
                     <Button
                         variant="outline"
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive bg-transparent"
@@ -88,7 +94,12 @@ export default function BienDetailHeader({
                         Dar de Baja
                     </Button>
                 )}
-                {!hideCreateProcess ? (
+                {canEdit && canReactivate ? (
+                    <Button variant="outline" onClick={onReactivateClick}>
+                        Reactivar
+                    </Button>
+                ) : null}
+                {!hideCreateProcess && canEdit ? (
                     <Button asChild>
                         <Link href={`/assets/process/${bien.id}`}>
                             <Plus className="mr-2 h-4 w-4" />

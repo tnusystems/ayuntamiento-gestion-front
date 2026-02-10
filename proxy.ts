@@ -4,6 +4,7 @@ import { getToken } from "next-auth/jwt";
 const publicPathPrefixes = ["/login", "/api/auth", "/_next", "/icons"];
 const publicFiles = new Set(["/favicon.ico"]);
 const adminPathPrefix = "/admin";
+const changeRequestsPathPrefix = "/admin/solicitudes-cambio";
 const reportsPathPrefix = "/reportes";
 
 function normalizeRole(role?: string | null) {
@@ -38,6 +39,11 @@ function getRoleKeys(tokenUser?: TokenUser) {
 
 function isAdminUser(tokenUser?: TokenUser) {
     return getRoleKeys(tokenUser).has("admin");
+}
+
+function canAccessChangeRequests(tokenUser?: TokenUser) {
+    const roleKeys = getRoleKeys(tokenUser);
+    return roleKeys.has("admin") || roleKeys.has("inventory_manager");
 }
 
 function canAccessReports(tokenUser?: TokenUser) {
@@ -76,7 +82,13 @@ export async function proxy(request: NextRequest) {
         pathname === adminPathPrefix ||
         pathname.startsWith(`${adminPathPrefix}/`);
     if (isAdminPath) {
-        if (!isAdminUser(tokenUser)) {
+        const isChangeRequestsPath =
+            pathname === changeRequestsPathPrefix ||
+            pathname.startsWith(`${changeRequestsPathPrefix}/`);
+        const canAccessPath = isChangeRequestsPath
+            ? canAccessChangeRequests(tokenUser)
+            : isAdminUser(tokenUser);
+        if (!canAccessPath) {
             return NextResponse.redirect(new URL("/dashboard", request.url));
         }
     }

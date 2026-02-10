@@ -7,6 +7,7 @@ import {
     Users,
     ShieldCheck,
     Activity,
+    Pencil,
     Eye,
     EyeOff,
     X,
@@ -16,6 +17,7 @@ import {
     fetchRoles,
     fetchUsers,
     assignUserRole,
+    updateUser,
 } from "@/lib/api/users";
 import type { Rol, Usuario } from "@/types";
 
@@ -25,6 +27,10 @@ type UserRecord = {
     email: string;
     role: string;
     roles: string[];
+    fatherLastName: string | null;
+    motherLastName: string | null;
+    employeeNumber: string | null;
+    address: string | null;
     isActive: boolean;
     updatedAt: string | null;
 };
@@ -35,6 +41,15 @@ type CreateUserForm = {
     password: string;
     passwordConfirmation: string;
     role: string;
+    fatherLastName: string;
+    motherLastName: string;
+    employeeNumber: string;
+    address: string;
+};
+
+type EditUserForm = {
+    userId: string;
+    name: string;
     fatherLastName: string;
     motherLastName: string;
     employeeNumber: string;
@@ -72,6 +87,9 @@ export default function UsersManager() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editError, setEditError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
     const [activeTab, setActiveTab] = useState<"users" | "roles">("users");
     const [roleDialog, setRoleDialog] = useState<{
@@ -88,6 +106,14 @@ export default function UsersManager() {
         password: "",
         passwordConfirmation: "",
         role: "user",
+        fatherLastName: "",
+        motherLastName: "",
+        employeeNumber: "",
+        address: "",
+    });
+    const [editForm, setEditForm] = useState<EditUserForm>({
+        userId: "",
+        name: "",
         fatherLastName: "",
         motherLastName: "",
         employeeNumber: "",
@@ -179,6 +205,29 @@ export default function UsersManager() {
 
     const handleCreateChange = (field: keyof CreateUserForm, value: string) => {
         setCreateForm((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleEditChange = (field: keyof EditUserForm, value: string) => {
+        setEditForm((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const openEditUser = (user: UserRecord) => {
+        setEditError(null);
+        setIsEditOpen(true);
+        setEditForm({
+            userId: user.id,
+            name: user.name,
+            fatherLastName: user.fatherLastName ?? "",
+            motherLastName: user.motherLastName ?? "",
+            employeeNumber: user.employeeNumber ?? "",
+            address: user.address ?? "",
+        });
+    };
+
+    const closeEditUser = () => {
+        setIsEditOpen(false);
+        setIsEditing(false);
+        setEditError(null);
     };
 
     const openAssignRole = (userId: string) => {
@@ -308,6 +357,48 @@ export default function UsersManager() {
             );
         } finally {
             setIsCreating(false);
+        }
+    };
+
+    const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setEditError(null);
+
+        if (!editForm.userId) {
+            setEditError("No se encontro el usuario a editar.");
+            return;
+        }
+
+        const trimmedName = editForm.name.trim();
+        if (!trimmedName) {
+            setEditError("El nombre es obligatorio.");
+            return;
+        }
+
+        setIsEditing(true);
+        try {
+            const payload = {
+                name: trimmedName,
+                father_last_name: editForm.fatherLastName.trim() || null,
+                mother_last_name: editForm.motherLastName.trim() || null,
+                employee_number: editForm.employeeNumber.trim() || null,
+                address: editForm.address.trim() || null,
+            };
+            const updated = await updateUser(editForm.userId, payload);
+            setUsers((prev) =>
+                prev.map((user) =>
+                    user.id === editForm.userId ? toUserRecord(updated) : user,
+                ),
+            );
+            closeEditUser();
+        } catch (error) {
+            setEditError(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo editar el usuario.",
+            );
+        } finally {
+            setIsEditing(false);
         }
     };
 
@@ -573,17 +664,31 @@ export default function UsersManager() {
                                                     )}
                                                 </td>
                                                 <td className="px-3 py-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            openAssignRole(
-                                                                user.id,
-                                                            )
-                                                        }
-                                                        className="rounded-lg border border-neutral-200 px-3 py-1 text-xs text-neutral-600 transition hover:bg-neutral-50 cursor-pointer"
-                                                    >
-                                                        Asignar rol
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                openEditUser(
+                                                                    user,
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-3 py-1 text-xs text-neutral-600 transition hover:bg-neutral-50 cursor-pointer"
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                            Editar
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                openAssignRole(
+                                                                    user.id,
+                                                                )
+                                                            }
+                                                            className="rounded-lg border border-neutral-200 px-3 py-1 text-xs text-neutral-600 transition hover:bg-neutral-50 cursor-pointer"
+                                                        >
+                                                            Asignar rol
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -878,6 +983,150 @@ export default function UsersManager() {
                     </div>
                 </div>
             )}
+            {isEditOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+                    onClick={closeEditUser}
+                    role="presentation"
+                >
+                    <div
+                        className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl transition-all duration-200 ease-out animate-in fade-in zoom-in-95"
+                        onClick={(event) => event.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Editar usuario"
+                    >
+                        <div className="mb-4 flex items-start justify-between gap-3">
+                            <div>
+                                <h2 className="text-lg font-semibold text-neutral-900">
+                                    Editar usuario
+                                </h2>
+                                <p className="text-sm text-neutral-500">
+                                    Actualiza la informacion basica del usuario.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className="rounded-lg border border-neutral-200 p-2 text-neutral-600 transition hover:bg-neutral-50 cursor-pointer"
+                                onClick={closeEditUser}
+                                aria-label="Cerrar"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <form
+                            className="grid gap-4 md:grid-cols-2"
+                            onSubmit={handleEditSubmit}
+                        >
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Nombre
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={editForm.name}
+                                    onChange={(event) =>
+                                        handleEditChange(
+                                            "name",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Apellido paterno
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editForm.fatherLastName}
+                                    onChange={(event) =>
+                                        handleEditChange(
+                                            "fatherLastName",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Apellido materno
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editForm.motherLastName}
+                                    onChange={(event) =>
+                                        handleEditChange(
+                                            "motherLastName",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Numero de empleado
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editForm.employeeNumber}
+                                    onChange={(event) =>
+                                        handleEditChange(
+                                            "employeeNumber",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Direccion
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editForm.address}
+                                    onChange={(event) =>
+                                        handleEditChange(
+                                            "address",
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+                                />
+                            </div>
+                            <div className="flex items-end gap-3 md:col-span-2">
+                                <button
+                                    type="submit"
+                                    className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                    disabled={isEditing}
+                                >
+                                    {isEditing
+                                        ? "Guardando..."
+                                        : "Guardar cambios"}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="rounded-lg border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-neutral-50 cursor-pointer"
+                                    onClick={closeEditUser}
+                                    disabled={isEditing}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                            {editError && (
+                                <p className="text-sm text-red-600 md:col-span-2">
+                                    {editError}
+                                </p>
+                            )}
+                        </form>
+                    </div>
+                </div>
+            )}
             {roleDialog.open && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
                     <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-6 text-neutral-900 shadow-lg">
@@ -947,6 +1196,7 @@ export default function UsersManager() {
 }
 
 function toUserRecord(user: Usuario): UserRecord {
+    const userData = user as Record<string, unknown>;
     const roleNames = Array.isArray(user.roles)
         ? user.roles.map((item) => item.name).filter(Boolean)
         : [];
@@ -956,6 +1206,19 @@ function toUserRecord(user: Usuario): UserRecord {
         email: user.email ?? "Sin correo",
         role: roleNames[0] ?? "",
         roles: roleNames,
+        fatherLastName:
+            typeof userData.father_last_name === "string"
+                ? userData.father_last_name
+                : null,
+        motherLastName:
+            typeof userData.mother_last_name === "string"
+                ? userData.mother_last_name
+                : null,
+        employeeNumber:
+            typeof userData.employee_number === "string"
+                ? userData.employee_number
+                : null,
+        address: typeof userData.address === "string" ? userData.address : null,
         isActive: true,
         updatedAt: typeof user.updated_at === "string" ? user.updated_at : null,
     };

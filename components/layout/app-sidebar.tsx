@@ -59,6 +59,7 @@ export default function AppSidebar({
     const { data: session } = useSession();
     const roleKeys = getRoleKeys(session?.user?.role, session?.user?.roles);
     const isAdmin = roleKeys.has("admin");
+    const isInventoryManager = roleKeys.has("inventory_manager");
     const baseNavItems = [
         {
             label: "Tablero",
@@ -105,7 +106,16 @@ export default function AppSidebar({
                   path: "/admin/solicitudes-cambio",
               },
           ]
-        : baseNavItems;
+        : isInventoryManager
+          ? [
+                ...baseNavItems,
+                {
+                    label: "Solicitudes de cambio",
+                    icon: ClipboardList,
+                    path: "/admin/solicitudes-cambio",
+                },
+            ]
+          : baseNavItems;
     const activePath = currentPath || pathname;
 
     const sidebarWidth = isOpen ? "w-60" : "w-20";

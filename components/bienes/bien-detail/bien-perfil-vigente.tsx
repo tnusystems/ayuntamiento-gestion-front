@@ -17,9 +17,13 @@ import { updateAsset } from "@/lib/api/assets";
 interface BienPerfilVigenteProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     bien: any;
+    canEdit?: boolean;
 }
 
-export default function BienPerfilVigente({ bien }: BienPerfilVigenteProps) {
+export default function BienPerfilVigente({
+    bien,
+    canEdit = true,
+}: BienPerfilVigenteProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -200,7 +204,7 @@ export default function BienPerfilVigente({ bien }: BienPerfilVigenteProps) {
                     </CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    {isEditing ? (
+                    {canEdit && isEditing ? (
                         <>
                             <Button onClick={handleSave} disabled={isSaving}>
                                 {isSaving ? "Enviando..." : "Enviar aprobación"}
@@ -213,11 +217,11 @@ export default function BienPerfilVigente({ bien }: BienPerfilVigenteProps) {
                                 Cancelar
                             </Button>
                         </>
-                    ) : isBaja ? (
+                    ) : canEdit && isBaja ? (
                         <Button variant="outline" disabled>
                             Reactivar
                         </Button>
-                    ) : (
+                    ) : canEdit ? (
                         <Button
                             variant="outline"
                             onClick={() => setIsEditing(true)}
@@ -225,7 +229,7 @@ export default function BienPerfilVigente({ bien }: BienPerfilVigenteProps) {
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
                         </Button>
-                    )}
+                    ) : null}
                 </div>
             </CardHeader>
             <CardContent>

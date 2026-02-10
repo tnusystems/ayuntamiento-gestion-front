@@ -14,6 +14,14 @@ type CreateUserPayload = {
     roles?: number[];
 };
 
+type UpdateUserPayload = {
+    name: string;
+    father_last_name: string | null;
+    mother_last_name: string | null;
+    employee_number: string | null;
+    address: string | null;
+};
+
 function parseRoles(data: unknown): Rol[] {
     const parsed = RolSchema.array().safeParse(data);
     if (!parsed.success) {
@@ -67,6 +75,18 @@ export async function fetchUsers(): Promise<Usuario[]> {
 export async function createUser(payload: CreateUserPayload): Promise<Usuario> {
     const data = await api<unknown>("/api/v1/users/register", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_data: payload }),
+    });
+    return parseUser(data);
+}
+
+export async function updateUser(
+    userId: string | number,
+    payload: UpdateUserPayload,
+): Promise<Usuario> {
+    const data = await api<unknown>(`/api/v1/users/${userId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_data: payload }),
     });

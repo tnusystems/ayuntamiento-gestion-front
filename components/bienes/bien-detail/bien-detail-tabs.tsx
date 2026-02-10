@@ -41,6 +41,8 @@ interface BienDetailTabsProps {
         b_date?: string | null;
         co_number?: string | null;
     } | null;
+    canEdit?: boolean;
+    hideCreateProcess?: boolean;
 }
 
 export default function BienDetailTabs({
@@ -51,6 +53,8 @@ export default function BienDetailTabs({
     documentos = [],
     onUploadDocuments,
     registry = null,
+    canEdit = true,
+    hideCreateProcess = false,
 }: BienDetailTabsProps) {
     return (
         <Tabs defaultValue="general" className="space-y-4">
@@ -68,21 +72,26 @@ export default function BienDetailTabs({
                     bien={bien}
                     registry={registry}
                     registryId={registryId}
+                    canEdit={canEdit}
                 />
             </TabsContent>
 
             <TabsContent value="perfil">
-                <BienPerfilVigente bien={bien} />
+                <BienPerfilVigente bien={bien} canEdit={canEdit} />
             </TabsContent>
 
             <TabsContent value="procesos">
-                <BienProcesos bienId={bienId} procesos={procesos} />
+                <BienProcesos
+                    bienId={bienId}
+                    procesos={procesos}
+                    hideCreateProcess={hideCreateProcess}
+                />
             </TabsContent>
 
             <TabsContent value="documentos">
                 <BienDocumentos
                     documentos={documentos}
-                    onUploadClick={onUploadDocuments}
+                    onUploadClick={canEdit ? onUploadDocuments : undefined}
                 />
             </TabsContent>
         </Tabs>

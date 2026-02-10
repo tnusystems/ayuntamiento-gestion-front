@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { ArrowLeft, AlertTriangle, Check, Loader2 } from "lucide-react";
 import BienDetail from "@/components/bienes/bien-detail";
 import { Button } from "@/components/ui/button";
@@ -32,11 +33,38 @@ type AssetWithExtras = NonNullable<AssetDetail> & {
     operation_type?: { name?: string | null };
 };
 
+function normalizeRole(value?: string | null) {
+    return value?.trim().toLowerCase() ?? "";
+}
+
+function getRoleKeys(role?: string | null, roles?: Array<{ name?: string }>) {
+    const keys = new Set<string>();
+    const normalizedRole = normalizeRole(role);
+    if (normalizedRole) {
+        keys.add(normalizedRole);
+    }
+    if (Array.isArray(roles)) {
+        for (const item of roles) {
+            const roleName = normalizeRole(item?.name);
+            if (roleName) {
+                keys.add(roleName);
+            }
+        }
+    }
+    return keys;
+}
+
 export default function AssetDetailPage() {
     const params = useParams<{ registries_id: string; asset_id: string }>();
     const router = useRouter();
+    const { data: session } = useSession();
     const registryId = params.registries_id;
     const assetId = params.asset_id;
+    const roleKeys = useMemo(
+        () => getRoleKeys(session?.user?.role, session?.user?.roles),
+        [session?.user?.role, session?.user?.roles],
+    );
+    const isViewer = roleKeys.has("viewer");
 
     const [asset, setAsset] = useState<AssetDetail>(null);
     const [registry, setRegistry] = useState<RegistryItem>(null);
@@ -324,6 +352,7 @@ export default function AssetDetailPage() {
     };
 
     const handleOpenUpload = () => {
+        if (isViewer) return;
         resetUploadForm();
         setIsUploadOpen(true);
     };
@@ -421,6 +450,7 @@ export default function AssetDetailPage() {
     };
 
     const handleUploadDocuments = async () => {
+        if (isViewer) return;
         if (isUploading) return;
         const assetIdNumber = Number(assetId);
         if (!Number.isFinite(assetIdNumber)) {
@@ -467,6 +497,7 @@ export default function AssetDetailPage() {
     };
 
     const handleRetryFailed = async () => {
+        if (isViewer) return;
         if (isUploading) return;
         const assetIdNumber = Number(assetId);
         if (!Number.isFinite(assetIdNumber)) {
@@ -553,11 +584,12 @@ export default function AssetDetailPage() {
                 registry={registry}
                 procesos={procesos}
                 documentos={documentosConUrl}
-                onUploadDocuments={handleOpenUpload}
+                onUploadDocuments={isViewer ? undefined : handleOpenUpload}
                 registryId={registryId}
                 backPath={`/assets/${registryId}`}
                 hideCreateProcess
                 viewLocationHref={`/mapa?registry_id=${registryId}&asset_id=${assetId}`}
+                canEdit={!isViewer}
             />
             <Dialog
                 open={isUploadOpen}

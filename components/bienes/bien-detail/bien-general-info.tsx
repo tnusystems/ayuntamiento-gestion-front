@@ -29,12 +29,14 @@ interface BienGeneralInfoProps {
         b_date?: string | null;
         co_number?: string | null;
     } | null;
+    canEdit?: boolean;
 }
 
 export default function BienGeneralInfo({
     bien,
     registryId,
     registry = null,
+    canEdit = true,
 }: BienGeneralInfoProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -188,7 +190,7 @@ export default function BienGeneralInfo({
                         </CardDescription>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {isEditing ? (
+                        {canEdit && isEditing ? (
                             <>
                                 <Button
                                     onClick={handleSave}
@@ -206,11 +208,11 @@ export default function BienGeneralInfo({
                                     Cancelar
                                 </Button>
                             </>
-                        ) : isBaja ? (
+                        ) : canEdit && isBaja ? (
                             <Button variant="outline" disabled>
                                 Reactivar
                             </Button>
-                        ) : (
+                        ) : canEdit ? (
                             <Button
                                 variant="outline"
                                 onClick={() => setIsEditing(true)}
@@ -218,7 +220,7 @@ export default function BienGeneralInfo({
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Editar
                             </Button>
-                        )}
+                        ) : null}
                     </div>
                 </CardHeader>
                 <CardContent>
