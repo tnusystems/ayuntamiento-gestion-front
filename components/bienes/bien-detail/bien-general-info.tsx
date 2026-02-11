@@ -107,6 +107,7 @@ export default function BienGeneralInfo({
                 return;
             }
             setCurrentRegistry(updated ?? currentRegistry);
+            setNotice("Cambios guardados correctamente.");
             setIsEditing(false);
         } catch (err) {
             setError(
@@ -225,12 +226,12 @@ export default function BienGeneralInfo({
                 </CardHeader>
                 <CardContent>
                     {error ? (
-                        <div className="mb-4 text-sm text-destructive">
+                        <div className="mb-4 rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                             {error}
                         </div>
                     ) : null}
                     {notice ? (
-                        <div className="mb-4 text-sm text-success">
+                        <div className="mb-4 rounded-md border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
                             {notice}
                         </div>
                     ) : null}

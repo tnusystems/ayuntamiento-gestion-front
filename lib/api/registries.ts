@@ -103,7 +103,7 @@ export async function createRegistry(payload: RegistryPayload) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
-    return parseRegistry(data);
+    return parseRegistryUpdateResponse(data);
 }
 
 export async function updateRegistry(

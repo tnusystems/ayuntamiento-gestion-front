@@ -117,6 +117,8 @@ export default function BienDetail({
     const [showReactivateDialog, setShowReactivateDialog] = useState(false);
     const [reactivateNote, setReactivateNote] = useState("");
     const [reactivateError, setReactivateError] = useState<string | null>(null);
+    const [actionNotice, setActionNotice] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
 
     if (!bien) {
         return (
@@ -141,6 +143,8 @@ export default function BienDetail({
             setBajaError("Indica el motivo de la baja.");
             return;
         }
+        setActionNotice(null);
+        setActionError(null);
         setBajaError(null);
         setShowBajaDialog(false);
         try {
@@ -158,9 +162,18 @@ export default function BienDetail({
                 legacy_status: bien.estatus ?? "",
                 reason: bajaReason.trim(),
             });
-            window.location.reload();
+            setActionNotice(
+                "Proceso de baja enviado correctamente. Actualizando vista...",
+            );
+            window.setTimeout(() => {
+                window.location.reload();
+            }, 1200);
         } catch (error) {
-            console.error("Baja process error:", error);
+            setActionError(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo iniciar el proceso de baja.",
+            );
         } finally {
             setIsBajaSubmitting(false);
             setBajaReason("");
@@ -177,6 +190,8 @@ export default function BienDetail({
                 setReactivateError("Indica la nota de reactivación.");
                 return;
             }
+            setActionNotice(null);
+            setActionError(null);
             setReactivateError(null);
             setShowReactivateDialog(false);
             setIsReactivating(true);
@@ -188,9 +203,18 @@ export default function BienDetail({
                 opened_at: now,
                 notes: reactivateNote.trim(),
             });
-            window.location.reload();
+            setActionNotice(
+                "Reactivación enviada correctamente. Actualizando vista...",
+            );
+            window.setTimeout(() => {
+                window.location.reload();
+            }, 1200);
         } catch (error) {
-            console.error("Reactivate process error:", error);
+            setActionError(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo iniciar la reactivación del bien.",
+            );
         } finally {
             setIsReactivating(false);
         }
@@ -198,6 +222,16 @@ export default function BienDetail({
 
     return (
         <div className="space-y-6">
+            {actionError ? (
+                <div className="rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {actionError}
+                </div>
+            ) : null}
+            {actionNotice ? (
+                <div className="rounded-md border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
+                    {actionNotice}
+                </div>
+            ) : null}
             <BienDetailHeader
                 bien={bien}
                 estatusConfig={estatusConfig}

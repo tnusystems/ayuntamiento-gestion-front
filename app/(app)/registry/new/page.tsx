@@ -56,6 +56,7 @@ export default function RegistryNewPage() {
     const router = useRouter();
     const [isSaving, setIsSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
     const { register, handleSubmit, reset } = useForm<RegistryFormValues>({
         defaultValues: DEFAULT_VALUES,
     });
@@ -63,6 +64,7 @@ export default function RegistryNewPage() {
     const onSubmit = handleSubmit(async (values) => {
         setIsSaving(true);
         setErrorMessage(null);
+        setNoticeMessage(null);
         try {
             const created = await createRegistry({
                 name: values.nombre,
@@ -81,7 +83,16 @@ export default function RegistryNewPage() {
                 co_date: values.convenioDate || undefined,
             });
             reset(DEFAULT_VALUES);
-            if (created?.id) {
+            if (
+                created &&
+                typeof created === "object" &&
+                "approval_request" in created
+            ) {
+                setNoticeMessage("Solicitud enviada para aprobación.");
+                window.setTimeout(() => {
+                    router.push("/registry");
+                }, 1200);
+            } else if (created?.id) {
                 router.push(`/assets/new/${created.id}`);
             } else {
                 router.push("/registry");
@@ -125,6 +136,11 @@ export default function RegistryNewPage() {
             {errorMessage ? (
                 <div className="rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                     {errorMessage}
+                </div>
+            ) : null}
+            {noticeMessage ? (
+                <div className="rounded-md border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
+                    {noticeMessage}
                 </div>
             ) : null}
 
