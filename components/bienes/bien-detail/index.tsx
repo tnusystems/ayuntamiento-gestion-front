@@ -34,10 +34,12 @@ interface BienDetailProps {
         lot?: string;
         zone?: string;
         domain?: string;
+        verificationStatus?: string;
         numero?: string;
         situacion?: string;
         zoneId?: number;
         domainId?: number;
+        verificationStatusId?: number;
         operationTypeId?: number;
         totalArea?: string | number;
         builtArea?: string | number;
@@ -156,7 +158,7 @@ export default function BienDetail({
                 status: "PENDIENTE",
                 domain_id: bien.domainId ?? 0,
                 operation_type_id: bien.operationTypeId ?? 0,
-                verification_status_id: 0,
+                verification_status_id: 190,
                 zone_id: bien.zoneId ?? 0,
                 observations: bajaReason.trim(),
                 legacy_status: bien.estatus ?? "",

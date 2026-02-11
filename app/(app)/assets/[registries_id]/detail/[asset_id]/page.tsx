@@ -271,10 +271,24 @@ export default function AssetDetailPage() {
             lot: assetValue.lot ?? undefined,
             zone: toOptionalString(assetValue.zone_id),
             domain: toOptionalString(assetValue.domain_id),
+            verificationStatus: toOptionalString(
+                (
+                    assetValue as {
+                        verification_status_id?: number | string | null;
+                    }
+                ).verification_status_id,
+            ),
             situacion:
                 assetValue.status ?? assetValue.inventory_status ?? undefined,
             zoneId: toOptionalNumber(assetValue.zone_id),
             domainId: toOptionalNumber(assetValue.domain_id),
+            verificationStatusId: toOptionalNumber(
+                (
+                    assetValue as {
+                        verification_status_id?: number | string | null;
+                    }
+                ).verification_status_id,
+            ),
             operationTypeId: toOptionalNumber(assetValue.operation_type_id),
             totalArea: assetValue.total_area ?? undefined,
             builtArea: assetValue.built_area ?? undefined,

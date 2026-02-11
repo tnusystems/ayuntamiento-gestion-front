@@ -27,6 +27,7 @@ interface WizardStep2Props {
         dominio: string;
         stageDefinition: string;
         operacionU: string;
+        verificationStatus: string;
         valorCatastral: string;
         valorComercial: string;
         lat: string;
@@ -45,6 +46,7 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
         domain: "",
         stage_definition: "",
         operacion_u: "",
+        verification_status: "",
     });
 
     useEffect(() => {
@@ -352,6 +354,42 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 {renderCatalogItems(
                                     catalogs?.operacion_u ?? [],
                                     catalogSearch.operacion_u,
+                                )}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="verificationStatus">
+                            Estado de Verificación *
+                        </Label>
+                        <Select
+                            value={formData.verificationStatus}
+                            onValueChange={(value) =>
+                                updateFormData({ verificationStatus: value })
+                            }
+                        >
+                            <SelectTrigger id="verificationStatus">
+                                <SelectValue placeholder="Seleccionar estado" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <div className="p-2">
+                                    <Input
+                                        placeholder="Buscar estado..."
+                                        value={
+                                            catalogSearch.verification_status
+                                        }
+                                        onChange={(e) =>
+                                            setCatalogSearch((prev) => ({
+                                                ...prev,
+                                                verification_status:
+                                                    e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                {renderCatalogItems(
+                                    catalogs?.verification_status ?? [],
+                                    catalogSearch.verification_status,
                                 )}
                             </SelectContent>
                         </Select>

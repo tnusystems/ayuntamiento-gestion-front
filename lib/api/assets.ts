@@ -35,6 +35,7 @@ type AssetPayload = {
     land_use_id?: string;
     stage_definition_id?: string;
     zone_id?: string;
+    verification_status_id?: string | number;
 };
 
 type AssetDocumentPayload = {

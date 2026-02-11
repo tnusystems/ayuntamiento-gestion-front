@@ -153,6 +153,7 @@ export function ProcesoWizard({
         dominio: "",
         stageDefinition: "",
         operacionU: "",
+        verificationStatus: "",
         valorCatastral: "",
         valorComercial: "",
         lat: "",
@@ -275,6 +276,10 @@ export function ProcesoWizard({
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
+        if (!formData.verificationStatus.trim()) {
+            setSubmitError("Selecciona un estado de verificación.");
+            return;
+        }
         const toNumber = (value: string) => {
             const trimmed = value.trim();
             if (!trimmed) return 0;
@@ -296,6 +301,7 @@ export function ProcesoWizard({
             domain_id: formData.dominio.trim(),
             stage_definition_id: formData.stageDefinition.trim(),
             land_use_id: formData.operacionU.trim(),
+            verification_status_id: formData.verificationStatus.trim(),
             operation_type: formData.actoJuridico.trim(),
             total_area: toNumber(formData.superficieTerreno),
             built_area: toNumber(formData.superficieConstruccion),

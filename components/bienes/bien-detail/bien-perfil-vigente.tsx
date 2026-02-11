@@ -13,6 +13,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updateAsset } from "@/lib/api/assets";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { fetchCatalogs, type LookupCatalogs } from "@/lib/api/lookup-values";
+import type { LookupValue } from "@/types";
 
 interface BienPerfilVigenteProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,6 +37,8 @@ export default function BienPerfilVigente({
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
+    const [catalogs, setCatalogs] = useState<LookupCatalogs | null>(null);
+    const [catalogsError, setCatalogsError] = useState<string | null>(null);
     const [currentBien, setCurrentBien] = useState(bien);
     const [formValues, setFormValues] = useState({
         colony: bien.colony ?? "",
@@ -39,6 +50,7 @@ export default function BienPerfilVigente({
         totalArea: bien.totalArea ?? "",
         builtArea: bien.builtArea ?? "",
         domain: bien.domain ?? "",
+        verificationStatus: bien.verificationStatus ?? "",
         situacion: bien.situacion ?? "",
         valorCatastral: bien.valorCatastral ?? "",
         valorComercial: bien.valorComercial ?? "",
@@ -58,6 +70,7 @@ export default function BienPerfilVigente({
             totalArea: bien.totalArea ?? "",
             builtArea: bien.builtArea ?? "",
             domain: bien.domain ?? "",
+            verificationStatus: bien.verificationStatus ?? "",
             situacion: bien.situacion ?? "",
             valorCatastral: bien.valorCatastral ?? "",
             valorComercial: bien.valorComercial ?? "",
@@ -65,6 +78,32 @@ export default function BienPerfilVigente({
             longitude: bien.longitude ?? "",
         });
     }, [bien]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadCatalogs = async () => {
+            setCatalogsError(null);
+            try {
+                const data = await fetchCatalogs();
+                if (!isMounted) return;
+                setCatalogs(data);
+            } catch (catalogError) {
+                if (!isMounted) return;
+                setCatalogs(null);
+                setCatalogsError(
+                    catalogError instanceof Error
+                        ? catalogError.message
+                        : "No se pudieron cargar los catalogos.",
+                );
+            }
+        };
+
+        void loadCatalogs();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat("es-MX", {
@@ -77,6 +116,18 @@ export default function BienPerfilVigente({
         value === null || value === undefined || value === ""
             ? "—"
             : String(value);
+
+    const getCatalogLabel = (
+        items: LookupValue[] | undefined,
+        rawValue?: string | number | null,
+    ) => {
+        const value =
+            rawValue === undefined || rawValue === null ? "" : String(rawValue);
+        if (!value) return "—";
+        const match = items?.find((item) => String(item.id) === value);
+        if (!match) return value;
+        return match.name ?? String(match.key ?? match.id);
+    };
 
     const hasCoords = currentBien.latitude || currentBien.longitude;
     const coordsText =
@@ -118,6 +169,8 @@ export default function BienPerfilVigente({
                 block: formValues.block || undefined,
                 zone_id: formValues.zone || undefined,
                 domain_id: formValues.domain || undefined,
+                verification_status_id:
+                    formValues.verificationStatus || undefined,
                 total_area: normalizeNumber(formValues.totalArea),
                 built_area: normalizeNumber(formValues.builtArea),
                 cadastral_value: normalizeNumber(formValues.valorCatastral),
@@ -145,6 +198,7 @@ export default function BienPerfilVigente({
                 block: formValues.block || undefined,
                 zone: formValues.zone || undefined,
                 domain: formValues.domain || undefined,
+                verificationStatus: formValues.verificationStatus || undefined,
                 totalArea: formValues.totalArea || undefined,
                 builtArea: formValues.builtArea || undefined,
                 valorCatastral:
@@ -181,6 +235,7 @@ export default function BienPerfilVigente({
             totalArea: currentBien.totalArea ?? "",
             builtArea: currentBien.builtArea ?? "",
             domain: currentBien.domain ?? "",
+            verificationStatus: currentBien.verificationStatus ?? "",
             situacion: currentBien.situacion ?? "",
             valorCatastral: currentBien.valorCatastral ?? "",
             valorComercial: currentBien.valorComercial ?? "",
@@ -242,6 +297,11 @@ export default function BienPerfilVigente({
                 {notice ? (
                     <div className="mb-4 rounded-md border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
                         {notice}
+                    </div>
+                ) : null}
+                {isEditing && catalogsError ? (
+                    <div className="mb-4 rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                        {catalogsError}
                     </div>
                 ) : null}
                 {isBaja ? (
@@ -348,19 +408,46 @@ export default function BienPerfilVigente({
                     <div>
                         <p className="text-sm text-muted-foreground">Zona</p>
                         {isEditing ? (
-                            <Input
+                            <Select
                                 value={formValues.zone}
-                                onChange={(event) =>
+                                onValueChange={(value) =>
                                     setFormValues((prev) => ({
                                         ...prev,
-                                        zone: event.target.value,
+                                        zone: value,
                                     }))
                                 }
-                                disabled={isSaving}
-                            />
+                            >
+                                <SelectTrigger disabled={isSaving}>
+                                    <SelectValue placeholder="Seleccionar zona" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {(catalogs?.zone ?? []).map((item) => {
+                                        const value = String(item.id);
+                                        const label =
+                                            item.name ??
+                                            String(item.key ?? item.id);
+                                        return (
+                                            <SelectItem
+                                                key={value}
+                                                value={value}
+                                            >
+                                                {label}
+                                            </SelectItem>
+                                        );
+                                    })}
+                                    {!catalogs?.zone?.length ? (
+                                        <SelectItem value="__empty" disabled>
+                                            Sin opciones
+                                        </SelectItem>
+                                    ) : null}
+                                </SelectContent>
+                            </Select>
                         ) : (
                             <p className="font-medium">
-                                {valueOrDash(currentBien.zone)}
+                                {getCatalogLabel(
+                                    catalogs?.zone,
+                                    currentBien.zone,
+                                )}
                             </p>
                         )}
                     </div>
@@ -411,19 +498,96 @@ export default function BienPerfilVigente({
                     <div>
                         <p className="text-sm text-muted-foreground">Dominio</p>
                         {isEditing ? (
-                            <Input
+                            <Select
                                 value={formValues.domain}
-                                onChange={(event) =>
+                                onValueChange={(value) =>
                                     setFormValues((prev) => ({
                                         ...prev,
-                                        domain: event.target.value,
+                                        domain: value,
                                     }))
                                 }
-                                disabled={isSaving}
-                            />
+                            >
+                                <SelectTrigger disabled={isSaving}>
+                                    <SelectValue placeholder="Seleccionar dominio" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {(catalogs?.domain ?? []).map((item) => {
+                                        const value = String(item.id);
+                                        const label =
+                                            item.name ??
+                                            String(item.key ?? item.id);
+                                        return (
+                                            <SelectItem
+                                                key={value}
+                                                value={value}
+                                            >
+                                                {label}
+                                            </SelectItem>
+                                        );
+                                    })}
+                                    {!catalogs?.domain?.length ? (
+                                        <SelectItem value="__empty" disabled>
+                                            Sin opciones
+                                        </SelectItem>
+                                    ) : null}
+                                </SelectContent>
+                            </Select>
                         ) : (
                             <p className="font-medium">
-                                {valueOrDash(currentBien.domain)}
+                                {getCatalogLabel(
+                                    catalogs?.domain,
+                                    currentBien.domain,
+                                )}
+                            </p>
+                        )}
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">
+                            Estado de Verificación
+                        </p>
+                        {isEditing ? (
+                            <Select
+                                value={formValues.verificationStatus}
+                                onValueChange={(value) =>
+                                    setFormValues((prev) => ({
+                                        ...prev,
+                                        verificationStatus: value,
+                                    }))
+                                }
+                            >
+                                <SelectTrigger disabled={isSaving}>
+                                    <SelectValue placeholder="Seleccionar estado" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {(catalogs?.verification_status ?? []).map(
+                                        (item) => {
+                                            const value = String(item.id);
+                                            const label =
+                                                item.name ??
+                                                String(item.key ?? item.id);
+                                            return (
+                                                <SelectItem
+                                                    key={value}
+                                                    value={value}
+                                                >
+                                                    {label}
+                                                </SelectItem>
+                                            );
+                                        },
+                                    )}
+                                    {!catalogs?.verification_status?.length ? (
+                                        <SelectItem value="__empty" disabled>
+                                            Sin opciones
+                                        </SelectItem>
+                                    ) : null}
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <p className="font-medium">
+                                {getCatalogLabel(
+                                    catalogs?.verification_status,
+                                    currentBien.verificationStatus,
+                                )}
                             </p>
                         )}
                     </div>
