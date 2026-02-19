@@ -355,9 +355,9 @@ export default function DashboardPage() {
         <div className="container mx-auto py-8 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-semibold">Dashboard</h1>
+                    <h1 className="text-2xl font-semibold">Dashboard SIGBI</h1>
                     <p className="text-sm text-muted-foreground">
-                        Resumen de registros, bienes y actividad reciente.
+                        Resumen SIGBI de registros, bienes y actividad reciente.
                     </p>
                 </div>
             </div>

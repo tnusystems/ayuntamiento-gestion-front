@@ -430,9 +430,9 @@ export default function AssetsPage() {
             {/* Lista de Bienes en Tabla */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Bienes del Expediente</CardTitle>
+                    <CardTitle>Bienes del Expediente (SIGBI)</CardTitle>
                     <CardDescription>
-                        Lista de todos los bienes asociados a este expediente
+                        Lista de todos los bienes asociados a este expediente en SIGBI.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

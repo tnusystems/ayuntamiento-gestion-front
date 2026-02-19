@@ -164,9 +164,9 @@ export default function AssetsGlobalPage() {
         <div className="container mx-auto py-8 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold">Todos los bienes</h1>
+                    <h1 className="text-3xl font-bold">Todos los bienes (SIGBI)</h1>
                     <p className="text-muted-foreground">
-                        Lista completa de bienes sin filtrar por registro.
+                        Lista completa de bienes en SIGBI, sin filtrar por registro.
                     </p>
                 </div>
                 <Button
@@ -221,7 +221,7 @@ export default function AssetsGlobalPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Listado de bienes</CardTitle>
+                    <CardTitle>Listado de bienes SIGBI</CardTitle>
                     <CardDescription>
                         Resultados con filtros de proceso y orden.
                     </CardDescription>
