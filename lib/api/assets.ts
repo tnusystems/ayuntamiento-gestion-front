@@ -38,6 +38,8 @@ type AssetPayload = {
     verification_status_id?: string | number;
 };
 
+type UpdateAssetPayload = Partial<AssetPayload>;
+
 type AssetDocumentPayload = {
     file: File;
     name?: string;
@@ -175,7 +177,7 @@ export async function createAsset(payload: AssetPayload) {
     return parseCreateAssetResponse(data);
 }
 
-export async function updateAsset(id: number, payload: AssetPayload) {
+export async function updateAsset(id: number, payload: UpdateAssetPayload) {
     //console.log("updateAsset not implemented yet", { id, payload });
 
     const data = await api<unknown>(`/api/v1/assets/${id}`, {

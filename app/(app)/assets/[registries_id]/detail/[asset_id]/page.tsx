@@ -241,6 +241,9 @@ export default function AssetDetailPage() {
             }
             return undefined;
         };
+        const extraStatus = (assetValue as Record<string, unknown>).status;
+        const statusFromExtra =
+            typeof extraStatus === "string" ? extraStatus : undefined;
 
         return {
             id: assetValue.id,
@@ -278,8 +281,7 @@ export default function AssetDetailPage() {
                     }
                 ).verification_status_id,
             ),
-            situacion:
-                assetValue.status ?? assetValue.inventory_status ?? undefined,
+            situacion: statusFromExtra ?? assetValue.inventory_status ?? undefined,
             zoneId: toOptionalNumber(assetValue.zone_id),
             domainId: toOptionalNumber(assetValue.domain_id),
             verificationStatusId: toOptionalNumber(

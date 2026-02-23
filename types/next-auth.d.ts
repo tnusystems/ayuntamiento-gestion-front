@@ -14,6 +14,7 @@ declare module "next-auth" {
                 name: string;
             }>;
             name?: string | null;
+            image?: string | null;
         };
     }
 
@@ -26,6 +27,7 @@ declare module "next-auth" {
             name: string;
         }>;
         name?: string;
+        image?: string | null;
         accessToken?: string;
         refreshToken?: string;
         expiresIn?: number;
@@ -47,6 +49,7 @@ declare module "next-auth/jwt" {
                 name: string;
             }>;
             name?: string | null;
+            image?: string | null;
         };
     }
 }
