@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
@@ -67,7 +67,7 @@ function resolveStatus(asset: AssetItem) {
     return rawStatus || "activo";
 }
 
-export default function AssetsGlobalPage() {
+function AssetsGlobalPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -281,5 +281,19 @@ export default function AssetsGlobalPage() {
                 </Button>
             </div>
         </div>
+    );
+}
+
+export default function AssetsGlobalPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="container mx-auto py-8">
+                    <p className="text-muted-foreground">Cargando bienes...</p>
+                </div>
+            }
+        >
+            <AssetsGlobalPageContent />
+        </Suspense>
     );
 }
