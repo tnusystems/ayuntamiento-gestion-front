@@ -57,8 +57,8 @@ export default function BienesInmueblesResults({
 
     return (
         <AppCard
-            title="Gestion de bienes inmuebles"
-            description="Administra los bienes muebles e inmuebles del Ayuntamiento"
+            title="SIGBI - Gestion de bienes inmuebles"
+            description="Administra los bienes muebles e inmuebles del Ayuntamiento de Hermosillo"
             headerAction={
                 <Button
                     type="button"

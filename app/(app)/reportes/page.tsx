@@ -127,9 +127,9 @@ export default function ReportsPage() {
         <div className="container mx-auto py-8 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-semibold">Reportes</h1>
+                    <h1 className="text-2xl font-semibold">Reportes SIGBI</h1>
                     <p className="text-sm text-muted-foreground">
-                        Genera y descarga reportes en formato CSV.
+                        Genera y descarga reportes de SIGBI en formato CSV.
                     </p>
                 </div>
                 <Button

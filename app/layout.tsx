@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IBIM - Ayuntamiento de Hermosillo",
+  title: "SIGBI - Ayuntamiento de Hermosillo",
 };
 
 export default function RootLayout({

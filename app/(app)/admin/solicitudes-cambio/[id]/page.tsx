@@ -30,7 +30,13 @@ import {
     rejectApprovalRequest,
     retryApprovalRequest,
 } from "@/lib/api/approval-requests";
-import type { ApprovalRequest } from "@/types";
+import {
+    fetchCatalogs,
+    type LookupCatalogs,
+    type LookupKind,
+} from "@/lib/api/lookup-values";
+import { fetchOperationTypes } from "@/lib/api/operation-types";
+import type { ApprovalRequest, OperationType } from "@/types";
 
 type ApprovalStatus =
     | "pending"
@@ -76,6 +82,97 @@ const subjectLabels: Record<string, string> = {
     InventoryProcess: "Proceso de inventario",
 };
 
+const actionLabels: Record<string, string> = {
+    "inventory_process.create": "Crear proceso de inventario",
+    "inventory_process.update": "Actualizar proceso de inventario",
+    "asset.create": "Crear bien",
+    "asset.update": "Actualizar bien",
+    "registry.create": "Crear registro",
+    "registry.update": "Actualizar registro",
+};
+
+const fieldLabels: Record<string, string> = {
+    id: "ID",
+    notes: "Notas",
+    reason: "Razón",
+    status: "Estado",
+    action: "Acción",
+    opened_at: "Fecha de apertura",
+    requested_at: "Fecha de solicitud",
+    decided_at: "Fecha de decisión",
+    executed_at: "Fecha de ejecución",
+    created_at: "Fecha de creación",
+    updated_at: "Fecha de actualización",
+    process_type: "Tipo de proceso",
+    inventory_status: "Estado de inventario",
+    owner_name: "Propietario",
+    operation_type_id: "Tipo de operación",
+    registry_id: "Registro",
+    zone_id: "Zona",
+    domain_id: "Dominio",
+    stage_definition_id: "Etapa del trámite",
+    land_use_id: "Uso de suelo",
+    verification_status_id: "Estado de verificación",
+    rpp_number: "Número RPP",
+    c_number: "Número catastral",
+    lot: "Lote",
+    block: "Manzana",
+    colony: "Colonia",
+    street: "Calle",
+    total_area: "Superficie total",
+    built_area: "Superficie construida",
+    cadastral_value: "Valor catastral",
+    commercial_value: "Valor comercial",
+    latitude: "Latitud",
+    longitude: "Longitud",
+};
+
+const fieldCatalogMap: Partial<Record<string, LookupKind | "operation_type">> = {
+    domain_id: "domain",
+    zone_id: "zone",
+    stage_definition_id: "stage_definition",
+    land_use_id: "operacion_u",
+    verification_status_id: "verification_status",
+    operation_type_id: "operation_type",
+};
+
+const valueLabels: Record<string, Record<string, string>> = {
+    status: {
+        ABIERTA: "Abierta",
+        CERRADA: "Cerrada",
+        PENDIENTE: "Pendiente",
+        APROBADA: "Aprobada",
+        RECHAZADA: "Rechazada",
+        EJECUTADA: "Ejecutada",
+        open: "Abierta",
+        closed: "Cerrada",
+        pending: "Pendiente",
+        approved: "Aprobada",
+        rejected: "Rechazada",
+        executed: "Ejecutada",
+    },
+    process_type: {
+        alta: "Alta",
+        baja: "Baja",
+    },
+    inventory_status: {
+        active: "Activo",
+        maintenance: "Mantenimiento",
+        baja: "Baja",
+    },
+};
+
+const formatFieldKey = (key: string) => {
+    if (!key) return "—";
+    if (fieldLabels[key]) return fieldLabels[key];
+    if (key.endsWith("_id")) {
+        const base = key.slice(0, -3).replace(/_/g, " ");
+        return `${base.charAt(0).toUpperCase()}${base.slice(1)} ID`;
+    }
+    const normalized = key.replace(/_/g, " ");
+    return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+};
+
 const formatDateTime = (value?: string | null) => {
     if (!value) return "—";
     const parsed = new Date(value);
@@ -94,6 +191,7 @@ const valueOrDash = (value?: string | number | null) =>
 
 const formatAction = (value?: string | null) => {
     if (!value) return "—";
+    if (actionLabels[value]) return actionLabels[value];
     return value.replace(/\./g, " ");
 };
 
@@ -113,6 +211,18 @@ const formatAttributeValue = (value: unknown) => {
     } catch {
         return "—";
     }
+};
+
+const findLabelByValue = (
+    labels: Record<string, string>,
+    value: string,
+): string | null => {
+    if (labels[value]) return labels[value];
+    const lowered = value.toLowerCase();
+    const match = Object.entries(labels).find(
+        ([key]) => key.toLowerCase() === lowered,
+    );
+    return match?.[1] ?? null;
 };
 
 const formatPerson = (
@@ -167,6 +277,32 @@ export default function ApprovalRequestDetailPage() {
     const [actionLoading, setActionLoading] = useState<
         "approve" | "reject" | "retry" | "cancel" | null
     >(null);
+    const [catalogs, setCatalogs] = useState<LookupCatalogs | null>(null);
+    const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadLookups = async () => {
+            try {
+                const [catalogsResponse, operationTypesResponse] =
+                    await Promise.all([fetchCatalogs(), fetchOperationTypes()]);
+                if (!active) return;
+                setCatalogs(catalogsResponse);
+                setOperationTypes(operationTypesResponse);
+            } catch {
+                if (!active) return;
+                setCatalogs(null);
+                setOperationTypes([]);
+            }
+        };
+
+        void loadLookups();
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -333,6 +469,73 @@ export default function ApprovalRequestDetailPage() {
     const subjectDetailEntries = subjectDetails
         ? Object.entries(subjectDetails)
         : [];
+    const catalogMaps = useMemo(() => {
+        const result: Partial<Record<LookupKind, Map<string, string>>> = {};
+        if (!catalogs) {
+            return result;
+        }
+        (Object.entries(catalogs) as [LookupKind, LookupCatalogs[LookupKind]][]).forEach(
+            ([kind, values]) => {
+                result[kind] = new Map(
+                    values.map((item) => [
+                        String(item.id),
+                        item.name ?? String(item.key ?? item.id),
+                    ]),
+                );
+            },
+        );
+        return result;
+    }, [catalogs]);
+    const operationTypeMap = useMemo(
+        () =>
+            new Map(
+                operationTypes.map((item) => [
+                    String(item.id),
+                    item.name ?? item.key ?? String(item.id),
+                ]),
+            ),
+        [operationTypes],
+    );
+
+    const formatTranslatedValue = (key: string, value: unknown) => {
+        if (value === null || value === undefined || value === "") {
+            return "—";
+        }
+
+        const catalogKey = fieldCatalogMap[key];
+        const valueAsText =
+            typeof value === "string" ||
+            typeof value === "number" ||
+            typeof value === "boolean"
+                ? String(value)
+                : "";
+
+        if (catalogKey && valueAsText) {
+            const catalogLabel =
+                catalogKey === "operation_type"
+                    ? operationTypeMap.get(valueAsText)
+                    : catalogMaps[catalogKey]?.get(valueAsText);
+            if (catalogLabel) {
+                return `${catalogLabel} (#${valueAsText})`;
+            }
+            if (typeof value === "number" || /^\d+$/.test(valueAsText)) {
+                return `#${valueAsText}`;
+            }
+        }
+
+        if (typeof value === "string") {
+            const labelsByField = valueLabels[key];
+            if (labelsByField) {
+                const translated = findLabelByValue(labelsByField, value);
+                if (translated) return translated;
+            }
+            if (/_at$|_date$/i.test(key)) {
+                return formatDateTime(value);
+            }
+        }
+
+        return formatAttributeValue(value);
+    };
 
     return (
         <div className="container mx-auto space-y-6 py-8">
@@ -592,10 +795,11 @@ export default function ApprovalRequestDetailPage() {
                                                 ([key, value]) => (
                                                     <TableRow key={key}>
                                                         <TableCell className="font-medium">
-                                                            {key}
+                                                            {formatFieldKey(key)}
                                                         </TableCell>
                                                         <TableCell>
-                                                            {formatAttributeValue(
+                                                            {formatTranslatedValue(
+                                                                key,
                                                                 value,
                                                             )}
                                                         </TableCell>
@@ -639,10 +843,11 @@ export default function ApprovalRequestDetailPage() {
                                                 ([key, value]) => (
                                                     <TableRow key={key}>
                                                         <TableCell className="font-medium">
-                                                            {key}
+                                                            {formatFieldKey(key)}
                                                         </TableCell>
                                                         <TableCell>
-                                                            {formatAttributeValue(
+                                                            {formatTranslatedValue(
+                                                                key,
                                                                 value,
                                                             )}
                                                         </TableCell>
