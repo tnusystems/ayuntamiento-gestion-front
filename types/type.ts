@@ -118,7 +118,7 @@ export const BienApiSchema = z
         inventory_status: z.string().nullable().optional(),
         category: z.record(z.string(), z.unknown()).optional(),
         location: UbicacionSchema.optional(),
-        operation_type_id: z.number().int().optional(),
+        operation_type_id: z.number().int().nullable().optional(),
         operation_type_name: z.string().optional(),
         lot: z.string().nullable().optional(),
         block: z.string().nullable().optional(),

@@ -87,7 +87,7 @@ const mapAssetToRow = (
         rppNumber: asset.rpp_number ?? undefined,
         cNumber: asset.c_number ?? "",
         inventoryStatus: parseInventoryStatus(asset.inventory_status),
-        operationTypeId: asset.operation_type_id,
+        operationTypeId: asset.operation_type_id ?? undefined,
         operationTypeName: asset.operation_type_name,
         operation: asset.operation_type_id
             ? String(asset.operation_type_id)
