@@ -38,12 +38,12 @@ function getRoleKeys(tokenUser?: TokenUser) {
 }
 
 function isAdminUser(tokenUser?: TokenUser) {
-    return getRoleKeys(tokenUser).has("admin");
+    return getRoleKeys(tokenUser).has("system_admin");
 }
 
 function canAccessChangeRequests(tokenUser?: TokenUser) {
     const roleKeys = getRoleKeys(tokenUser);
-    return roleKeys.has("admin") || roleKeys.has("inventory_manager");
+    return roleKeys.has("system_admin") || roleKeys.has("inventory_manager");
 }
 
 function canAccessReports(tokenUser?: TokenUser) {

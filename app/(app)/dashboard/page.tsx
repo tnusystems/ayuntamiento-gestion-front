@@ -247,6 +247,23 @@ function normalize(value?: string | null) {
     return value?.trim().toLowerCase() ?? "";
 }
 
+function getRoleKeys(role?: string | null, roles?: Array<{ name?: string }>) {
+    const keys = new Set<string>();
+    const normalizedRole = normalize(role);
+    if (normalizedRole) {
+        keys.add(normalizedRole);
+    }
+    if (Array.isArray(roles)) {
+        for (const item of roles) {
+            const roleName = normalize(item?.name);
+            if (roleName) {
+                keys.add(roleName);
+            }
+        }
+    }
+    return keys;
+}
+
 function getUserInitial(name?: string | null, email?: string | null) {
     const source = name?.trim() || email?.trim() || "";
     if (!source) return "U";
@@ -255,8 +272,8 @@ function getUserInitial(name?: string | null, email?: string | null) {
 
 export default function DashboardPage() {
     const { data: session } = useSession();
-    const role = normalize(session?.user?.role);
-    const isAdmin = role === "admin";
+    const roleKeys = getRoleKeys(session?.user?.role, session?.user?.roles);
+    const isAdmin = roleKeys.has("system_admin");
     const userName = session?.user?.name ?? "Usuario";
     const userEmail = session?.user?.email ?? "—";
     const userImage = session?.user?.image ?? "";

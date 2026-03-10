@@ -58,7 +58,7 @@ export default function AppSidebar({
     const pathname = usePathname();
     const { data: session } = useSession();
     const roleKeys = getRoleKeys(session?.user?.role, session?.user?.roles);
-    const isAdmin = roleKeys.has("admin");
+    const isAdmin = roleKeys.has("system_admin");
     const isInventoryManager = roleKeys.has("inventory_manager");
     const baseNavItems = [
         {
