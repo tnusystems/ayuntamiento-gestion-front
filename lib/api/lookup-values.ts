@@ -11,7 +11,7 @@ export const LOOKUP_KINDS = [
     "operation_type",
     "verification_status",
     "zone",
-    "operacion_u",
+    "situation",
 ] as const;
 
 export type LookupKind = (typeof LOOKUP_KINDS)[number];

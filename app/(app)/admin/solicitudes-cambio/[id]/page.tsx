@@ -131,7 +131,7 @@ const fieldCatalogMap: Partial<Record<string, LookupKind | "operation_type">> = 
     domain_id: "domain",
     zone_id: "zone",
     stage_definition_id: "stage_definition",
-    land_use_id: "operacion_u",
+    land_use_id: "situation",
     verification_status_id: "verification_status",
     operation_type_id: "operation_type",
 };

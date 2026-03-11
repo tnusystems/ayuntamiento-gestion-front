@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,9 +45,35 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
         zone: "",
         domain: "",
         stage_definition: "",
-        operacion_u: "",
+        situation: "",
         verification_status: "",
     });
+
+    const situationCatalog = useMemo(() => {
+        const items = catalogs?.situation ?? [];
+        if (items.length <= 1) {
+            return items;
+        }
+
+        const selectedValue = formData.operacionU;
+        const getLabel = (item: LookupValue) =>
+            (item.name ?? String(item.key ?? item.id)).trim().toLowerCase();
+
+        const uniqueByLabel = new Map<string, LookupValue>();
+        for (const item of items) {
+            const label = getLabel(item);
+            if (!uniqueByLabel.has(label)) {
+                uniqueByLabel.set(label, item);
+                continue;
+            }
+
+            if (selectedValue && String(item.id) === selectedValue) {
+                uniqueByLabel.set(label, item);
+            }
+        }
+
+        return Array.from(uniqueByLabel.values());
+    }, [catalogs?.situation, formData.operacionU]);
 
     useEffect(() => {
         let isMounted = true;
@@ -342,18 +368,18 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 <div className="p-2">
                                     <Input
                                         placeholder="Buscar uso de suelo..."
-                                        value={catalogSearch.operacion_u}
+                                        value={catalogSearch.situation}
                                         onChange={(e) =>
                                             setCatalogSearch((prev) => ({
                                                 ...prev,
-                                                operacion_u: e.target.value,
+                                                situation: e.target.value,
                                             }))
                                         }
                                     />
                                 </div>
                                 {renderCatalogItems(
-                                    catalogs?.operacion_u ?? [],
-                                    catalogSearch.operacion_u,
+                                    situationCatalog,
+                                    catalogSearch.situation,
                                 )}
                             </SelectContent>
                         </Select>
