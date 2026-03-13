@@ -7,6 +7,8 @@ const apiBaseUrl =
     process.env.NEXT_PUBLIC_API_BASE_URL ??
     "https://ayuntamiento-gestion-api-production.up.railway.app";
 
+const DEFAULT_ACCESS_TOKEN_EXPIRES_IN = 60 * 60;
+
 type LoginResponse = {
     access_token?: string;
     refresh_token?: string;
@@ -48,7 +50,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
     }
 
     try {
-        const refreshUrl = new URL("/auth/refresh", apiBaseUrl).toString();
+        const refreshUrl = new URL("/api/v1/auth/refresh", apiBaseUrl).toString();
 
         console.log("[auth][refresh] API_BASE_URL:", process.env.API_BASE_URL);
         console.log(
@@ -189,8 +191,12 @@ export const authOptions: NextAuthOptions = {
         async jwt({ token, user }): Promise<JWT> {
             if (user) {
                 const authUser = user as ExtendedUser;
+                const expiresInSeconds =
+                    typeof authUser.expiresIn === "number" && authUser.expiresIn > 0
+                        ? authUser.expiresIn
+                        : DEFAULT_ACCESS_TOKEN_EXPIRES_IN;
                 const accessTokenExpires =
-                    Date.now() + (authUser.expiresIn ?? 0) * 1000;
+                    Date.now() + expiresInSeconds * 1000;
 
                 return {
                     ...token,
@@ -212,6 +218,19 @@ export const authOptions: NextAuthOptions = {
                 Date.now() < token.accessTokenExpires - 30 * 1000
             ) {
                 return token;
+            }
+
+            if (!token.refreshToken) {
+                if (token.accessToken) {
+                    return {
+                        ...token,
+                        error: undefined,
+                    };
+                }
+                return {
+                    ...token,
+                    error: "NoRefreshToken",
+                };
             }
 
             return refreshAccessToken(token);

@@ -6,7 +6,6 @@ import { AUTH_UNAUTHORIZED_EVENT } from "@/lib/auth/events";
 
 const sessionErrorsRequiringSignOut = new Set([
   "RefreshAccessTokenError",
-  "NoRefreshToken",
 ]);
 
 function SessionGuard() {

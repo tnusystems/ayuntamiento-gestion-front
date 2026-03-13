@@ -54,6 +54,8 @@ type EditUserForm = {
     motherLastName: string;
     employeeNumber: string;
     address: string;
+    password: string;
+    passwordConfirmation: string;
 };
 
 const DEFAULT_ROLE_OPTIONS = ["Todos", "Sin rol"];
@@ -67,6 +69,11 @@ const ROLE_LABELS: Record<string, string> = {
     viewer: "Visitante",
 };
 
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 64;
+const PASSWORD_HINT =
+    "Debe tener 8-64 caracteres, incluir mayuscula, minuscula, numero y caracter especial, sin espacios.";
+
 function toRoleKey(role?: string | null) {
     return role?.trim().toLowerCase() ?? "";
 }
@@ -74,6 +81,28 @@ function toRoleKey(role?: string | null) {
 function getRoleLabel(role?: string | null) {
     const key = toRoleKey(role);
     return ROLE_LABELS[key] ?? role ?? "";
+}
+
+function validatePassword(value: string) {
+    if (value.length < PASSWORD_MIN_LENGTH || value.length > PASSWORD_MAX_LENGTH) {
+        return PASSWORD_HINT;
+    }
+    if (/\s/.test(value)) {
+        return PASSWORD_HINT;
+    }
+    if (!/[A-Z]/.test(value)) {
+        return PASSWORD_HINT;
+    }
+    if (!/[a-z]/.test(value)) {
+        return PASSWORD_HINT;
+    }
+    if (!/\d/.test(value)) {
+        return PASSWORD_HINT;
+    }
+    if (!/[^A-Za-z\d]/.test(value)) {
+        return PASSWORD_HINT;
+    }
+    return null;
 }
 
 export default function UsersManager() {
@@ -90,7 +119,8 @@ export default function UsersManager() {
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editError, setEditError] = useState<string | null>(null);
-    const [showPassword, setShowPassword] = useState(false);
+    const [showCreatePassword, setShowCreatePassword] = useState(false);
+    const [showEditPassword, setShowEditPassword] = useState(false);
     const [activeTab, setActiveTab] = useState<"users" | "roles">("users");
     const [roleDialog, setRoleDialog] = useState<{
         open: boolean;
@@ -118,6 +148,8 @@ export default function UsersManager() {
         motherLastName: "",
         employeeNumber: "",
         address: "",
+        password: "",
+        passwordConfirmation: "",
     });
 
     useEffect(() => {
@@ -221,6 +253,8 @@ export default function UsersManager() {
             motherLastName: user.motherLastName ?? "",
             employeeNumber: user.employeeNumber ?? "",
             address: user.address ?? "",
+            password: "",
+            passwordConfirmation: "",
         });
     };
 
@@ -228,6 +262,7 @@ export default function UsersManager() {
         setIsEditOpen(false);
         setIsEditing(false);
         setEditError(null);
+        setShowEditPassword(false);
     };
 
     const openAssignRole = (userId: string) => {
@@ -316,6 +351,12 @@ export default function UsersManager() {
         event.preventDefault();
         setCreateError(null);
 
+        const createPasswordError = validatePassword(createForm.password);
+        if (createPasswordError) {
+            setCreateError(createPasswordError);
+            return;
+        }
+
         if (createForm.password !== createForm.passwordConfirmation) {
             setCreateError("Las contrasenas no coinciden.");
             return;
@@ -349,6 +390,7 @@ export default function UsersManager() {
                 address: "",
             });
             setIsCreateOpen(false);
+            setShowCreatePassword(false);
         } catch (error) {
             setCreateError(
                 error instanceof Error
@@ -375,15 +417,51 @@ export default function UsersManager() {
             return;
         }
 
+        const wantsToUpdatePassword =
+            editForm.password.length > 0 ||
+            editForm.passwordConfirmation.length > 0;
+
+        if (wantsToUpdatePassword) {
+            if (!editForm.password || !editForm.passwordConfirmation) {
+                setEditError(
+                    "Para cambiar la contrasena debes capturarla y confirmarla.",
+                );
+                return;
+            }
+
+            const editPasswordError = validatePassword(editForm.password);
+            if (editPasswordError) {
+                setEditError(editPasswordError);
+                return;
+            }
+
+            if (editForm.password !== editForm.passwordConfirmation) {
+                setEditError("Las contrasenas no coinciden.");
+                return;
+            }
+        }
+
         setIsEditing(true);
         try {
-            const payload = {
+            const payload: {
+                name: string;
+                father_last_name: string | null;
+                mother_last_name: string | null;
+                employee_number: string | null;
+                address: string | null;
+                password?: string;
+                password_confirmation?: string;
+            } = {
                 name: trimmedName,
                 father_last_name: editForm.fatherLastName.trim() || null,
                 mother_last_name: editForm.motherLastName.trim() || null,
                 employee_number: editForm.employeeNumber.trim() || null,
                 address: editForm.address.trim() || null,
             };
+            if (wantsToUpdatePassword) {
+                payload.password = editForm.password;
+                payload.password_confirmation = editForm.passwordConfirmation;
+            }
             const updated = await updateUser(editForm.userId, payload);
             setUsers((prev) =>
                 prev.map((user) =>
@@ -748,7 +826,10 @@ export default function UsersManager() {
             {isCreateOpen && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-                    onClick={() => setIsCreateOpen(false)}
+                    onClick={() => {
+                        setIsCreateOpen(false);
+                        setShowCreatePassword(false);
+                    }}
                     role="presentation"
                 >
                     <div
@@ -770,7 +851,10 @@ export default function UsersManager() {
                             <button
                                 type="button"
                                 className="rounded-lg border border-neutral-200 p-2 text-neutral-600 transition hover:bg-neutral-50 cursor-pointer"
-                                onClick={() => setIsCreateOpen(false)}
+                                onClick={() => {
+                                    setIsCreateOpen(false);
+                                    setShowCreatePassword(false);
+                                }}
                                 aria-label="Cerrar"
                             >
                                 <X className="h-4 w-4" />
@@ -885,9 +969,14 @@ export default function UsersManager() {
                                 <div className="relative mt-1">
                                     <input
                                         type={
-                                            showPassword ? "text" : "password"
+                                            showCreatePassword
+                                                ? "text"
+                                                : "password"
                                         }
                                         required
+                                        minLength={PASSWORD_MIN_LENGTH}
+                                        maxLength={PASSWORD_MAX_LENGTH}
+                                        autoComplete="new-password"
                                         value={createForm.password}
                                         onChange={(event) =>
                                             handleCreateChange(
@@ -900,16 +989,16 @@ export default function UsersManager() {
                                     <button
                                         type="button"
                                         onClick={() =>
-                                            setShowPassword((prev) => !prev)
+                                            setShowCreatePassword((prev) => !prev)
                                         }
                                         className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 cursor-pointer"
                                         aria-label={
-                                            showPassword
+                                            showCreatePassword
                                                 ? "Ocultar contrasena"
                                                 : "Mostrar contrasena"
                                         }
                                     >
-                                        {showPassword ? (
+                                        {showCreatePassword ? (
                                             <EyeOff className="h-4 w-4" />
                                         ) : (
                                             <Eye className="h-4 w-4" />
@@ -924,9 +1013,14 @@ export default function UsersManager() {
                                 <div className="relative mt-1">
                                     <input
                                         type={
-                                            showPassword ? "text" : "password"
+                                            showCreatePassword
+                                                ? "text"
+                                                : "password"
                                         }
                                         required
+                                        minLength={PASSWORD_MIN_LENGTH}
+                                        maxLength={PASSWORD_MAX_LENGTH}
+                                        autoComplete="new-password"
                                         value={createForm.passwordConfirmation}
                                         onChange={(event) =>
                                             handleCreateChange(
@@ -939,16 +1033,16 @@ export default function UsersManager() {
                                     <button
                                         type="button"
                                         onClick={() =>
-                                            setShowPassword((prev) => !prev)
+                                            setShowCreatePassword((prev) => !prev)
                                         }
                                         className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 cursor-pointer"
                                         aria-label={
-                                            showPassword
+                                            showCreatePassword
                                                 ? "Ocultar contrasena"
                                                 : "Mostrar contrasena"
                                         }
                                     >
-                                        {showPassword ? (
+                                        {showCreatePassword ? (
                                             <EyeOff className="h-4 w-4" />
                                         ) : (
                                             <Eye className="h-4 w-4" />
@@ -956,6 +1050,9 @@ export default function UsersManager() {
                                     </button>
                                 </div>
                             </div>
+                            <p className="text-xs text-neutral-500 md:col-span-2">
+                                {PASSWORD_HINT}
+                            </p>
                             <div className="flex items-end gap-3 md:col-span-2">
                                 <button
                                     type="submit"
@@ -969,7 +1066,10 @@ export default function UsersManager() {
                                 <button
                                     type="button"
                                     className="rounded-lg border border-neutral-200 px-4 py-2 text-sm text-neutral-600 transition hover:bg-neutral-50 cursor-pointer"
-                                    onClick={() => setIsCreateOpen(false)}
+                                    onClick={() => {
+                                        setIsCreateOpen(false);
+                                        setShowCreatePassword(false);
+                                    }}
                                 >
                                     Cancelar
                                 </button>
@@ -1099,6 +1199,87 @@ export default function UsersManager() {
                                     className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
                                 />
                             </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Nueva contrasena
+                                </label>
+                                <div className="relative mt-1">
+                                    <input
+                                        type={showEditPassword ? "text" : "password"}
+                                        minLength={PASSWORD_MIN_LENGTH}
+                                        maxLength={PASSWORD_MAX_LENGTH}
+                                        autoComplete="new-password"
+                                        value={editForm.password}
+                                        onChange={(event) =>
+                                            handleEditChange(
+                                                "password",
+                                                event.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 pr-10 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowEditPassword((prev) => !prev)
+                                        }
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 cursor-pointer"
+                                        aria-label={
+                                            showEditPassword
+                                                ? "Ocultar contrasena"
+                                                : "Mostrar contrasena"
+                                        }
+                                    >
+                                        {showEditPassword ? (
+                                            <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                            <Eye className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500">
+                                    Confirmar contrasena
+                                </label>
+                                <div className="relative mt-1">
+                                    <input
+                                        type={showEditPassword ? "text" : "password"}
+                                        minLength={PASSWORD_MIN_LENGTH}
+                                        maxLength={PASSWORD_MAX_LENGTH}
+                                        autoComplete="new-password"
+                                        value={editForm.passwordConfirmation}
+                                        onChange={(event) =>
+                                            handleEditChange(
+                                                "passwordConfirmation",
+                                                event.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 pr-10 text-sm text-neutral-800 focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowEditPassword((prev) => !prev)
+                                        }
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 cursor-pointer"
+                                        aria-label={
+                                            showEditPassword
+                                                ? "Ocultar contrasena"
+                                                : "Mostrar contrasena"
+                                        }
+                                    >
+                                        {showEditPassword ? (
+                                            <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                            <Eye className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                            <p className="text-xs text-neutral-500 md:col-span-2">
+                                Deja estos campos vacios si no deseas cambiar la contrasena. {PASSWORD_HINT}
+                            </p>
                             <div className="flex items-end gap-3 md:col-span-2">
                                 <button
                                     type="submit"

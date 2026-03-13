@@ -20,6 +20,8 @@ type UpdateUserPayload = {
     mother_last_name: string | null;
     employee_number: string | null;
     address: string | null;
+    password?: string;
+    password_confirmation?: string;
 };
 
 function parseRoles(data: unknown): Rol[] {
