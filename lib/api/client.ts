@@ -4,6 +4,7 @@ import { ApiError, getErrorMessage } from "./errors";
 import { parseResponse } from "./response";
 import { serializeBody } from "./serialize";
 import { createTimeoutSignal } from "./timeout";
+import { AUTH_UNAUTHORIZED_EVENT } from "@/lib/auth/events";
 
 export type ApiOptions = RequestInit & {
   timeoutMs?: number;
@@ -38,6 +39,10 @@ export async function api<T>(
       headers,
       signal,
     });
+
+    if (res.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT));
+    }
 
     const data = await parseResponse<T>(res);
     if (!res.ok) {

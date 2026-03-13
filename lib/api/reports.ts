@@ -2,6 +2,7 @@ import { ReportListResponseSchema } from "@/types";
 import { api } from "./client";
 import { getApiBaseUrl } from "./baseUrl";
 import { getAuthToken } from "./authToken.client";
+import { AUTH_UNAUTHORIZED_EVENT } from "@/lib/auth/events";
 
 export type ReportListParams = {
     page?: number;
@@ -69,6 +70,9 @@ export async function downloadReportFile(id: number | string) {
     const res = await fetch(`${baseUrl}/api/v1/reports/${id}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
+    if (res.status === 401 && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT));
+    }
     if (!res.ok) {
         const contentType = res.headers.get("content-type") ?? "";
         if (contentType.includes("application/json")) {
