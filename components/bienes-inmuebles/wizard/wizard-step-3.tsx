@@ -98,6 +98,8 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
     const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dropZoneInputRef = useRef<HTMLInputElement>(null);
+    const additionalDocTypeId = "extraordinario";
+    const additionalDocTypeLabel = "Documento Extraordinario";
 
     const formatFileSize = (bytes: number): string => {
         if (bytes < 1024) return `${bytes} B`;
@@ -246,13 +248,13 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
         if (!files || files.length === 0) return;
 
         const newFiles: UploadedFile[] = Array.from(files).map((file) => ({
-            id: buildFileId("otro", file),
+            id: buildFileId(additionalDocTypeId, file),
             name: file.name,
             type: file.type,
             size: file.size,
             sizeLabel: formatFileSize(file.size),
-            docTypeId: "otro",
-            docTypeLabel: "Documento Adicional",
+            docTypeId: additionalDocTypeId,
+            docTypeLabel: additionalDocTypeLabel,
             file,
         }));
 
@@ -278,13 +280,13 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
         if (!files || files.length === 0) return;
 
         const newFiles: UploadedFile[] = Array.from(files).map((file) => ({
-            id: buildFileId("otro", file),
+            id: buildFileId(additionalDocTypeId, file),
             name: file.name,
             type: file.type,
             size: file.size,
             sizeLabel: formatFileSize(file.size),
-            docTypeId: "otro",
-            docTypeLabel: "Documento Adicional",
+            docTypeId: additionalDocTypeId,
+            docTypeLabel: additionalDocTypeLabel,
             file,
         }));
 

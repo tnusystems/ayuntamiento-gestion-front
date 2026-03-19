@@ -164,6 +164,7 @@ export default function AssetDetailPage() {
         certificado: "certificado",
         avaluo: "avaluo",
         extraordinario: "extraordinario",
+        otro: "extraordinario",
     };
 
     const bien = useMemo(() => {

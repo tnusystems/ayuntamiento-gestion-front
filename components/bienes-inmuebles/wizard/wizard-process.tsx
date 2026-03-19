@@ -99,6 +99,7 @@ export function ProcesoWizard({
         certificado: "certificado",
         avaluo: "avaluo",
         extraordinario: "extraordinario",
+        otro: "extraordinario",
     };
 
     const steps = [
