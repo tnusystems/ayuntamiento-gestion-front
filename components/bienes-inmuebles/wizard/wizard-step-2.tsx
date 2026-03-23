@@ -56,8 +56,8 @@ interface WizardStep2Props {
 }
 
 const DEFAULT_MAP_CENTER = {
-    lat: 29.0892,
-    lng: -110.9613,
+    lat: 29.072967,
+    lng: -110.955919,
 };
 
 export function WizardStep2({
@@ -117,20 +117,41 @@ export function WizardStep2({
     }, [catalogs?.situation, formData.operacionU]);
 
     const parsedCoordinates = useMemo(() => {
-        const lat = Number(formData.lat);
-        const lng = Number(formData.alt);
+        const latValue = formData.lat.trim();
+        const lngValue = formData.alt.trim();
 
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        if (!latValue || !lngValue) {
+            return null;
+        }
+
+        const lat = Number(latValue);
+        const lng = Number(lngValue);
+
+        if (
+            !Number.isFinite(lat) ||
+            !Number.isFinite(lng) ||
+            lat < -90 ||
+            lat > 90 ||
+            lng < -180 ||
+            lng > 180
+        ) {
             return null;
         }
 
         return { lat, lng };
     }, [formData.alt, formData.lat]);
 
+    const hasMeaningfulCoordinates =
+        parsedCoordinates !== null &&
+        (Math.abs(parsedCoordinates.lat) > 0.01 ||
+            Math.abs(parsedCoordinates.lng) > 0.01);
+
     const mapCenter = mapSelection ?? parsedCoordinates ?? DEFAULT_MAP_CENTER;
 
     const handleOpenMapDialog = () => {
-        setMapSelection(parsedCoordinates);
+        setMapSelection(
+            hasMeaningfulCoordinates ? parsedCoordinates : DEFAULT_MAP_CENTER,
+        );
         setAddressSearchError(null);
         setIsMapDialogOpen(true);
     };
@@ -256,115 +277,315 @@ export function WizardStep2({
     };
 
     return (
-        <div className="space-y-8">
-            {/* Location Section */}
-            <div>
-                <h3 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Dirección
-                </h3>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="colonia">Colonia *</Label>
-                        <Input
-                            id="colonia"
-                            placeholder="Nombre de la colonia"
-                            value={formData.colonia}
-                            onChange={(e) =>
-                                updateFormData({ colonia: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="calle">Calle *</Label>
-                        <Input
-                            id="calle"
-                            placeholder="Nombre de la calle"
-                            value={formData.calle}
-                            onChange={(e) =>
-                                updateFormData({ calle: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="numero">Número</Label>
-                        <Input
-                            id="numero"
-                            placeholder="Número exterior"
-                            value={formData.numero}
-                            onChange={(e) =>
-                                updateFormData({ numero: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="lote">Lote</Label>
-                        <Input
-                            id="lote"
-                            placeholder="Número de lote"
-                            value={formData.lote}
-                            onChange={(e) =>
-                                updateFormData({ lote: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="manzana">Manzana</Label>
-                        <Input
-                            id="manzana"
-                            placeholder="Número de manzana"
-                            value={formData.manzana}
-                            onChange={(e) =>
-                                updateFormData({ manzana: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="zona">Zona *</Label>
-                        <Select
-                            value={formData.zona}
-                            onValueChange={(value) =>
-                                updateFormData({ zona: value })
-                            }
-                        >
-                            <SelectTrigger id="zona" aria-invalid={!!errors?.zona}>
-                                <SelectValue placeholder="Seleccionar zona" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <div className="p-2">
-                                    <Input
-                                        placeholder="Buscar zona..."
-                                        value={catalogSearch.zone}
-                                        onChange={(e) =>
-                                            setCatalogSearch((prev) => ({
-                                                ...prev,
-                                                zone: e.target.value,
-                                            }))
-                                        }
-                                    />
-                                </div>
-                                {renderCatalogItems(
-                                    catalogs?.zone ?? [],
-                                    catalogSearch.zone,
-                                )}
-                            </SelectContent>
-                        </Select>
-                        {errors?.zona ? (
-                            <p className="text-xs text-red-600">{errors.zona}</p>
-                        ) : null}
-                    </div>
-                </div>
+        <div className="space-y-6">
+            <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+                <p className="text-sm font-medium">Captura técnica del bien</p>
+                <p className="text-xs text-muted-foreground">
+                    Organiza la ubicación, clasificación y valores del inmueble.
+                    Los campos con * son obligatorios.
+                </p>
             </div>
 
-            {/* Surfaces Section */}
-            <div>
-                <h3 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Superficies
-                </h3>
+            <div className="grid gap-4 xl:grid-cols-2">
+                <section className="rounded-lg border border-border bg-card p-4">
+                    <div className="mb-4">
+                        <h3 className="text-sm font-semibold">Dirección</h3>
+                        <p className="text-xs text-muted-foreground">
+                            Datos para identificar físicamente el inmueble.
+                        </p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="colonia">Colonia *</Label>
+                            <Input
+                                id="colonia"
+                                placeholder="Nombre de la colonia"
+                                value={formData.colonia}
+                                onChange={(e) =>
+                                    updateFormData({ colonia: e.target.value })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="calle">Calle *</Label>
+                            <Input
+                                id="calle"
+                                placeholder="Nombre de la calle"
+                                value={formData.calle}
+                                onChange={(e) =>
+                                    updateFormData({ calle: e.target.value })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="numero">Número</Label>
+                            <Input
+                                id="numero"
+                                placeholder="Número exterior"
+                                value={formData.numero}
+                                onChange={(e) =>
+                                    updateFormData({ numero: e.target.value })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="lote">Lote</Label>
+                            <Input
+                                id="lote"
+                                placeholder="Número de lote"
+                                value={formData.lote}
+                                onChange={(e) =>
+                                    updateFormData({ lote: e.target.value })
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="manzana">Manzana</Label>
+                            <Input
+                                id="manzana"
+                                placeholder="Número de manzana"
+                                value={formData.manzana}
+                                onChange={(e) =>
+                                    updateFormData({ manzana: e.target.value })
+                                }
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                <section className="rounded-lg border border-border bg-card p-4">
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                            <h3 className="text-sm font-semibold">Clasificación</h3>
+                            <p className="text-xs text-muted-foreground">
+                                Catálogos obligatorios para continuar.
+                            </p>
+                        </div>
+                        <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            Requerido
+                        </span>
+                    </div>
+                    {catalogsError ? (
+                        <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                            {catalogsError}
+                        </p>
+                    ) : null}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="zona">Zona *</Label>
+                            <Select
+                                value={formData.zona}
+                                onValueChange={(value) =>
+                                    updateFormData({ zona: value })
+                                }
+                            >
+                                <SelectTrigger
+                                    id="zona"
+                                    aria-invalid={!!errors?.zona}
+                                >
+                                    <SelectValue placeholder="Seleccionar zona" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <div className="p-2">
+                                        <Input
+                                            placeholder="Buscar zona..."
+                                            value={catalogSearch.zone}
+                                            onChange={(e) =>
+                                                setCatalogSearch((prev) => ({
+                                                    ...prev,
+                                                    zone: e.target.value,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+                                    {renderCatalogItems(
+                                        catalogs?.zone ?? [],
+                                        catalogSearch.zone,
+                                    )}
+                                </SelectContent>
+                            </Select>
+                            {errors?.zona ? (
+                                <p className="text-xs text-red-600">{errors.zona}</p>
+                            ) : null}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="dominio">Dominio *</Label>
+                            <Select
+                                value={formData.dominio}
+                                onValueChange={(value) =>
+                                    updateFormData({ dominio: value })
+                                }
+                            >
+                                <SelectTrigger
+                                    id="dominio"
+                                    aria-invalid={!!errors?.dominio}
+                                >
+                                    <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <div className="p-2">
+                                        <Input
+                                            placeholder="Buscar dominio..."
+                                            value={catalogSearch.domain}
+                                            onChange={(e) =>
+                                                setCatalogSearch((prev) => ({
+                                                    ...prev,
+                                                    domain: e.target.value,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+                                    {renderCatalogItems(
+                                        catalogs?.domain ?? [],
+                                        catalogSearch.domain,
+                                    )}
+                                </SelectContent>
+                            </Select>
+                            {errors?.dominio ? (
+                                <p className="text-xs text-red-600">
+                                    {errors.dominio}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="stageDefinition">Etapa del Trámite *</Label>
+                            <Select
+                                value={formData.stageDefinition}
+                                onValueChange={(value) =>
+                                    updateFormData({ stageDefinition: value })
+                                }
+                            >
+                                <SelectTrigger
+                                    id="stageDefinition"
+                                    aria-invalid={!!errors?.stageDefinition}
+                                >
+                                    <SelectValue placeholder="Seleccionar etapa" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <div className="p-2">
+                                        <Input
+                                            placeholder="Buscar etapa..."
+                                            value={catalogSearch.stage_definition}
+                                            onChange={(e) =>
+                                                setCatalogSearch((prev) => ({
+                                                    ...prev,
+                                                    stage_definition:
+                                                        e.target.value,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+                                    {renderCatalogItems(
+                                        catalogs?.stage_definition ?? [],
+                                        catalogSearch.stage_definition,
+                                    )}
+                                </SelectContent>
+                            </Select>
+                            {errors?.stageDefinition ? (
+                                <p className="text-xs text-red-600">
+                                    {errors.stageDefinition}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="operacionU">Destino *</Label>
+                            <Select
+                                value={formData.operacionU}
+                                onValueChange={(value) =>
+                                    updateFormData({ operacionU: value })
+                                }
+                            >
+                                <SelectTrigger
+                                    id="operacionU"
+                                    aria-invalid={!!errors?.operacionU}
+                                >
+                                    <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <div className="p-2">
+                                        <Input
+                                            placeholder="Buscar destino..."
+                                            value={catalogSearch.situation}
+                                            onChange={(e) =>
+                                                setCatalogSearch((prev) => ({
+                                                    ...prev,
+                                                    situation: e.target.value,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+                                    {renderCatalogItems(
+                                        situationCatalog,
+                                        catalogSearch.situation,
+                                    )}
+                                </SelectContent>
+                            </Select>
+                            {errors?.operacionU ? (
+                                <p className="text-xs text-red-600">
+                                    {errors.operacionU}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="verificationStatus">
+                                Estado de Verificación *
+                            </Label>
+                            <Select
+                                value={formData.verificationStatus}
+                                onValueChange={(value) =>
+                                    updateFormData({ verificationStatus: value })
+                                }
+                            >
+                                <SelectTrigger
+                                    id="verificationStatus"
+                                    aria-invalid={!!errors?.verificationStatus}
+                                >
+                                    <SelectValue placeholder="Seleccionar estado" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <div className="p-2">
+                                        <Input
+                                            placeholder="Buscar estado..."
+                                            value={catalogSearch.verification_status}
+                                            onChange={(e) =>
+                                                setCatalogSearch((prev) => ({
+                                                    ...prev,
+                                                    verification_status:
+                                                        e.target.value,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+                                    {renderCatalogItems(
+                                        catalogs?.verification_status ?? [],
+                                        catalogSearch.verification_status,
+                                    )}
+                                </SelectContent>
+                            </Select>
+                            {errors?.verificationStatus ? (
+                                <p className="text-xs text-red-600">
+                                    {errors.verificationStatus}
+                                </p>
+                            ) : null}
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <section className="rounded-lg border border-border bg-card p-4">
+                <div className="mb-4">
+                    <h3 className="text-sm font-semibold">Superficies y valores</h3>
+                    <p className="text-xs text-muted-foreground">
+                        Captura medidas y montos de referencia del inmueble.
+                    </p>
+                </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-2">
-                        <Label htmlFor="superficieTerreno">
-                            Superficie Terreno (m²)
-                        </Label>
+                        <Label htmlFor="superficieTerreno">Superficie Terreno (m²)</Label>
                         <Input
                             id="superficieTerreno"
                             type="number"
@@ -394,194 +615,7 @@ export function WizardStep2({
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="dominio">Dominio *</Label>
-                        <Select
-                            value={formData.dominio}
-                            onValueChange={(value) =>
-                                updateFormData({ dominio: value })
-                            }
-                        >
-                            <SelectTrigger
-                                id="dominio"
-                                aria-invalid={!!errors?.dominio}
-                            >
-                                <SelectValue placeholder="Seleccionar" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <div className="p-2">
-                                    <Input
-                                        placeholder="Buscar dominio..."
-                                        value={catalogSearch.domain}
-                                        onChange={(e) =>
-                                            setCatalogSearch((prev) => ({
-                                                ...prev,
-                                                domain: e.target.value,
-                                            }))
-                                        }
-                                    />
-                                </div>
-                                {renderCatalogItems(
-                                    catalogs?.domain ?? [],
-                                    catalogSearch.domain,
-                                )}
-                            </SelectContent>
-                        </Select>
-                        {errors?.dominio ? (
-                            <p className="text-xs text-red-600">
-                                {errors.dominio}
-                            </p>
-                        ) : null}
-                    </div>
-                </div>
-            </div>
-
-            {/* Catalogs Section */}
-            <div>
-                <h3 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Catálogos
-                </h3>
-                {catalogsError ? (
-                    <p className="mb-4 text-sm text-red-600">{catalogsError}</p>
-                ) : null}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="stageDefinition">
-                            Etapa del Trámite *
-                        </Label>
-                        <Select
-                            value={formData.stageDefinition}
-                            onValueChange={(value) =>
-                                updateFormData({ stageDefinition: value })
-                            }
-                        >
-                            <SelectTrigger
-                                id="stageDefinition"
-                                aria-invalid={!!errors?.stageDefinition}
-                            >
-                                <SelectValue placeholder="Seleccionar etapa" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <div className="p-2">
-                                    <Input
-                                        placeholder="Buscar etapa..."
-                                        value={catalogSearch.stage_definition}
-                                        onChange={(e) =>
-                                            setCatalogSearch((prev) => ({
-                                                ...prev,
-                                                stage_definition:
-                                                    e.target.value,
-                                            }))
-                                        }
-                                    />
-                                </div>
-                                {renderCatalogItems(
-                                    catalogs?.stage_definition ?? [],
-                                    catalogSearch.stage_definition,
-                                )}
-                            </SelectContent>
-                        </Select>
-                        {errors?.stageDefinition ? (
-                            <p className="text-xs text-red-600">
-                                {errors.stageDefinition}
-                            </p>
-                        ) : null}
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="operacionU">Destino *</Label>
-                        <Select
-                            value={formData.operacionU}
-                            onValueChange={(value) =>
-                                updateFormData({ operacionU: value })
-                            }
-                        >
-                            <SelectTrigger
-                                id="operacionU"
-                                aria-invalid={!!errors?.operacionU}
-                            >
-                                <SelectValue placeholder="Seleccionar" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <div className="p-2">
-                                    <Input
-                                        placeholder="Buscar destino..."
-                                        value={catalogSearch.situation}
-                                        onChange={(e) =>
-                                            setCatalogSearch((prev) => ({
-                                                ...prev,
-                                                situation: e.target.value,
-                                            }))
-                                        }
-                                    />
-                                </div>
-                                {renderCatalogItems(
-                                    situationCatalog,
-                                    catalogSearch.situation,
-                                )}
-                            </SelectContent>
-                        </Select>
-                        {errors?.operacionU ? (
-                            <p className="text-xs text-red-600">
-                                {errors.operacionU}
-                            </p>
-                        ) : null}
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="verificationStatus">
-                            Estado de Verificación *
-                        </Label>
-                        <Select
-                            value={formData.verificationStatus}
-                            onValueChange={(value) =>
-                                updateFormData({ verificationStatus: value })
-                            }
-                        >
-                            <SelectTrigger
-                                id="verificationStatus"
-                                aria-invalid={!!errors?.verificationStatus}
-                            >
-                                <SelectValue placeholder="Seleccionar estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <div className="p-2">
-                                    <Input
-                                        placeholder="Buscar estado..."
-                                        value={
-                                            catalogSearch.verification_status
-                                        }
-                                        onChange={(e) =>
-                                            setCatalogSearch((prev) => ({
-                                                ...prev,
-                                                verification_status:
-                                                    e.target.value,
-                                            }))
-                                        }
-                                    />
-                                </div>
-                                {renderCatalogItems(
-                                    catalogs?.verification_status ?? [],
-                                    catalogSearch.verification_status,
-                                )}
-                            </SelectContent>
-                        </Select>
-                        {errors?.verificationStatus ? (
-                            <p className="text-xs text-red-600">
-                                {errors.verificationStatus}
-                            </p>
-                        ) : null}
-                    </div>
-                </div>
-            </div>
-
-            {/* Values Section */}
-            <div>
-                <h3 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Valores y Verificación
-                </h3>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
-                    <div className="space-y-2">
-                        <Label htmlFor="valorCatastral">
-                            Valor Catastral (MXN)
-                        </Label>
+                        <Label htmlFor="valorCatastral">Valor Catastral (MXN)</Label>
                         <Input
                             id="valorCatastral"
                             type="number"
@@ -595,9 +629,7 @@ export function WizardStep2({
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="valorComercial">
-                            Valor Comercial (MXN)
-                        </Label>
+                        <Label htmlFor="valorComercial">Valor Comercial (MXN)</Label>
                         <Input
                             id="valorComercial"
                             type="number"
@@ -611,93 +643,78 @@ export function WizardStep2({
                         />
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div>
-                <h3 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Localización
-                </h3>
-                <div className="rounded-lg border bg-muted/20 p-4">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <p className="text-sm font-medium">
-                                Selección de coordenadas
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Puedes capturar latitud y longitud manualmente o
-                                seleccionarlas desde el mapa.
-                            </p>
-                        </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleOpenMapDialog}
-                        >
-                            <MapIcon className="mr-2 h-4 w-4" />
-                            Seleccionar en mapa
-                        </Button>
-                    </div>
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="lat">Latitud</Label>
-                            <Input
-                                id="lat"
-                                type="number"
-                                inputMode="decimal"
-                                step="any"
-                                placeholder="29.072967"
-                                value={formData.lat}
-                                onChange={(e) =>
-                                    updateFormData({ lat: e.target.value })
-                                }
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="alt">Longitud</Label>
-                            <Input
-                                id="alt"
-                                type="number"
-                                inputMode="decimal"
-                                step="any"
-                                placeholder="-110.955919"
-                                value={formData.alt}
-                                onChange={(e) =>
-                                    updateFormData({ alt: e.target.value })
-                                }
-                            />
-                        </div>
-                    </div>
-                    {parsedCoordinates ? (
-                        <p className="mt-3 text-xs text-muted-foreground">
-                            Coordenadas actuales: {parsedCoordinates.lat.toFixed(
-                                6,
-                            )}
-                            , {parsedCoordinates.lng.toFixed(6)}
+            <section className="rounded-lg border border-border bg-card p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h3 className="text-sm font-semibold">Localización</h3>
+                        <p className="text-xs text-muted-foreground">
+                            Puedes capturar latitud y longitud manualmente o seleccionarlas desde el mapa.
                         </p>
-                    ) : null}
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleOpenMapDialog}
+                    >
+                        <MapIcon className="mr-2 h-4 w-4" />
+                        Seleccionar en mapa
+                    </Button>
                 </div>
-            </div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="lat">Latitud</Label>
+                        <Input
+                            id="lat"
+                            type="number"
+                            inputMode="decimal"
+                            step="any"
+                            placeholder="29.072967"
+                            value={formData.lat}
+                            onChange={(e) => updateFormData({ lat: e.target.value })}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="alt">Longitud</Label>
+                        <Input
+                            id="alt"
+                            type="number"
+                            inputMode="decimal"
+                            step="any"
+                            placeholder="-110.955919"
+                            value={formData.alt}
+                            onChange={(e) => updateFormData({ alt: e.target.value })}
+                        />
+                    </div>
+                </div>
+                {parsedCoordinates ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                        Coordenadas actuales: {parsedCoordinates.lat.toFixed(6)}, {" "}
+                        {parsedCoordinates.lng.toFixed(6)}
+                    </p>
+                ) : null}
+            </section>
 
-            {/* Observations */}
-            <div className="space-y-2">
-                <Label htmlFor="observacionesTecnicas">
-                    Observaciones Técnicas
-                </Label>
-                <Textarea
-                    id="observacionesTecnicas"
-                    placeholder="Notas técnicas adicionales..."
-                    rows={4}
-                    value={formData.observacionesTecnicas}
-                    onChange={(e) =>
-                        updateFormData({
-                            observacionesTecnicas: e.target.value,
-                        })
-                    }
-                />
-            </div>
+            <section className="rounded-lg border border-border bg-card p-4">
+                <div className="space-y-2">
+                    <Label htmlFor="observacionesTecnicas">Observaciones Técnicas</Label>
+                    <Textarea
+                        id="observacionesTecnicas"
+                        placeholder="Notas técnicas adicionales..."
+                        rows={4}
+                        value={formData.observacionesTecnicas}
+                        onChange={(e) =>
+                            updateFormData({
+                                observacionesTecnicas: e.target.value,
+                            })
+                        }
+                    />
+                </div>
+            </section>
 
             <Dialog open={isMapDialogOpen} onOpenChange={setIsMapDialogOpen}>
-                <DialogContent className="max-w-5xl">
+                <DialogContent className="h-[88vh] w-[98vw] max-w-[98vw] overflow-y-auto p-6 sm:max-w-[98vw]">
                     <DialogHeader>
                         <DialogTitle>Seleccionar ubicación en el mapa</DialogTitle>
                         <DialogDescription>
@@ -761,7 +778,7 @@ export function WizardStep2({
                                 Cargando mapa...
                             </p>
                         ) : (
-                            <div className="h-[520px] overflow-hidden rounded-md border">
+                            <div className="h-[64vh] overflow-hidden rounded-md border">
                                 <GoogleMap
                                     zoom={mapSelection ? 16 : 12}
                                     center={mapCenter}
