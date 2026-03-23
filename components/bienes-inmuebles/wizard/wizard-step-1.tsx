@@ -73,8 +73,8 @@ export function WizardStep1({
             setAntecedenteSearchError(null);
 
             const response = await searchAssets({
-                q: query,
                 rpp_number: query,
+                c_number: formData.claveCatastral.trim() || undefined,
             });
 
             const matches = response.results
