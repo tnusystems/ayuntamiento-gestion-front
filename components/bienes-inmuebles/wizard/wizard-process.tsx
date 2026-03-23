@@ -91,6 +91,13 @@ export function ProcesoWizard({
         observaciones?: string;
         antecedente?: string;
     }>({});
+    const [step2Errors, setStep2Errors] = useState<{
+        zona?: string;
+        dominio?: string;
+        stageDefinition?: string;
+        operacionU?: string;
+        verificationStatus?: string;
+    }>({});
     const resolvedBackPath = backPath ?? "/assets";
     const documentKindMap: Record<string, string> = {
         escritura: "es_publica",
@@ -214,6 +221,34 @@ export function ProcesoWizard({
                 return next;
             });
         }
+
+        if (
+            "zona" in data ||
+            "dominio" in data ||
+            "stageDefinition" in data ||
+            "operacionU" in data ||
+            "verificationStatus" in data
+        ) {
+            setStep2Errors((prev) => {
+                const next = { ...prev };
+                if ("zona" in data) {
+                    delete next.zona;
+                }
+                if ("dominio" in data) {
+                    delete next.dominio;
+                }
+                if ("stageDefinition" in data) {
+                    delete next.stageDefinition;
+                }
+                if ("operacionU" in data) {
+                    delete next.operacionU;
+                }
+                if ("verificationStatus" in data) {
+                    delete next.verificationStatus;
+                }
+                return next;
+            });
+        }
     };
 
     useEffect(() => {
@@ -271,9 +306,35 @@ export function ProcesoWizard({
         return Object.keys(errors).length === 0;
     };
 
+    const validateStep2 = () => {
+        const errors: typeof step2Errors = {};
+
+        if (!formData.zona.trim()) {
+            errors.zona = "Selecciona una zona.";
+        }
+        if (!formData.dominio.trim()) {
+            errors.dominio = "Selecciona un dominio.";
+        }
+        if (!formData.stageDefinition.trim()) {
+            errors.stageDefinition = "Selecciona una etapa del trámite.";
+        }
+        if (!formData.operacionU.trim()) {
+            errors.operacionU = "Selecciona un destino.";
+        }
+        if (!formData.verificationStatus.trim()) {
+            errors.verificationStatus = "Selecciona un estado de verificación.";
+        }
+
+        setStep2Errors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const handleNext = () => {
         if (currentStep < steps.length) {
             if (currentStep === 1 && !validateStep1()) {
+                return;
+            }
+            if (currentStep === 2 && !validateStep2()) {
                 return;
             }
             setCurrentStep(currentStep + 1);
@@ -620,6 +681,7 @@ export function ProcesoWizard({
                     {currentStep === 2 && (
                         <WizardStep2
                             formData={formData}
+                            errors={step2Errors}
                             updateFormData={updateFormData}
                         />
                     )}

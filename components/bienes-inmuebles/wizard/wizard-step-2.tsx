@@ -45,6 +45,13 @@ interface WizardStep2Props {
         alt: string;
         observacionesTecnicas: string;
     };
+    errors?: {
+        zona?: string;
+        dominio?: string;
+        stageDefinition?: string;
+        operacionU?: string;
+        verificationStatus?: string;
+    };
     updateFormData: (data: Partial<WizardStep2Props["formData"]>) => void;
 }
 
@@ -53,7 +60,11 @@ const DEFAULT_MAP_CENTER = {
     lng: -110.9613,
 };
 
-export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
+export function WizardStep2({
+    formData,
+    errors,
+    updateFormData,
+}: WizardStep2Props) {
     const [catalogs, setCatalogs] = useState<LookupCatalogs | null>(null);
     const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
     const [catalogsError, setCatalogsError] = useState<string | null>(null);
@@ -308,14 +319,14 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="zona">Zona</Label>
+                        <Label htmlFor="zona">Zona *</Label>
                         <Select
                             value={formData.zona}
                             onValueChange={(value) =>
                                 updateFormData({ zona: value })
                             }
                         >
-                            <SelectTrigger id="zona">
+                            <SelectTrigger id="zona" aria-invalid={!!errors?.zona}>
                                 <SelectValue placeholder="Seleccionar zona" />
                             </SelectTrigger>
                             <SelectContent>
@@ -337,6 +348,9 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 )}
                             </SelectContent>
                         </Select>
+                        {errors?.zona ? (
+                            <p className="text-xs text-red-600">{errors.zona}</p>
+                        ) : null}
                     </div>
                 </div>
             </div>
@@ -380,14 +394,17 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="dominio">Dominio</Label>
+                        <Label htmlFor="dominio">Dominio *</Label>
                         <Select
                             value={formData.dominio}
                             onValueChange={(value) =>
                                 updateFormData({ dominio: value })
                             }
                         >
-                            <SelectTrigger id="dominio">
+                            <SelectTrigger
+                                id="dominio"
+                                aria-invalid={!!errors?.dominio}
+                            >
                                 <SelectValue placeholder="Seleccionar" />
                             </SelectTrigger>
                             <SelectContent>
@@ -409,6 +426,11 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 )}
                             </SelectContent>
                         </Select>
+                        {errors?.dominio ? (
+                            <p className="text-xs text-red-600">
+                                {errors.dominio}
+                            </p>
+                        ) : null}
                     </div>
                 </div>
             </div>
@@ -424,7 +446,7 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-2">
                         <Label htmlFor="stageDefinition">
-                            Etapa del Trámite
+                            Etapa del Trámite *
                         </Label>
                         <Select
                             value={formData.stageDefinition}
@@ -432,7 +454,10 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 updateFormData({ stageDefinition: value })
                             }
                         >
-                            <SelectTrigger id="stageDefinition">
+                            <SelectTrigger
+                                id="stageDefinition"
+                                aria-invalid={!!errors?.stageDefinition}
+                            >
                                 <SelectValue placeholder="Seleccionar etapa" />
                             </SelectTrigger>
                             <SelectContent>
@@ -455,22 +480,30 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 )}
                             </SelectContent>
                         </Select>
+                        {errors?.stageDefinition ? (
+                            <p className="text-xs text-red-600">
+                                {errors.stageDefinition}
+                            </p>
+                        ) : null}
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="operacionU">Uso de suelo</Label>
+                        <Label htmlFor="operacionU">Destino *</Label>
                         <Select
                             value={formData.operacionU}
                             onValueChange={(value) =>
                                 updateFormData({ operacionU: value })
                             }
                         >
-                            <SelectTrigger id="operacionU">
+                            <SelectTrigger
+                                id="operacionU"
+                                aria-invalid={!!errors?.operacionU}
+                            >
                                 <SelectValue placeholder="Seleccionar" />
                             </SelectTrigger>
                             <SelectContent>
                                 <div className="p-2">
                                     <Input
-                                        placeholder="Buscar uso de suelo..."
+                                        placeholder="Buscar destino..."
                                         value={catalogSearch.situation}
                                         onChange={(e) =>
                                             setCatalogSearch((prev) => ({
@@ -486,6 +519,11 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 )}
                             </SelectContent>
                         </Select>
+                        {errors?.operacionU ? (
+                            <p className="text-xs text-red-600">
+                                {errors.operacionU}
+                            </p>
+                        ) : null}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="verificationStatus">
@@ -497,7 +535,10 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 updateFormData({ verificationStatus: value })
                             }
                         >
-                            <SelectTrigger id="verificationStatus">
+                            <SelectTrigger
+                                id="verificationStatus"
+                                aria-invalid={!!errors?.verificationStatus}
+                            >
                                 <SelectValue placeholder="Seleccionar estado" />
                             </SelectTrigger>
                             <SelectContent>
@@ -522,6 +563,11 @@ export function WizardStep2({ formData, updateFormData }: WizardStep2Props) {
                                 )}
                             </SelectContent>
                         </Select>
+                        {errors?.verificationStatus ? (
+                            <p className="text-xs text-red-600">
+                                {errors.verificationStatus}
+                            </p>
+                        ) : null}
                     </div>
                 </div>
             </div>
