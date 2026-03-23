@@ -89,6 +89,7 @@ export function ProcesoWizard({
         actoJuridico?: string;
         responsable?: string;
         observaciones?: string;
+        antecedente?: string;
     }>({});
     const resolvedBackPath = backPath ?? "/assets";
     const documentKindMap: Record<string, string> = {
@@ -142,6 +143,11 @@ export function ProcesoWizard({
         observaciones: "",
         rppNumber: "",
         claveCatastral: "",
+        hasAntecedente: false,
+        antecedenteRpp: "",
+        antecedenteAssetId: "",
+        antecedenteRegistryId: "",
+        antecedenteRegistryName: "",
         // Step 2
         colonia: "",
         calle: "",
@@ -180,7 +186,11 @@ export function ProcesoWizard({
         if (
             "tipoProceso" in data ||
             "actoJuridico" in data ||
-            "responsable" in data
+            "responsable" in data ||
+            "hasAntecedente" in data ||
+            "antecedenteRpp" in data ||
+            "antecedenteAssetId" in data ||
+            "antecedenteRegistryId" in data
         ) {
             setStep1Errors((prev) => {
                 const next = { ...prev };
@@ -192,6 +202,14 @@ export function ProcesoWizard({
                 }
                 if ("responsable" in data) {
                     delete next.responsable;
+                }
+                if (
+                    "hasAntecedente" in data ||
+                    "antecedenteRpp" in data ||
+                    "antecedenteAssetId" in data ||
+                    "antecedenteRegistryId" in data
+                ) {
+                    delete next.antecedente;
                 }
                 return next;
             });
@@ -244,6 +262,10 @@ export function ProcesoWizard({
         if (!formData.observaciones.trim()) {
             errors.observaciones = "Agrega una nota para el proceso.";
         }
+        if (formData.hasAntecedente && !formData.antecedenteAssetId.trim()) {
+            errors.antecedente =
+                "Busca y selecciona un antecedente por RPP para continuar.";
+        }
 
         setStep1Errors(errors);
         return Object.keys(errors).length === 0;
@@ -289,8 +311,22 @@ export function ProcesoWizard({
         };
 
         const now = new Date().toISOString();
-        const registryId = bienId ? Number(bienId) : 0;
-        const safeRegistryId = Number.isFinite(registryId) ? registryId : 0;
+        const registryIdFromParam = bienId ? Number(bienId) : 0;
+        const safeRegistryIdFromParam = Number.isFinite(registryIdFromParam)
+            ? registryIdFromParam
+            : 0;
+        const registryIdFromAntecedente = Number(formData.antecedenteRegistryId);
+        const safeRegistryIdFromAntecedente = Number.isFinite(
+            registryIdFromAntecedente,
+        )
+            ? registryIdFromAntecedente
+            : 0;
+        const resolvedRegistryId =
+            safeRegistryIdFromParam > 0
+                ? safeRegistryIdFromParam
+                : formData.hasAntecedente
+                  ? safeRegistryIdFromAntecedente
+                  : 0;
         const payload = {
             rpp_number: formData.rppNumber.trim(),
             c_number: formData.claveCatastral.trim(),
@@ -316,7 +352,7 @@ export function ProcesoWizard({
             registry_section: "",
             registry_volume: "",
             operation_type_id: toNumber(formData.actoJuridico),
-            registry_id: safeRegistryId,
+            registry_id: resolvedRegistryId,
             created_at: now,
             updated_at: now,
             category: {},

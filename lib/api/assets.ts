@@ -63,6 +63,27 @@ export type AssetListParams = {
     order_by?: string;
 };
 
+export type AssetSearchParams = {
+    q?: string;
+    rpp_number?: string;
+    c_number?: string;
+};
+
+export type AssetSearchResult = {
+    asset: {
+        id: number | string;
+        rpp_number?: string | null;
+        c_number?: string | null;
+        owner_name?: string | null;
+        registry_id?: number | string | null;
+    };
+    is_active?: boolean;
+    lineage?: {
+        predecessors?: unknown[];
+        successors?: unknown[];
+    };
+};
+
 function parseAssetList(data: unknown) {
     const parsed = BienApiListResponseSchema.safeParse(data);
     if (!parsed.success) {
@@ -156,6 +177,50 @@ function buildAssetListQuery(params?: AssetListParams) {
     return query ? `?${query}` : "";
 }
 
+function buildAssetSearchQuery(params?: AssetSearchParams) {
+    if (!params) {
+        return "";
+    }
+    const search = new URLSearchParams();
+    if (params.q) {
+        search.set("q", params.q.trim());
+    }
+    if (params.rpp_number) {
+        search.set("rpp_number", params.rpp_number.trim());
+    }
+    if (params.c_number) {
+        search.set("c_number", params.c_number.trim());
+    }
+    const query = search.toString();
+    return query ? `?${query}` : "";
+}
+
+function parseAssetSearchResults(data: unknown) {
+    if (!data || typeof data !== "object") {
+        throw new Error("Respuesta invalida de busqueda de antecedentes.");
+    }
+
+    const results = (data as { results?: unknown[] }).results;
+    if (!Array.isArray(results)) {
+        throw new Error("Respuesta invalida de busqueda de antecedentes.");
+    }
+
+    const normalizedResults = results.filter(
+        (item): item is AssetSearchResult =>
+            Boolean(
+                item &&
+                    typeof item === "object" &&
+                    "asset" in item &&
+                    (item as { asset?: unknown }).asset &&
+                    typeof (item as { asset?: unknown }).asset === "object",
+            ),
+    );
+
+    return {
+        results: normalizedResults,
+    };
+}
+
 export async function fetchAssets(params?: AssetListParams) {
     const normalizedParams = {
         ...params,
@@ -166,6 +231,13 @@ export async function fetchAssets(params?: AssetListParams) {
         `/api/v1/assets${buildAssetListQuery(normalizedParams)}`,
     );
     return parseAssetList(data);
+}
+
+export async function searchAssets(params?: AssetSearchParams) {
+    const data = await api<unknown>(
+        `/api/v1/assets/search${buildAssetSearchQuery(params)}`,
+    );
+    return parseAssetSearchResults(data);
 }
 
 export async function createAsset(payload: AssetPayload) {
