@@ -29,6 +29,20 @@ interface WizardStep1Props {
         antecedenteAssetId: string;
         antecedenteRegistryId: string;
         antecedenteRegistryName: string;
+        colonia: string;
+        calle: string;
+        lote: string;
+        manzana: string;
+        superficieTerreno: string;
+        superficieConstruccion: string;
+        zona: string;
+        dominio: string;
+        stageDefinition: string;
+        operacionU: string;
+        valorCatastral: string;
+        valorComercial: string;
+        lat: string;
+        alt: string;
     };
     errors?: {
         tipoProceso?: string;
@@ -50,12 +64,28 @@ export function WizardStep1({
     const [antecedenteSearchError, setAntecedenteSearchError] = useState<
         string | null
     >(null);
+    const [isAntecedentePanelOpen, setIsAntecedentePanelOpen] =
+        useState(false);
     const [antecedenteResults, setAntecedenteResults] = useState<
         Array<{
             id: string;
             rppNumber: string;
             cNumber: string;
+            lot: string;
+            block: string;
+            colony: string;
+            street: string;
+            totalArea: string;
+            builtArea: string;
+            cadastralValue: string;
+            commercialValue: string;
+            latitude: string;
+            longitude: string;
             ownerName: string;
+            zoneId: string;
+            domainId: string;
+            stageDefinitionId: string;
+            landUseId: string;
             registryId: string;
             isActive: boolean;
         }>
@@ -82,7 +112,61 @@ export function WizardStep1({
                     id: String(result.asset.id),
                     rppNumber: result.asset.rpp_number?.trim() ?? "",
                     cNumber: result.asset.c_number?.trim() ?? "",
+                    lot: result.asset.lot?.trim() ?? "",
+                    block: result.asset.block?.trim() ?? "",
+                    colony: result.asset.colony?.trim() ?? "",
+                    street: result.asset.street?.trim() ?? "",
+                    totalArea:
+                        result.asset.total_area !== null &&
+                        result.asset.total_area !== undefined
+                            ? String(result.asset.total_area)
+                            : "",
+                    builtArea:
+                        result.asset.built_area !== null &&
+                        result.asset.built_area !== undefined
+                            ? String(result.asset.built_area)
+                            : "",
+                    cadastralValue:
+                        result.asset.cadastral_value !== null &&
+                        result.asset.cadastral_value !== undefined
+                            ? String(result.asset.cadastral_value)
+                            : "",
+                    commercialValue:
+                        result.asset.commercial_value !== null &&
+                        result.asset.commercial_value !== undefined
+                            ? String(result.asset.commercial_value)
+                            : "",
+                    latitude:
+                        result.asset.latitude !== null &&
+                        result.asset.latitude !== undefined
+                            ? String(result.asset.latitude)
+                            : "",
+                    longitude:
+                        result.asset.longitude !== null &&
+                        result.asset.longitude !== undefined
+                            ? String(result.asset.longitude)
+                            : "",
                     ownerName: result.asset.owner_name?.trim() ?? "Sin titular",
+                    zoneId:
+                        result.asset.zone_id !== null &&
+                        result.asset.zone_id !== undefined
+                            ? String(result.asset.zone_id)
+                            : "",
+                    domainId:
+                        result.asset.domain_id !== null &&
+                        result.asset.domain_id !== undefined
+                            ? String(result.asset.domain_id)
+                            : "",
+                    stageDefinitionId:
+                        result.asset.stage_definition_id !== null &&
+                        result.asset.stage_definition_id !== undefined
+                            ? String(result.asset.stage_definition_id)
+                            : "",
+                    landUseId:
+                        result.asset.land_use_id !== null &&
+                        result.asset.land_use_id !== undefined
+                            ? String(result.asset.land_use_id)
+                            : "",
                     registryId: String(result.asset.registry_id ?? ""),
                     isActive: result.is_active !== false,
                 }))
@@ -100,6 +184,8 @@ export function WizardStep1({
                 );
                 return;
             }
+
+            setIsAntecedentePanelOpen(true);
 
             const exactMatch = matches.find(
                 (item) => item.rppNumber.toLowerCase() === query.toLowerCase(),
@@ -128,23 +214,53 @@ export function WizardStep1({
         id: string;
         rppNumber: string;
         cNumber: string;
+        lot: string;
+        block: string;
+        colony: string;
+        street: string;
+        totalArea: string;
+        builtArea: string;
+        cadastralValue: string;
+        commercialValue: string;
+        latitude: string;
+        longitude: string;
         ownerName: string;
+        zoneId: string;
+        domainId: string;
+        stageDefinitionId: string;
+        landUseId: string;
         registryId: string;
     }) => {
         setAntecedenteSearchError(null);
+        setAntecedenteResults([]);
+        setIsAntecedentePanelOpen(false);
         updateFormData({
             antecedenteAssetId: selectedAsset.id,
             antecedenteRpp: selectedAsset.rppNumber || formData.antecedenteRpp,
             antecedenteRegistryId: selectedAsset.registryId,
             antecedenteRegistryName:
                 selectedAsset.ownerName || `Bien #${selectedAsset.id}`,
-            ...(formData.rppNumber.trim() || !selectedAsset.rppNumber
-                ? {}
-                : {
-                      rppNumber: selectedAsset.rppNumber,
-                  }),
+            rppNumber: selectedAsset.rppNumber || formData.rppNumber,
+            claveCatastral: selectedAsset.cNumber || formData.claveCatastral,
+            colonia: selectedAsset.colony,
+            calle: selectedAsset.street,
+            lote: selectedAsset.lot,
+            manzana: selectedAsset.block,
+            superficieTerreno: selectedAsset.totalArea,
+            superficieConstruccion: selectedAsset.builtArea,
+            zona: selectedAsset.zoneId,
+            dominio: selectedAsset.domainId,
+            stageDefinition: selectedAsset.stageDefinitionId,
+            operacionU: selectedAsset.landUseId,
+            valorCatastral: selectedAsset.cadastralValue,
+            valorComercial: selectedAsset.commercialValue,
+            lat: selectedAsset.latitude,
+            alt: selectedAsset.longitude,
         });
     };
+
+    const showAntecedenteSearch =
+        isAntecedentePanelOpen || !formData.antecedenteAssetId;
 
     return (
         <div className="grid gap-6 sm:grid-cols-2">
@@ -168,6 +284,7 @@ export function WizardStep1({
                                         const hasAntecedente =
                                             event.target.checked;
                                         setAntecedenteSearchError(null);
+                                        setIsAntecedentePanelOpen(hasAntecedente);
                                         updateFormData({
                                             hasAntecedente,
                                             ...(hasAntecedente
@@ -193,74 +310,103 @@ export function WizardStep1({
 
                         {formData.hasAntecedente ? (
                             <div className="space-y-2">
-                                <Input
-                                    id="antecedenteRpp"
-                                    placeholder="Buscar antecedente por RPP"
-                                    value={formData.antecedenteRpp}
-                                    onChange={(e) => {
-                                        setAntecedenteSearchError(null);
-                                        updateFormData({
-                                            antecedenteRpp: e.target.value,
-                                            antecedenteAssetId: "",
-                                            antecedenteRegistryId: "",
-                                            antecedenteRegistryName: "",
-                                        });
-                                        setAntecedenteResults([]);
-                                    }}
-                                    onKeyDown={(event) => {
-                                        if (event.key === "Enter") {
-                                            event.preventDefault();
-                                            void handleSearchAntecedente();
-                                        }
-                                    }}
-                                />
+                                {showAntecedenteSearch ? (
+                                    <>
+                                        <Input
+                                            id="antecedenteRpp"
+                                            placeholder="Buscar antecedente por RPP"
+                                            value={formData.antecedenteRpp}
+                                            onChange={(e) => {
+                                                setAntecedenteSearchError(null);
+                                                setIsAntecedentePanelOpen(true);
+                                                updateFormData({
+                                                    antecedenteRpp:
+                                                        e.target.value,
+                                                    antecedenteAssetId: "",
+                                                    antecedenteRegistryId: "",
+                                                    antecedenteRegistryName:
+                                                        "",
+                                                });
+                                                setAntecedenteResults([]);
+                                            }}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter") {
+                                                    event.preventDefault();
+                                                    void handleSearchAntecedente();
+                                                }
+                                            }}
+                                        />
 
-                                {antecedenteResults.length > 0 ? (
-                                    <div className="space-y-2 rounded-md border border-border p-2">
-                                        <p className="text-xs text-muted-foreground">
-                                            Antecedentes encontrados: {antecedenteResults.length}
-                                        </p>
-                                        <div className="space-y-2">
-                                            {antecedenteResults.map((item) => {
-                                                const isSelected =
-                                                    formData.antecedenteAssetId ===
-                                                    item.id;
+                                        {antecedenteResults.length > 0 ? (
+                                            <div className="space-y-2 rounded-md border border-border p-2">
+                                                <p className="text-xs text-muted-foreground">
+                                                    Antecedentes encontrados: {antecedenteResults.length}
+                                                </p>
+                                                <div className="space-y-2">
+                                                    {antecedenteResults.map(
+                                                        (item) => {
+                                                            const isSelected =
+                                                                formData.antecedenteAssetId ===
+                                                                item.id;
 
-                                                return (
-                                                    <button
-                                                        key={item.id}
-                                                        type="button"
-                                                        className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors ${
-                                                            isSelected
-                                                                ? "border-primary bg-primary/5"
-                                                                : "border-border hover:bg-muted/40"
-                                                        }`}
-                                                        onClick={() => {
-                                                            handleSelectAntecedente(
-                                                                item,
+                                                            return (
+                                                                <button
+                                                                    key={item.id}
+                                                                    type="button"
+                                                                    className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                                                                        isSelected
+                                                                            ? "border-primary bg-primary/5"
+                                                                            : "border-border hover:bg-muted/40"
+                                                                    }`}
+                                                                    onClick={() => {
+                                                                        handleSelectAntecedente(
+                                                                            item,
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <p className="font-medium">
+                                                                        RPP {item.rppNumber || "—"}
+                                                                    </p>
+                                                                    <p className="text-xs text-muted-foreground">
+                                                                        Catastral: {item.cNumber || "—"}
+                                                                        {" · "}
+                                                                        Titular: {item.ownerName}
+                                                                        {" · "}
+                                                                        {item.isActive
+                                                                            ? "Activo"
+                                                                            : "Inactivo"}
+                                                                    </p>
+                                                                </button>
                                                             );
-                                                        }}
-                                                    >
-                                                        <p className="font-medium">
-                                                            RPP {item.rppNumber || "—"}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            Catastral: {item.cNumber || "—"}
-                                                            {" · "}
-                                                            Titular: {item.ownerName}
-                                                            {" · "}
-                                                            {item.isActive
-                                                                ? "Activo"
-                                                                : "Inactivo"}
-                                                        </p>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                                        },
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <div className="flex items-center justify-between rounded-md border border-border bg-muted/20 px-3 py-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            Antecedente seleccionado: RPP {formData.antecedenteRpp}
+                                            {" · "}
+                                            {formData.antecedenteRegistryName}
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            className="h-auto px-2 py-1 text-xs"
+                                            onClick={() => {
+                                                setAntecedenteSearchError(null);
+                                                setAntecedenteResults([]);
+                                                setIsAntecedentePanelOpen(true);
+                                            }}
+                                        >
+                                            Cambiar
+                                        </Button>
                                     </div>
-                                ) : null}
+                                )}
 
-                                {formData.antecedenteAssetId ? (
+                                {showAntecedenteSearch && formData.antecedenteAssetId ? (
                                     <p className="text-xs text-muted-foreground">
                                         Antecedente seleccionado: RPP {formData.antecedenteRpp}
                                         {" · "}
@@ -305,6 +451,7 @@ export function WizardStep1({
                                     type="button"
                                     variant="outline"
                                     onClick={() => {
+                                        setIsAntecedentePanelOpen(true);
                                         void handleSearchAntecedente();
                                     }}
                                     disabled={
