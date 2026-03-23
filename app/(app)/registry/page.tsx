@@ -140,9 +140,9 @@ export default function RegistryPage() {
             : (pagination.currentPage - 1) * pagination.perPage + data.length;
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-1 flex-col gap-4 sm:flex-row">
+        <div className="space-y-4 overflow-x-hidden">
+            <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 flex-1 flex-col gap-4 md:flex-row">
                     <Input
                         placeholder="Buscar por nombre, RPP o B número..."
                         value={searchTerm}
@@ -172,13 +172,13 @@ export default function RegistryPage() {
                         </SelectContent>
                     </Select>
                 </div>
-                <Button asChild className="w-full sm:w-auto">
+                <Button asChild className="w-full md:w-auto">
                     <Link href="/registry/new">Registrar Nuevo</Link>
                 </Button>
             </div>
 
             <div className="overflow-hidden rounded-lg border border-border bg-card">
-                <div className="space-y-3 p-4 md:hidden">
+                <div className="space-y-3 p-4 lg:hidden">
                     {isLoading ? (
                         <p className="rounded-md border border-border px-4 py-6 text-center text-sm text-muted-foreground">
                             Cargando registros...
@@ -250,8 +250,8 @@ export default function RegistryPage() {
                     )}
                 </div>
 
-                <div className="hidden md:block">
-                    <Table>
+                <div className="hidden lg:block">
+                    <Table className="[&_td]:whitespace-normal">
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
                                 <TableHead className="pl-4">Nombre</TableHead>
