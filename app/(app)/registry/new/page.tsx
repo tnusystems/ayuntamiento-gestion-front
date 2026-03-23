@@ -110,23 +110,24 @@ export default function RegistryNewPage() {
 
     return (
         <form className="space-y-6" onSubmit={onSubmit}>
-            <div className="flex items-center justify-between">
-                <Button variant="ghost" asChild>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button variant="ghost" asChild className="w-full justify-start sm:w-auto">
                     <Link href="/registry">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Volver al Listado
                     </Link>
                 </Button>
-                <div className="flex gap-3">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3">
                     <Button
                         variant="outline"
                         type="button"
                         onClick={() => router.push("/registry")}
                         disabled={isSaving}
+                        className="w-full sm:w-auto"
                     >
                         Cancelar
                     </Button>
-                    <Button type="submit" disabled={isSaving}>
+                    <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
                         <Save className="mr-2 h-4 w-4" />
                         Guardar Registro
                     </Button>
@@ -180,8 +181,8 @@ export default function RegistryNewPage() {
                         Información documental y legal del registro
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="grid grid-rows-3 gap-4">
+                <CardContent className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid content-start gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="rppVolume">RPP Volumen</Label>
                             <Input
@@ -211,7 +212,7 @@ export default function RegistryNewPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-rows-3 gap-4">
+                    <div className="grid content-start gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="escrituraNumber">
                                 Número de escrituras
@@ -245,7 +246,7 @@ export default function RegistryNewPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-rows-3 gap-4">
+                    <div className="grid content-start gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="boletinNumber">Boletín</Label>
                             <Input
@@ -277,7 +278,7 @@ export default function RegistryNewPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-rows-3 gap-4">
+                    <div className="grid content-start gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="convenioNumber">Convenio</Label>
                             <Input
@@ -300,7 +301,7 @@ export default function RegistryNewPage() {
                         </div>
                     </div>
 
-                    <div className="space-y-2 sm:col-span-2 lg:col-span-4">
+                    <div className="space-y-2 md:col-span-2 xl:col-span-4">
                         <Label htmlFor="antecedentes">Antecedentes</Label>
                         <Textarea
                             id="antecedentes"

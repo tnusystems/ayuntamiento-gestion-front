@@ -150,7 +150,7 @@ export default function RegistryPage() {
                             setSearchTerm(e.target.value);
                             setCurrentPage(1);
                         }}
-                        className="w-full sm:w-72"
+                        className="w-full md:w-72"
                         disabled={isLoading}
                     />
                     <Select
@@ -161,7 +161,7 @@ export default function RegistryPage() {
                         }}
                         disabled={isLoading}
                     >
-                        <SelectTrigger className="w-full sm:w-44">
+                        <SelectTrigger className="w-full md:w-44">
                             <SelectValue placeholder="Estatus" />
                         </SelectTrigger>
                         <SelectContent>
@@ -172,192 +172,267 @@ export default function RegistryPage() {
                         </SelectContent>
                     </Select>
                 </div>
-                <Button asChild>
+                <Button asChild className="w-full sm:w-auto">
                     <Link href="/registry/new">Registrar Nuevo</Link>
                 </Button>
             </div>
 
-            <div className="rounded-lg border border-border bg-card">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="hover:bg-transparent">
-                            <TableHead className="pl-4">Nombre</TableHead>
-                            <TableHead>RPP</TableHead>
-                            <TableHead>Libro (B)</TableHead>
-                            <TableHead>Escritura</TableHead>
-                            <TableHead>Certificado</TableHead>
-                            <TableHead>Fechas</TableHead>
-                            <TableHead>Estatus</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={7}
-                                    className="py-10 text-center text-sm text-muted-foreground"
-                                >
-                                    Cargando registros...
-                                </TableCell>
-                            </TableRow>
-                        ) : loadError ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={7}
-                                    className="py-10 text-center text-sm text-destructive"
-                                >
-                                    {loadError}
-                                </TableCell>
-                            </TableRow>
-                        ) : data.length === 0 ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={7}
-                                    className="py-10 text-center text-sm text-muted-foreground"
-                                >
-                                    No hay registros para mostrar.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            data.map((item) => {
-                                const statusValue = item.status ?? "default";
-                                const statusKey = statusConfig[statusValue]
-                                    ? statusValue
-                                    : "default";
-                                return (
-                                    <TableRow
-                                        key={item.id}
-                                        className="cursor-pointer hover:bg-muted/50"
-                                        onClick={() => router.push(`/assets/${item.id}`)}
-                                    >
-                                        <TableCell className="pl-4 font-medium">
-                                            {item.name ?? "—"}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="text-sm">
-                                                <p className="flex items-center gap-2">
-                                                    <span className="text-xs text-muted-foreground">
-                                                        RPP Número:
-                                                    </span>
-                                                    <span className="font-mono">
-                                                        {item.rpp_number ?? "—"}
-                                                    </span>
-                                                </p>
-                                                <p className="text-muted-foreground">
-                                                    <span className="text-xs">Volumen:</span>{" "}
-                                                    {item.rpp_volume ?? "—"} ·{" "}
-                                                    <span className="text-xs">Sección:</span>{" "}
-                                                    {item.rpp_section ?? "—"}
-                                                </p>
-                                                <p className="text-muted-foreground">
-                                                    <span className="text-xs">RPP Fecha:</span>{" "}
-                                                    {formatDate(item.rpp_date)}
-                                                </p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="text-sm">
-                                                <p className="flex items-center gap-2">
-                                                    <span className="text-xs text-muted-foreground">
-                                                        Libro B:
-                                                    </span>
-                                                    <span className="font-mono">
-                                                        {item.b_number ?? "—"}
-                                                    </span>
-                                                </p>
-                                                <p className="text-muted-foreground">
-                                                    <span className="text-xs">Volumen:</span>{" "}
-                                                    {item.b_volume ?? "—"}
-                                                </p>
-                                                <p className="text-muted-foreground">
-                                                    <span className="text-xs">Fecha:</span>{" "}
-                                                    {formatDate(item.b_date)}
-                                                </p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="text-sm">
-                                                <p className="flex items-center gap-2">
-                                                    <span className="text-xs text-muted-foreground">
-                                                        Escritura:
-                                                    </span>
-                                                    <span className="font-mono">
-                                                        {item.e_number ?? "—"}
-                                                    </span>
-                                                </p>
-                                                <p className="text-muted-foreground">
-                                                    <span className="text-xs">Notaría:</span>{" "}
-                                                    {item.e_notary ?? "—"}
-                                                </p>
-                                                <p className="text-muted-foreground">
-                                                    <span className="text-xs">Fecha:</span>{" "}
-                                                    {formatDate(item.e_date)}
-                                                </p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="text-sm">
-                                                <p className="flex items-center gap-2">
-                                                    <span className="text-xs text-muted-foreground">
-                                                        Certificado:
-                                                    </span>
-                                                    <span className="font-mono">
-                                                        {item.co_number ?? "—"}
-                                                    </span>
-                                                </p>
-                                                <p className="text-muted-foreground">
-                                                    <span className="text-xs">Fecha:</span>{" "}
-                                                    {formatDate(item.co_date)}
-                                                </p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="text-sm text-muted-foreground">
-                                                <p>
-                                                    <span className="text-xs">Alta:</span>{" "}
-                                                    {formatDate(item.fecha_alta)}
-                                                </p>
-                                                <p>
-                                                    <span className="text-xs">Creado:</span>{" "}
-                                                    {formatDate(item.created_at)}
-                                                </p>
-                                                <p>
-                                                    <span className="text-xs">Actualizado:</span>{" "}
-                                                    {formatDate(item.updated_at)}
-                                                </p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="space-y-2">
-                                                <Badge
-                                                    variant="outline"
-                                                    className={statusConfig[statusKey].className}
-                                                >
-                                                    {statusConfig[statusKey].label}
-                                                </Badge>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Baja: {item.st_baja ? "Sí" : "No"}
-                                                </p>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })
-                        )}
-                    </TableBody>
-                </Table>
+            <div className="overflow-hidden rounded-lg border border-border bg-card">
+                <div className="space-y-3 p-4 md:hidden">
+                    {isLoading ? (
+                        <p className="rounded-md border border-border px-4 py-6 text-center text-sm text-muted-foreground">
+                            Cargando registros...
+                        </p>
+                    ) : loadError ? (
+                        <p className="rounded-md border border-destructive/20 bg-destructive/10 px-4 py-6 text-center text-sm text-destructive">
+                            {loadError}
+                        </p>
+                    ) : data.length === 0 ? (
+                        <p className="rounded-md border border-border px-4 py-6 text-center text-sm text-muted-foreground">
+                            No hay registros para mostrar.
+                        </p>
+                    ) : (
+                        data.map((item) => {
+                            const statusValue = item.status ?? "default";
+                            const statusKey = statusConfig[statusValue]
+                                ? statusValue
+                                : "default";
 
-                <div className="flex items-center justify-between border-t border-border px-4 py-3">
-                    <p className="text-sm text-muted-foreground">
+                            return (
+                                <button
+                                    key={item.id}
+                                    type="button"
+                                    className="w-full rounded-md border border-border bg-background px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                                    onClick={() => router.push(`/assets/${item.id}`)}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <p className="text-sm font-medium leading-tight">
+                                            {item.name ?? "—"}
+                                        </p>
+                                        <Badge
+                                            variant="outline"
+                                            className={statusConfig[statusKey].className}
+                                        >
+                                            {statusConfig[statusKey].label}
+                                        </Badge>
+                                    </div>
+                                    <div className="mt-3 space-y-1.5 text-sm">
+                                        <p>
+                                            <span className="text-xs text-muted-foreground">
+                                                RPP:
+                                            </span>{" "}
+                                            <span className="font-mono">
+                                                {item.rpp_number ?? "—"}
+                                            </span>
+                                        </p>
+                                        <p className="text-muted-foreground">
+                                            <span className="text-xs">Libro B:</span>{" "}
+                                            <span className="font-mono">
+                                                {item.b_number ?? "—"}
+                                            </span>
+                                            {" · "}
+                                            <span className="text-xs">Escritura:</span>{" "}
+                                            <span className="font-mono">
+                                                {item.e_number ?? "—"}
+                                            </span>
+                                        </p>
+                                        <p className="text-muted-foreground">
+                                            <span className="text-xs">Actualizado:</span>{" "}
+                                            {formatDate(item.updated_at)}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Baja: {item.st_baja ? "Sí" : "No"}
+                                        </p>
+                                    </div>
+                                </button>
+                            );
+                        })
+                    )}
+                </div>
+
+                <div className="hidden md:block">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                                <TableHead className="pl-4">Nombre</TableHead>
+                                <TableHead>RPP</TableHead>
+                                <TableHead>Libro (B)</TableHead>
+                                <TableHead>Escritura</TableHead>
+                                <TableHead>Certificado</TableHead>
+                                <TableHead>Fechas</TableHead>
+                                <TableHead>Estatus</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={7}
+                                        className="py-10 text-center text-sm text-muted-foreground"
+                                    >
+                                        Cargando registros...
+                                    </TableCell>
+                                </TableRow>
+                            ) : loadError ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={7}
+                                        className="py-10 text-center text-sm text-destructive"
+                                    >
+                                        {loadError}
+                                    </TableCell>
+                                </TableRow>
+                            ) : data.length === 0 ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={7}
+                                        className="py-10 text-center text-sm text-muted-foreground"
+                                    >
+                                        No hay registros para mostrar.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                data.map((item) => {
+                                    const statusValue = item.status ?? "default";
+                                    const statusKey = statusConfig[statusValue]
+                                        ? statusValue
+                                        : "default";
+                                    return (
+                                        <TableRow
+                                            key={item.id}
+                                            className="cursor-pointer hover:bg-muted/50"
+                                            onClick={() => router.push(`/assets/${item.id}`)}
+                                        >
+                                            <TableCell className="pl-4 font-medium">
+                                                {item.name ?? "—"}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="text-sm">
+                                                    <p className="flex items-center gap-2">
+                                                        <span className="text-xs text-muted-foreground">
+                                                            RPP Número:
+                                                        </span>
+                                                        <span className="font-mono">
+                                                            {item.rpp_number ?? "—"}
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        <span className="text-xs">Volumen:</span>{" "}
+                                                        {item.rpp_volume ?? "—"} ·{" "}
+                                                        <span className="text-xs">Sección:</span>{" "}
+                                                        {item.rpp_section ?? "—"}
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        <span className="text-xs">RPP Fecha:</span>{" "}
+                                                        {formatDate(item.rpp_date)}
+                                                    </p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="text-sm">
+                                                    <p className="flex items-center gap-2">
+                                                        <span className="text-xs text-muted-foreground">
+                                                            Libro B:
+                                                        </span>
+                                                        <span className="font-mono">
+                                                            {item.b_number ?? "—"}
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        <span className="text-xs">Volumen:</span>{" "}
+                                                        {item.b_volume ?? "—"}
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        <span className="text-xs">Fecha:</span>{" "}
+                                                        {formatDate(item.b_date)}
+                                                    </p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="text-sm">
+                                                    <p className="flex items-center gap-2">
+                                                        <span className="text-xs text-muted-foreground">
+                                                            Escritura:
+                                                        </span>
+                                                        <span className="font-mono">
+                                                            {item.e_number ?? "—"}
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        <span className="text-xs">Notaría:</span>{" "}
+                                                        {item.e_notary ?? "—"}
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        <span className="text-xs">Fecha:</span>{" "}
+                                                        {formatDate(item.e_date)}
+                                                    </p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="text-sm">
+                                                    <p className="flex items-center gap-2">
+                                                        <span className="text-xs text-muted-foreground">
+                                                            Certificado:
+                                                        </span>
+                                                        <span className="font-mono">
+                                                            {item.co_number ?? "—"}
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        <span className="text-xs">Fecha:</span>{" "}
+                                                        {formatDate(item.co_date)}
+                                                    </p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="text-sm text-muted-foreground">
+                                                    <p>
+                                                        <span className="text-xs">Alta:</span>{" "}
+                                                        {formatDate(item.fecha_alta)}
+                                                    </p>
+                                                    <p>
+                                                        <span className="text-xs">Creado:</span>{" "}
+                                                        {formatDate(item.created_at)}
+                                                    </p>
+                                                    <p>
+                                                        <span className="text-xs">Actualizado:</span>{" "}
+                                                        {formatDate(item.updated_at)}
+                                                    </p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="space-y-2">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={statusConfig[statusKey].className}
+                                                    >
+                                                        {statusConfig[statusKey].label}
+                                                    </Badge>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Baja: {item.st_baja ? "Sí" : "No"}
+                                                    </p>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-center text-sm text-muted-foreground sm:text-left">
                         Mostrando {displayFrom} a {displayTo} de {pagination.totalCount}{" "}
                         registros
                     </p>
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                             disabled={pagination.currentPage <= 1 || isLoading}
+                            className="w-full sm:w-auto"
                         >
                             Anterior
                         </Button>
@@ -370,6 +445,7 @@ export default function RegistryPage() {
                             disabled={
                                 pagination.currentPage >= pagination.totalPages || isLoading
                             }
+                            className="w-full sm:w-auto"
                         >
                             Siguiente
                         </Button>
