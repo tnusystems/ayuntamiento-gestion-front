@@ -49,6 +49,7 @@ export default function BienDocumentos({
         solicitud: "Oficio de Solicitud",
         certificado: "Certificado de Libertad",
         avaluo: "Avalúo",
+        baja: "Motivo de Baja",
         extraordinario: "Extraordinario",
     };
 

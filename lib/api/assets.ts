@@ -38,6 +38,67 @@ type AssetPayload = {
     verification_status_id?: string | number;
 };
 
+type AssetReassignPayload = {
+    old_asset: {
+        registry_id: number;
+        rpp_number: string;
+        c_number: string;
+        operation_type_id: number;
+        zone_id: number;
+        domain_id: number;
+        stage_definition_id: number;
+        land_use_id: number;
+        lot: string;
+        block: string;
+        colony: string;
+        street: string;
+        owner_name: string;
+        total_area: number;
+        built_area: number;
+        cadastral_value: number;
+        commercial_value: number;
+        latitude: number;
+        longitude: number;
+        inventory_status: string;
+        registry_date: string;
+        registry_section: string;
+        registry_volume: string;
+    };
+    new_asset: {
+        registry_id: number;
+        rpp_number: string;
+        c_number: string;
+        operation_type_id: number;
+        zone_id: number;
+        domain_id: number;
+        stage_definition_id: number;
+        land_use_id: number;
+        lot: string;
+        block: string;
+        colony: string;
+        street: string;
+        owner_name: string;
+        total_area: number;
+        built_area: number;
+        cadastral_value: number;
+        commercial_value: number;
+        latitude: number;
+        longitude: number;
+        inventory_status: string;
+        registry_date: string;
+        registry_section: string;
+        registry_volume: string;
+    };
+    baja_notes: string;
+    reason: string;
+};
+
+type AssetReplacePayload = {
+    replacement_asset: AssetReassignPayload["new_asset"];
+    baja_notes: string;
+    reason: string;
+};
+
 type UpdateAssetPayload = Partial<AssetPayload>;
 
 type AssetDocumentPayload = {
@@ -47,6 +108,8 @@ type AssetDocumentPayload = {
     position?: number;
     metadata?: Record<string, unknown>;
 };
+
+const DOCUMENT_UPLOAD_TIMEOUT_MS = 30 * 60 * 1000;
 
 export type AssetListParams = {
     page?: number;
@@ -130,7 +193,35 @@ function parseCreateAssetResponse(data: unknown) {
     if (approvalParsed.success) {
         return approvalParsed.data;
     }
-    return parseAsset(data);
+
+    const parsedDirectAsset = BienApiSchema.safeParse(data);
+    if (parsedDirectAsset.success) {
+        return parsedDirectAsset.data;
+    }
+
+    if (data && typeof data === "object") {
+        const withNewAsset = data as {
+            new_asset?: unknown;
+            replacement_asset?: unknown;
+            asset?: unknown;
+        };
+        const parsedNewAsset = BienApiSchema.safeParse(withNewAsset.new_asset);
+        if (parsedNewAsset.success) {
+            return parsedNewAsset.data;
+        }
+        const parsedReplacementAsset = BienApiSchema.safeParse(
+            withNewAsset.replacement_asset,
+        );
+        if (parsedReplacementAsset.success) {
+            return parsedReplacementAsset.data;
+        }
+        const parsedAsset = BienApiSchema.safeParse(withNewAsset.asset);
+        if (parsedAsset.success) {
+            return parsedAsset.data;
+        }
+    }
+
+    return data;
 }
 
 export async function fetchAsset(id: number | string) {
@@ -263,6 +354,27 @@ export async function createAsset(payload: AssetPayload) {
     return parseCreateAssetResponse(data);
 }
 
+export async function createAssetRegistryReassign(payload: AssetReassignPayload) {
+    const data = await api<unknown>("/api/v1/assets/registry_reassign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    return parseCreateAssetResponse(data);
+}
+
+export async function createAssetReplace(
+    id: number,
+    payload: AssetReplacePayload,
+) {
+    const data = await api<unknown>(`/api/v1/assets/${id}/replace`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    return parseCreateAssetResponse(data);
+}
+
 export async function updateAsset(id: number, payload: UpdateAssetPayload) {
     //console.log("updateAsset not implemented yet", { id, payload });
 
@@ -298,6 +410,7 @@ export async function createAssetDocument(
     const data = await api<unknown>(`/assets/${assetId}/documents`, {
         method: "POST",
         body: formData,
+        timeoutMs: DOCUMENT_UPLOAD_TIMEOUT_MS,
     });
     return parseAssetDocument(data);
 }

@@ -43,12 +43,17 @@ interface WizardStep3Props {
     updateFormData: (data: Partial<WizardStep3Props["formData"]>) => void;
 }
 
+const spreadsheetAndCadAccept = ".xls,.xlsx,.dwg,.dwf";
+const standardDocumentAccept = `.pdf,${spreadsheetAndCadAccept}`;
+const imageAccept = ".jpg,.jpeg,.png";
+const mixedDocumentAccept = `${standardDocumentAccept},${imageAccept}`;
+
 const documentTypes = [
     {
         id: "escritura",
         label: "Escritura Pública",
         icon: FileText,
-        accept: ".pdf",
+        accept: standardDocumentAccept,
         required: true,
         multiple: false,
     },
@@ -56,7 +61,7 @@ const documentTypes = [
         id: "fotos",
         label: "Fotografías del Bien",
         icon: ImageIcon,
-        accept: ".jpg,.jpeg,.png",
+        accept: imageAccept,
         required: true,
         multiple: true,
     },
@@ -64,7 +69,7 @@ const documentTypes = [
         id: "plano",
         label: "Plano Catastral",
         icon: File,
-        accept: ".pdf,.jpg,.png",
+        accept: mixedDocumentAccept,
         required: false,
         multiple: false,
     },
@@ -72,15 +77,15 @@ const documentTypes = [
         id: "oficio",
         label: "Oficio de Solicitud",
         icon: FileText,
-        accept: ".pdf",
+        accept: standardDocumentAccept,
         required: true,
         multiple: false,
     },
     {
         id: "certificado",
-        label: "Certificado de Libertad de Gravamen",
+        label: "Certificado de Valor Catastral",
         icon: FileText,
-        accept: ".pdf",
+        accept: standardDocumentAccept,
         required: false,
         multiple: false,
     },
@@ -88,7 +93,7 @@ const documentTypes = [
         id: "avaluo",
         label: "Avalúo",
         icon: FileText,
-        accept: ".pdf",
+        accept: standardDocumentAccept,
         required: false,
         multiple: false,
     },
@@ -106,6 +111,12 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
         if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
         return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
+
+    const formatAcceptLabel = (accept: string) =>
+        accept
+            .split(",")
+            .map((value) => value.trim().replace(".", "").toUpperCase())
+            .join(", ");
 
     const handleDocTypeClick = (docId: string) => {
         setSelectedDocType(docId);
@@ -182,6 +193,16 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
             ),
         [formData.documentosDetalle],
     );
+
+    const uploadedDocTypeIds = useMemo(
+        () => new Set(uploadedFiles.map((file) => file.docTypeId)),
+        [uploadedFiles],
+    );
+
+    const requiredTypesCount = documentTypes.filter((doc) => doc.required).length;
+    const requiredUploadedCount = documentTypes.filter(
+        (doc) => doc.required && uploadedDocTypeIds.has(doc.id),
+    ).length;
 
     const syncFormData = (files: UploadedFile[]) => {
         updateFormData({
@@ -333,7 +354,7 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
                 ref={dropZoneInputRef}
                 className="hidden"
                 multiple
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept={mixedDocumentAccept}
                 onChange={handleDropZoneFiles}
             />
 
@@ -344,6 +365,20 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
                     Seleccione el tipo de documento y súbalo al sistema. Los
                     campos con * son obligatorios.
                 </p>
+                <div className="mb-5 flex flex-wrap items-center gap-2">
+                    <Badge
+                        variant={
+                            requiredUploadedCount === requiredTypesCount
+                                ? "secondary"
+                                : "outline"
+                        }
+                    >
+                        Obligatorios: {requiredUploadedCount}/{requiredTypesCount}
+                    </Badge>
+                    <Badge variant="outline">
+                        Archivos seleccionados: {uploadedFiles.length}
+                    </Badge>
+                </div>
                 <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                     {documentTypes.map((doc) => {
                         const isUploaded = isDocTypeUploaded(doc.id);
@@ -392,10 +427,17 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
                                             {uploadedLabel}
                                         </span>
                                     ) : (
-                                        <span className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
-                                            <Upload className="h-3 w-3" />
-                                            Click para subir
-                                        </span>
+                                        <>
+                                            <span className="text-[11px] sm:text-xs text-muted-foreground text-center leading-snug">
+                                                Formatos: {formatAcceptLabel(doc.accept)}
+                                            </span>
+                                            <span className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
+                                                <Upload className="h-3 w-3" />
+                                                {doc.multiple
+                                                    ? "Click para subir varios"
+                                                    : "Click para subir"}
+                                            </span>
+                                        </>
                                     )}
                                 </Button>
                                 {isUploaded && (
@@ -466,7 +508,8 @@ export function WizardStep3({ formData, updateFormData }: WizardStep3Props) {
                     documentos adicionales
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                    Formatos aceptados: PDF, JPG, PNG (máx. 10MB por archivo)
+                    Formatos aceptados: PDF, JPG, PNG, XLS, XLSX, DWG, DWF
+                    (maximo 1GB o 1024MB por archivo)
                 </p>
             </div>
         </div>

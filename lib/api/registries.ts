@@ -9,6 +9,7 @@ export type RegistryListParams = {
     page?: number;
     per_page?: number;
     q?: string;
+    c_number?: string;
     status?: string;
 };
 
@@ -77,6 +78,9 @@ function buildRegistryListQuery(params?: RegistryListParams) {
     }
     if (params.q) {
         search.set("q", params.q.trim());
+    }
+    if (params.c_number) {
+        search.set("c_number", params.c_number.trim());
     }
     if (params.status) {
         search.set("status", params.status);

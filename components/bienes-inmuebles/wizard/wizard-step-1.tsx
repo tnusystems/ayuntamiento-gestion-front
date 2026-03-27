@@ -61,11 +61,21 @@ export function WizardStep1({
 }: WizardStep1Props) {
     const operationTypes = useOperationTypes();
     const [isSearchingAntecedente, setIsSearchingAntecedente] = useState(false);
+    const [isLoadingRppSuggestions, setIsLoadingRppSuggestions] =
+        useState(false);
     const [antecedenteSearchError, setAntecedenteSearchError] = useState<
         string | null
     >(null);
     const [isAntecedentePanelOpen, setIsAntecedentePanelOpen] =
         useState(false);
+    const [showRppSelectionOnly, setShowRppSelectionOnly] = useState(false);
+    const [rppSuggestions, setRppSuggestions] = useState<
+        Array<{
+            rppNumber: string;
+            registryId: string;
+            assetId: string;
+        }>
+    >([]);
     const [antecedenteResults, setAntecedenteResults] = useState<
         Array<{
             id: string;
@@ -91,6 +101,52 @@ export function WizardStep1({
         }>
     >([]);
 
+    const normalizeSearchValue = (value: string) =>
+        value.trim().toLowerCase().replace(/[\s\-_/]/g, "");
+
+    const loadRppSuggestions = async (query: string) => {
+        const normalizedRppQuery = normalizeSearchValue(query);
+        const fallbackResponse = await searchAssets({
+            rpp_number: query,
+        });
+
+        const uniqueSuggestions = new Map<
+            string,
+            {
+                rppNumber: string;
+                registryId: string;
+                assetId: string;
+            }
+        >();
+
+        fallbackResponse.results.forEach((result) => {
+            const rppNumber = (result.asset.rpp_number ?? "").trim();
+            const normalizedRpp = normalizeSearchValue(rppNumber);
+            if (!rppNumber || !normalizedRpp.includes(normalizedRppQuery)) {
+                return;
+            }
+
+            const registryId = String(result.asset.registry_id ?? "").trim();
+            const assetId = String(result.asset.id ?? "").trim();
+            if (!registryId) {
+                return;
+            }
+            const key = `${rppNumber}|${registryId || assetId}`;
+
+            if (!uniqueSuggestions.has(key)) {
+                uniqueSuggestions.set(key, {
+                    rppNumber,
+                    registryId,
+                    assetId,
+                });
+            }
+        });
+
+        const suggestions = Array.from(uniqueSuggestions.values());
+        setRppSuggestions(suggestions);
+        return suggestions;
+    };
+
     const handleSearchAntecedente = async () => {
         const query = formData.antecedenteRpp.trim();
         if (!query) {
@@ -101,6 +157,8 @@ export function WizardStep1({
         try {
             setIsSearchingAntecedente(true);
             setAntecedenteSearchError(null);
+            setRppSuggestions([]);
+            setShowRppSelectionOnly(false);
 
             const response = await searchAssets({
                 rpp_number: query,
@@ -172,34 +230,69 @@ export function WizardStep1({
                 }))
                 .filter((item) => item.id);
 
-            if (matches.length === 0) {
+            const normalizedRppQuery = normalizeSearchValue(query);
+            const normalizedCatastralQuery = normalizeSearchValue(
+                formData.claveCatastral,
+            );
+
+            const filteredMatches = matches.filter((item) => {
+                const normalizedRpp = normalizeSearchValue(item.rppNumber);
+                const normalizedCNumber = normalizeSearchValue(item.cNumber);
+
+                const rppMatches =
+                    normalizedRppQuery.length === 0
+                        ? true
+                        : normalizedRpp.includes(normalizedRppQuery);
+
+                const cNumberMatches =
+                    normalizedCatastralQuery.length === 0
+                        ? true
+                        : normalizedCNumber.length > 0 &&
+                          (normalizedCNumber.includes(normalizedCatastralQuery) ||
+                              normalizedCatastralQuery.includes(normalizedCNumber));
+
+                return rppMatches && cNumberMatches;
+            });
+
+            if (filteredMatches.length === 0) {
                 setAntecedenteResults([]);
                 updateFormData({
                     antecedenteAssetId: "",
                     antecedenteRegistryId: "",
                     antecedenteRegistryName: "",
                 });
-                setAntecedenteSearchError(
-                    "No se encontró un antecedente con ese RPP.",
-                );
+                setAntecedenteSearchError("Bien no encontrado");
+                setShowRppSelectionOnly(true);
+                setIsLoadingRppSuggestions(true);
+                try {
+                    await loadRppSuggestions(query);
+                } finally {
+                    setIsLoadingRppSuggestions(false);
+                }
                 return;
             }
 
             setIsAntecedentePanelOpen(true);
+            setRppSuggestions([]);
+            setShowRppSelectionOnly(false);
 
-            const exactMatch = matches.find(
+            const exactMatch = filteredMatches.find(
                 (item) => item.rppNumber.toLowerCase() === query.toLowerCase(),
             );
             const prioritizedMatches = exactMatch
                 ? [
                       exactMatch,
-                      ...matches.filter((item) => item.id !== exactMatch.id),
+                      ...filteredMatches.filter(
+                          (item) => item.id !== exactMatch.id,
+                      ),
                   ]
-                : matches;
+                : filteredMatches;
 
             setAntecedenteResults(prioritizedMatches);
         } catch (error) {
             setAntecedenteResults([]);
+            setRppSuggestions([]);
+            setShowRppSelectionOnly(false);
             setAntecedenteSearchError(
                 error instanceof Error
                     ? error.message
@@ -232,6 +325,8 @@ export function WizardStep1({
         registryId: string;
     }) => {
         setAntecedenteSearchError(null);
+        setRppSuggestions([]);
+        setShowRppSelectionOnly(false);
         setAntecedenteResults([]);
         setIsAntecedentePanelOpen(false);
         updateFormData({
@@ -240,8 +335,6 @@ export function WizardStep1({
             antecedenteRegistryId: selectedAsset.registryId,
             antecedenteRegistryName:
                 selectedAsset.ownerName || `Bien #${selectedAsset.id}`,
-            rppNumber: selectedAsset.rppNumber || formData.rppNumber,
-            claveCatastral: selectedAsset.cNumber || formData.claveCatastral,
             colonia: selectedAsset.colony,
             calle: selectedAsset.street,
             lote: selectedAsset.lot,
@@ -259,8 +352,28 @@ export function WizardStep1({
         });
     };
 
+    const handleSelectRppSuggestion = (suggestion: {
+        rppNumber: string;
+        registryId: string;
+        assetId: string;
+    }) => {
+        setAntecedenteSearchError(null);
+        setRppSuggestions([]);
+        setShowRppSelectionOnly(false);
+        setAntecedenteResults([]);
+        setIsAntecedentePanelOpen(false);
+
+        updateFormData({
+            antecedenteRpp: suggestion.rppNumber,
+            antecedenteRegistryId: suggestion.registryId,
+            antecedenteAssetId: "",
+            antecedenteRegistryName: `RPP ${suggestion.rppNumber}`,
+        });
+    };
+
     const showAntecedenteSearch =
-        isAntecedentePanelOpen || !formData.antecedenteAssetId;
+        isAntecedentePanelOpen ||
+        (!formData.antecedenteAssetId && !formData.antecedenteRegistryId);
 
     return (
         <div className="grid gap-6 sm:grid-cols-2">
@@ -284,6 +397,8 @@ export function WizardStep1({
                                         const hasAntecedente =
                                             event.target.checked;
                                         setAntecedenteSearchError(null);
+                                        setRppSuggestions([]);
+                                        setShowRppSelectionOnly(false);
                                         setIsAntecedentePanelOpen(hasAntecedente);
                                         updateFormData({
                                             hasAntecedente,
@@ -318,6 +433,8 @@ export function WizardStep1({
                                             value={formData.antecedenteRpp}
                                             onChange={(e) => {
                                                 setAntecedenteSearchError(null);
+                                                setRppSuggestions([]);
+                                                setShowRppSelectionOnly(false);
                                                 setIsAntecedentePanelOpen(true);
                                                 updateFormData({
                                                     antecedenteRpp:
@@ -337,7 +454,8 @@ export function WizardStep1({
                                             }}
                                         />
 
-                                        {antecedenteResults.length > 0 ? (
+                                        {antecedenteResults.length > 0 &&
+                                        !showRppSelectionOnly ? (
                                             <div className="space-y-2 rounded-md border border-border p-2">
                                                 <p className="text-xs text-muted-foreground">
                                                     Antecedentes encontrados: {antecedenteResults.length}
@@ -381,6 +499,68 @@ export function WizardStep1({
                                                         },
                                                     )}
                                                 </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    className="h-auto px-1 py-1 text-xs"
+                                                    disabled={isLoadingRppSuggestions}
+                                                    onClick={async () => {
+                                                        const query =
+                                                            formData.antecedenteRpp.trim();
+                                                        if (!query) {
+                                                            return;
+                                                        }
+                                                        setAntecedenteSearchError(
+                                                            null,
+                                                        );
+                                                        setShowRppSelectionOnly(
+                                                            true,
+                                                        );
+                                                        setIsLoadingRppSuggestions(
+                                                            true,
+                                                        );
+                                                        try {
+                                                            await loadRppSuggestions(
+                                                                query,
+                                                            );
+                                                        } finally {
+                                                            setIsLoadingRppSuggestions(
+                                                                false,
+                                                            );
+                                                        }
+                                                    }}
+                                                >
+                                                    {isLoadingRppSuggestions
+                                                        ? "Cargando RPP..."
+                                                        : "Ninguno de los anteriores"}
+                                                </Button>
+                                            </div>
+                                        ) : null}
+
+                                        {showRppSelectionOnly &&
+                                        rppSuggestions.length > 0 ? (
+                                            <div className="space-y-2 rounded-md border border-border bg-muted/20 p-2">
+                                                <p className="text-xs text-muted-foreground">
+                                                    Selecciona un RPP
+                                                </p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {rppSuggestions.map(
+                                                        (suggestion) => (
+                                                            <button
+                                                                key={`${suggestion.rppNumber}-${suggestion.registryId || suggestion.assetId}`}
+                                                                type="button"
+                                                                className="rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-muted"
+                                                                onClick={() => {
+                                                                    handleSelectRppSuggestion(
+                                                                        suggestion,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                {suggestion.rppNumber}
+                                                            </button>
+                                                        ),
+                                                    )}
+                                                </div>
                                             </div>
                                         ) : null}
                                     </>
@@ -397,6 +577,8 @@ export function WizardStep1({
                                             className="h-auto px-2 py-1 text-xs"
                                             onClick={() => {
                                                 setAntecedenteSearchError(null);
+                                                setRppSuggestions([]);
+                                                setShowRppSelectionOnly(false);
                                                 setAntecedenteResults([]);
                                                 setIsAntecedentePanelOpen(true);
                                             }}

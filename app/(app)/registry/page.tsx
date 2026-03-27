@@ -80,13 +80,17 @@ export default function RegistryPage() {
     useEffect(() => {
         let active = true;
         const loadRegistry = async () => {
+            const isLikelyCNumber =
+                debouncedSearch.length > 0 && /\d/.test(debouncedSearch) && !/\s/.test(debouncedSearch);
+
             setIsLoading(true);
             setLoadError(null);
             try {
                 const response = await fetchRegistries({
                     page: currentPage,
                     per_page: itemsPerPage,
-                    q: debouncedSearch || undefined,
+                    q: !isLikelyCNumber && debouncedSearch ? debouncedSearch : undefined,
+                    c_number: isLikelyCNumber ? debouncedSearch : undefined,
                     status: statusFilter !== "todos" ? statusFilter : undefined,
                 });
 
@@ -138,28 +142,33 @@ export default function RegistryPage() {
         pagination.totalCount === 0
             ? 0
             : (pagination.currentPage - 1) * pagination.perPage + data.length;
+    const isRefreshing = isLoading && data.length > 0;
+    const shouldShowLoadingState = isLoading && data.length === 0;
 
     return (
         <div className="space-y-4 overflow-x-hidden">
             <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 flex-1 flex-col gap-4 md:flex-row">
-                    <Input
-                        placeholder="Buscar por nombre, RPP o B número..."
-                        value={searchTerm}
-                        onChange={(e) => {
-                            setSearchTerm(e.target.value);
-                            setCurrentPage(1);
-                        }}
-                        className="w-full md:w-72"
-                        disabled={isLoading}
-                    />
+                    <div className="w-full md:w-80">
+                        <Input
+                            placeholder="Buscar por nombre, RPP, B numero o c_number..."
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                            className="w-full"
+                            type="search"
+                            autoComplete="off"
+                            spellCheck={false}
+                        />
+                    </div>
                     <Select
                         value={statusFilter}
                         onValueChange={(value) => {
                             setStatusFilter(value);
                             setCurrentPage(1);
                         }}
-                        disabled={isLoading}
                     >
                         <SelectTrigger className="w-full md:w-44">
                             <SelectValue placeholder="Estatus" />
@@ -172,6 +181,9 @@ export default function RegistryPage() {
                         </SelectContent>
                     </Select>
                 </div>
+                {isRefreshing ? (
+                    <p className="text-xs text-muted-foreground">Actualizando resultados...</p>
+                ) : null}
                 <Button asChild className="w-full md:w-auto">
                     <Link href="/registry/new">Registrar Nuevo</Link>
                 </Button>
@@ -179,7 +191,7 @@ export default function RegistryPage() {
 
             <div className="overflow-hidden rounded-lg border border-border bg-card">
                 <div className="space-y-3 p-4 lg:hidden">
-                    {isLoading ? (
+                    {shouldShowLoadingState ? (
                         <p className="rounded-md border border-border px-4 py-6 text-center text-sm text-muted-foreground">
                             Cargando registros...
                         </p>
@@ -264,7 +276,7 @@ export default function RegistryPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {isLoading ? (
+                            {shouldShowLoadingState ? (
                                 <TableRow>
                                     <TableCell
                                         colSpan={7}

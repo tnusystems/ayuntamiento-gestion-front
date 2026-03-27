@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
-import { fetchAssets } from "@/lib/api/assets";
+import { searchAssets, type AssetSearchResult } from "@/lib/api/assets";
 import { fetchRegistry } from "@/lib/api/registries";
 import {
     BienesTableContent,
@@ -20,7 +20,10 @@ import {
 } from "@/components/assets/bienes-table-content";
 
 type RegistryItem = Awaited<ReturnType<typeof fetchRegistry>>;
-type AssetItem = Awaited<ReturnType<typeof fetchAssets>>["data"][number];
+type AssetItem = AssetSearchResult["asset"] & {
+    is_active?: boolean;
+    inventory_status?: string | null;
+};
 
 // Componente de Filtros
 function BienesTableFilters({
@@ -46,17 +49,17 @@ function BienesTableFilters({
 }) {
     return (
         <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-1 flex-col gap-4 sm:flex-row">
+            <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:flex-wrap">
                 <input
-                    placeholder="Buscar por nombre, ubicación o descripción..."
+                    placeholder="Buscar por clave catastral o ubicación..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-72"
+                    className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[220px] sm:flex-1"
                 />
                 <select
                     value={estatusFilter}
                     onChange={(e) => setEstatusFilter(e.target.value)}
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-40"
+                    className="flex h-10 w-full min-w-0 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-[180px]"
                 >
                     <option value="todos">Todos los estatus</option>
                     <option value="activo">Activo</option>
@@ -66,7 +69,7 @@ function BienesTableFilters({
                 <select
                     value={tipoFilter}
                     onChange={(e) => setTipoFilter(e.target.value)}
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-40"
+                    className="flex h-10 w-full min-w-0 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-[180px]"
                 >
                     <option value="todos">Todos los tipos</option>
                     <option value="inmueble">Inmueble</option>
@@ -75,7 +78,7 @@ function BienesTableFilters({
                 <select
                     value={categoriaFilter}
                     onChange={(e) => setCategoriaFilter(e.target.value)}
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-40"
+                    className="flex h-10 w-full min-w-0 max-w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-[220px]"
                 >
                     <option value="todos">Todas las claves catastrales</option>
                     {categorias.map((cat) => (
@@ -176,18 +179,22 @@ export default function AssetsPage() {
             setIsLoading(true);
             setLoadError(null);
             try {
-                const [registryResponse, assetsResponse] = await Promise.all([
-                    fetchRegistry(expedienteId),
-                    fetchAssets({
-                        page: 1,
-                        per_page: 200,
-                        registry_id: expedienteId,
-                    }),
-                ]);
+                const registryResponse = await fetchRegistry(expedienteId);
+                const rppNumber = registryResponse?.rpp_number?.trim();
+                const assetsResponse = rppNumber
+                    ? await searchAssets({
+                          rpp_number: rppNumber,
+                      })
+                    : { results: [] };
 
                 if (!active) return;
                 setExpediente(registryResponse ?? null);
-                setBienes(assetsResponse.data ?? []);
+                setBienes(
+                    assetsResponse.results.map((result) => ({
+                        ...result.asset,
+                        is_active: result.is_active,
+                    })),
+                );
             } catch (error) {
                 if (!active) return;
                 setLoadError(
@@ -213,45 +220,47 @@ export default function AssetsPage() {
     const normalizedBienes = useMemo<BienRow[]>(
         () =>
             bienes.map((bien) => {
+                const bienExtended = bien as AssetItem & {
+                    description?: string | null;
+                    operation_type_name?: string | null;
+                    location?: {
+                        name?: string | null;
+                        address?: string | null;
+                    };
+                    latest_inventory_process?: {
+                        process_type?: string | null;
+                    };
+                };
                 const categoryValue = bien.c_number ?? "—";
                 const ubicacionValue =
                     [bien.street, bien.colony].filter(Boolean).join(", ") ||
-                    bien.location?.name ||
-                    bien.location?.address ||
+                    bienExtended.location?.name ||
+                    bienExtended.location?.address ||
                     "—";
                 const nombreValue =
-                    bien.description ||
+                    bienExtended.description ||
                     bien.colony ||
                     bien.street ||
                     `Bien ${bien.id}`;
-                const tipoValue = bien.operation_type_name || "—";
+                const tipoValue = bienExtended.operation_type_name || "—";
                 const valorCatastralNumber = Number(bien.cadastral_value);
                 const valorCatastral = Number.isFinite(valorCatastralNumber)
                     ? valorCatastralNumber
                     : 0;
 
                 const processType =
-                    typeof (
-                        bien as {
-                            latest_inventory_process?: {
-                                process_type?: string;
-                            };
-                        }
-                    ).latest_inventory_process?.process_type === "string"
-                        ? (
-                              bien as {
-                                  latest_inventory_process?: {
-                                      process_type?: string;
-                                  };
-                              }
-                          ).latest_inventory_process?.process_type
+                    typeof bienExtended.latest_inventory_process?.process_type ===
+                    "string"
+                        ? bienExtended.latest_inventory_process?.process_type
                         : "";
                 const rawStatus =
                     typeof bien.inventory_status === "string"
                         ? bien.inventory_status
                         : "";
                 const estatus =
-                    processType === "baja"
+                    bien.is_active === false
+                        ? "baja"
+                        : processType === "baja"
                         ? "baja"
                         : processType === "en_tramite"
                           ? "en_tramite"
@@ -273,7 +282,7 @@ export default function AssetsPage() {
                     ubicacion: ubicacionValue,
                     valorCatastral,
                     estatus,
-                    descripcion: bien.description,
+                    descripcion: bienExtended.description ?? undefined,
                 };
             }),
         [bienes],
@@ -354,11 +363,8 @@ export default function AssetsPage() {
 
     const filteredBienes = normalizedBienes.filter((bien) => {
         const matchesSearch =
-            bien.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            bien.ubicacion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (bien.descripcion?.toLowerCase() || "").includes(
-                searchTerm.toLowerCase(),
-            );
+            bien.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            bien.ubicacion.toLowerCase().includes(searchTerm.toLowerCase());
 
         const matchesEstatus =
             estatusFilter === "todos" || bien.estatus === estatusFilter;

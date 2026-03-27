@@ -1,552 +1,1232 @@
 "use client";
 
-import type React from "react";
-
-import { useMemo, useState } from "react";
-
-import Modal from "@/components/ui/modal";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import {
+    Download,
+    ExternalLink,
+    Loader2,
+    RefreshCw,
+    Search,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { fetchAsset, searchAssets } from "@/lib/api/assets";
+import {
+    assignDocumentToAttachable,
+    fetchSystemDocuments,
+    type DocumentAttachableType,
+    type SystemDocument,
+} from "@/lib/api/documents";
+import { getApiBaseUrl } from "@/lib/api/baseUrl";
+import { fetchRegistry } from "@/lib/api/registries";
+import { cn } from "@/lib/utils";
 
-type ArchivoItem = {
-  id: string;
-  nombre: string;
-  tipo: string;
-  fecha: string;
-  tamano: string;
-  usuario: string;
-  departamento: string;
+type DocumentAttachableFilter = "all" | DocumentAttachableType;
+type AssetCandidate = Awaited<ReturnType<typeof searchAssets>>["results"][number];
+type AssetDetail = Awaited<ReturnType<typeof fetchAsset>>;
+type RegistryDetail = Awaited<ReturnType<typeof fetchRegistry>>;
+type PaginationState = {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    perPage: number;
+};
+type CurrentAttachableInfo = {
+    type: DocumentAttachableType;
+    id: number;
+    title: string;
+    rppNumber: string;
+    rpp: string;
+    catastral: string;
+    extra: string;
 };
 
-const INITIAL_FILES: ArchivoItem[] = [];
+const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50] as const;
+const FILTER_DEBOUNCE_MS = 350;
+const ASSET_SEARCH_DEBOUNCE_MS = 300;
 
-type BienItem = {
-  id: string;
-  nombre: string;
-  rpp: string;
-  claveCatastral: string;
-  ubicacion: string;
-};
+const dateTimeFormatter = new Intl.DateTimeFormat("es-MX", {
+    dateStyle: "medium",
+    timeStyle: "short",
+});
 
-const BIENES: BienItem[] = [];
+const apiBaseUrl = getApiBaseUrl().replace(/\/$/, "");
+
+function withApiBase(path?: string | null) {
+    if (!path) {
+        return "";
+    }
+
+    const value = path.trim();
+    if (!value) {
+        return "";
+    }
+
+    if (!apiBaseUrl) {
+        return value;
+    }
+
+    if (/^https?:\/\//i.test(value)) {
+        try {
+            const parsed = new URL(value);
+            const relativePath = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+            return `${apiBaseUrl}${relativePath.startsWith("/") ? "" : "/"}${relativePath}`;
+        } catch {
+            return value;
+        }
+    }
+
+    return `${apiBaseUrl}${value.startsWith("/") ? "" : "/"}${value}`;
+}
+
+function normalizeRole(value?: string | null) {
+    return value?.trim().toLowerCase() ?? "";
+}
+
+function getRoleKeys(role?: string | null, roles?: Array<{ name?: string }>) {
+    const keys = new Set<string>();
+    const normalizedRole = normalizeRole(role);
+    if (normalizedRole) {
+        keys.add(normalizedRole);
+    }
+
+    if (Array.isArray(roles)) {
+        for (const roleItem of roles) {
+            const roleName = normalizeRole(roleItem?.name);
+            if (roleName) {
+                keys.add(roleName);
+            }
+        }
+    }
+
+    return keys;
+}
+
+function formatBytes(value?: number | null) {
+    if (!value || !Number.isFinite(value)) {
+        return "-";
+    }
+    if (value < 1024) {
+        return `${value} B`;
+    }
+    const kb = value / 1024;
+    if (kb < 1024) {
+        return `${kb.toFixed(1)} KB`;
+    }
+    const mb = kb / 1024;
+    return `${mb.toFixed(1)} MB`;
+}
+
+function formatDate(value?: string | null) {
+    if (!value) {
+        return "-";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "-";
+    }
+    return dateTimeFormatter.format(date);
+}
+
+function getDocumentName(document: SystemDocument) {
+    const fromName = document.name?.trim();
+    if (fromName) {
+        return fromName;
+    }
+    const fromFilename = document.file?.filename?.trim();
+    if (fromFilename) {
+        return fromFilename;
+    }
+    return `Documento ${document.id}`;
+}
+
+function getDocumentUrl(document: SystemDocument, mode: "view" | "download") {
+    const viewUrl = withApiBase(document.file?.url);
+    const downloadUrl = withApiBase(document.file?.download_url);
+    if (mode === "download") {
+        return downloadUrl || viewUrl;
+    }
+    return viewUrl || downloadUrl;
+}
+
+function getAttachableLabel(document: SystemDocument) {
+    const attachableType = document.attachable_type?.trim();
+    const attachableId = document.attachable_id;
+    if (attachableType && typeof attachableId === "number") {
+        return `${attachableType} #${attachableId}`;
+    }
+    if (attachableType) {
+        return attachableType;
+    }
+    return "Sin asignar";
+}
+
+function isAssetDocument(document: SystemDocument) {
+    return document.attachable_type?.toLowerCase() === "asset";
+}
+
+function resolveAttachableType(
+    value?: string | null,
+): DocumentAttachableType | null {
+    const normalized = value?.trim().toLowerCase();
+    if (normalized === "registry") {
+        return "Registry";
+    }
+    if (normalized === "asset") {
+        return "Asset";
+    }
+    return null;
+}
+
+function toDisplayValue(value: unknown) {
+    if (value === undefined || value === null) {
+        return "-";
+    }
+    const text = String(value).trim();
+    return text || "-";
+}
+
+function buildRegistryInfo(id: number, registry: RegistryDetail): CurrentAttachableInfo {
+    const rppNumber = registry?.rpp_number?.trim() ?? "";
+    return {
+        type: "Registry",
+        id,
+        title: toDisplayValue(registry?.name),
+        rppNumber,
+        rpp: [
+            toDisplayValue(registry?.rpp_number),
+            `Vol. ${toDisplayValue(registry?.rpp_volume)}`,
+            `Sec. ${toDisplayValue(registry?.rpp_section)}`,
+        ].join(" - "),
+        catastral: toDisplayValue(registry?.co_number),
+        extra: [
+            `Libro B: ${toDisplayValue(registry?.b_number)}`,
+            `Escritura: ${toDisplayValue(registry?.e_number)}`,
+        ].join(" - "),
+    };
+}
+
+function buildAssetInfo(id: number, asset: AssetDetail): CurrentAttachableInfo {
+    const rppNumber = asset?.rpp_number?.trim() ?? "";
+    return {
+        type: "Asset",
+        id,
+        title: toDisplayValue(
+            asset?.description || asset?.colony || asset?.street || `Bien ${id}`,
+        ),
+        rppNumber,
+        rpp: toDisplayValue(asset?.rpp_number),
+        catastral: toDisplayValue(asset?.c_number),
+        extra: [
+            toDisplayValue(asset?.street),
+            toDisplayValue(asset?.colony),
+        ].join(" - "),
+    };
+}
 
 export default function ArchivosPage() {
-  const [search, setSearch] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isAttachOpen, setIsAttachOpen] = useState(false);
-  const [attachFile, setAttachFile] = useState<File | null>(null);
-  const [bienQuery, setBienQuery] = useState("");
-  const [selectedBienId, setSelectedBienId] = useState<string | null>(null);
-
-  const filteredFiles = INITIAL_FILES.filter((file) =>
-    file.nombre.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const filteredBienes = useMemo(() => {
-    const normalized = bienQuery.trim().toLowerCase();
-    if (!normalized) {
-      return BIENES;
-    }
-    return BIENES.filter((bien) =>
-      `${bien.rpp} ${bien.claveCatastral} ${bien.nombre}`
-        .toLowerCase()
-        .includes(normalized)
+    const { data: session } = useSession();
+    const roleKeys = useMemo(
+        () => getRoleKeys(session?.user?.role, session?.user?.roles),
+        [session?.user?.role, session?.user?.roles],
     );
-  }, [bienQuery]);
+    const isViewer = roleKeys.has("viewer");
 
-  const selectedBien = selectedBienId
-    ? BIENES.find((bien) => bien.id === selectedBienId) ?? null
-    : null;
+    const [documents, setDocuments] = useState<SystemDocument[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
-  const handleOpenAttach = () => {
-    setAttachFile(null);
-    setBienQuery("");
-    setSelectedBienId(null);
-    setIsAttachOpen(true);
-  };
+    const [attachableTypeFilter, setAttachableTypeFilter] =
+        useState<DocumentAttachableFilter>("all");
+    const [attachableIdFilter, setAttachableIdFilter] = useState("");
+    const [debouncedAttachableIdFilter, setDebouncedAttachableIdFilter] =
+        useState("");
+    const [search, setSearch] = useState("");
+    const [perPage, setPerPage] = useState<number>(ITEMS_PER_PAGE_OPTIONS[0]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pagination, setPagination] = useState<PaginationState>({
+        currentPage: 1,
+        totalPages: 1,
+        totalCount: 0,
+        perPage: ITEMS_PER_PAGE_OPTIONS[0],
+    });
 
-  const handleCloseAttach = () => {
-    setIsAttachOpen(false);
-    setAttachFile(null);
-    setBienQuery("");
-    setSelectedBienId(null);
-  };
+    const [notice, setNotice] = useState<string | null>(null);
 
-  const handleConfirmAttach = () => {
-    if (!attachFile || !selectedBien) {
-      return;
-    }
-    alert(
-      `Archivo: ${attachFile.name}\nAsignado a: ${selectedBien.nombre} (${selectedBien.id})`
-    );
-    handleCloseAttach();
-  };
+    const [isAssignOpen, setIsAssignOpen] = useState(false);
+    const [selectedDocument, setSelectedDocument] =
+        useState<SystemDocument | null>(null);
+    const [targetAssetId, setTargetAssetId] = useState("");
+    const [isAssigning, setIsAssigning] = useState(false);
+    const [assignError, setAssignError] = useState<string | null>(null);
+    const [currentAttachableInfo, setCurrentAttachableInfo] =
+        useState<CurrentAttachableInfo | null>(null);
+    const [isLoadingCurrentAttachable, setIsLoadingCurrentAttachable] =
+        useState(false);
+    const [currentAttachableError, setCurrentAttachableError] = useState<
+        string | null
+    >(null);
 
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    if (value.trim()) {
-      const matches = INITIAL_FILES.filter((file) =>
-        file.nombre.toLowerCase().includes(value.toLowerCase())
-      ).map((file) => file.nombre);
-      setSuggestions(matches);
-      setShowSuggestions(true);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  };
+    const [assetSearch, setAssetSearch] = useState("");
+    const [debouncedAssetSearch, setDebouncedAssetSearch] = useState("");
+    const [assetCandidates, setAssetCandidates] = useState<AssetCandidate[]>([]);
+    const [isSearchingAssets, setIsSearchingAssets] = useState(false);
+    const [assetSearchError, setAssetSearchError] = useState<string | null>(null);
 
-  const handleSelectSuggestion = (suggestion: string) => {
-    setSearch(suggestion);
-    setShowSuggestions(false);
-  };
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            setDebouncedAttachableIdFilter(attachableIdFilter.trim());
+        }, FILTER_DEBOUNCE_MS);
+        return () => window.clearTimeout(timeoutId);
+    }, [attachableIdFilter]);
 
-  return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <section className="bg-white border border-neutral-200 rounded-xl p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <ActionCard
-              title="Adjuntar Archivo"
-              description="Sube un nuevo archivo desde tu equipo local"
-              icon={<UploadIcon />}
-              onClick={handleOpenAttach}
-            />
-            <ActionCard
-              title="Escanear Documento"
-              description="Digitaliza documentos físicos usando tu impresora"
-              icon={<PrinterIcon />}
-              onClick={() => alert("Escanear desde impresora")}
-            />
-            <ActionCard
-              title="Captura Móvil"
-              description="Escanea documentos con la cámara de tu dispositivo"
-              icon={<MobileIcon />}
-              onClick={() => alert("Escanear desde móvil")}
-            />
-          </div>
-        </section>
-        <section className="bg-white border border-neutral-200 rounded-xl p-4 md:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h2 className="text-lg font-semibold text-neutral-900">
-              Archivos subidos recientemente
-            </h2>
-            <div className="relative w-full sm:w-80">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  onBlur={() =>
-                    setTimeout(() => setShowSuggestions(false), 200)
-                  }
-                  onFocus={() =>
-                    search &&
-                    setSuggestions(
-                      INITIAL_FILES.filter((file) =>
-                        file.nombre.toLowerCase().includes(search.toLowerCase())
-                      ).map((file) => file.nombre)
-                    )
-                  }
-                  placeholder="Buscar archivos por nombre..."
-                  className="w-full rounded-lg border border-neutral-300 pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-transparent"
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">
-                  <SearchIcon />
-                </div>
-              </div>
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {suggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSelectSuggestion(suggestion)}
-                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="overflow-x-auto -mx-4 md:mx-0">
-            <div className="inline-block min-w-full align-middle">
-              <table className="min-w-full divide-y divide-neutral-200">
-                <thead className="bg-neutral-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Nombre
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Tipo
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider hidden sm:table-cell">
-                      Fecha
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider hidden md:table-cell">
-                      Tamaño
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider hidden lg:table-cell">
-                      Usuario
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider hidden xl:table-cell">
-                      Departamento
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-neutral-100">
-                  {filteredFiles.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-8 text-center text-sm text-neutral-500"
-                      >
-                        No se encontraron archivos que coincidan con tu búsqueda
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredFiles.map((file) => (
-                      <tr
-                        key={file.id}
-                        className="hover:bg-neutral-50 transition-colors"
-                      >
-                        <td className="px-4 py-4 text-sm text-neutral-900 font-medium max-w-xs truncate">
-                          {file.nombre}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-neutral-600">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-                            {file.tipo}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-neutral-600 hidden sm:table-cell">
-                          {file.fecha}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-neutral-600 hidden md:table-cell">
-                          {file.tamano}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-neutral-600 hidden lg:table-cell">
-                          {file.usuario}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-neutral-600 hidden xl:table-cell">
-                          {file.departamento}
-                        </td>
-                        <td className="px-4 py-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => alert(`Editando: ${file.nombre}`)}
-                              className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
-                              aria-label="Editar"
-                              title="Editar archivo"
-                            >
-                              <EditIcon />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (
-                                  confirm(`¿Deseas eliminar ${file.nombre}?`)
-                                ) {
-                                  alert("Archivo eliminado");
-                                }
-                              }}
-                              className="p-2 rounded-lg hover:bg-red-50 transition-colors text-red-600"
-                              aria-label="Eliminar"
-                              title="Eliminar archivo"
-                            >
-                              <DeleteIcon />
-                            </button>
-                            <button
-                              onClick={() =>
-                                alert(`Estado cambiado para: ${file.nombre}`)
-                              }
-                              className="p-2 rounded-lg hover:bg-neutral-100 transition-colors"
-                              aria-label="Cambiar estado"
-                              title="Activar/Desactivar"
-                            >
-                              <ToggleIcon />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      </div>
+    const loadDocuments = useCallback(async () => {
+        setIsLoading(true);
+        setLoadError(null);
 
-      <Modal
-        open={isAttachOpen}
-        title="Adjuntar archivo"
-        description="Selecciona un archivo y el bien inmueble al que se asignara."
-        onClose={handleCloseAttach}
-        footer={
-          <>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleCloseAttach}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handleConfirmAttach}
-              disabled={!attachFile || !selectedBien}
-            >
-              Adjuntar
-            </Button>
-          </>
+        const parsedAttachableId = Number(debouncedAttachableIdFilter);
+        const attachableId =
+            attachableTypeFilter === "all" || !debouncedAttachableIdFilter
+                ? undefined
+                : Number.isFinite(parsedAttachableId) && parsedAttachableId > 0
+                  ? Math.trunc(parsedAttachableId)
+                  : undefined;
+
+        try {
+            const response = await fetchSystemDocuments({
+                attachable_type:
+                    attachableTypeFilter === "all"
+                        ? undefined
+                        : attachableTypeFilter,
+                attachable_id: attachableId,
+                page: currentPage,
+                per_page: perPage,
+            });
+
+            setDocuments(response.documents);
+
+            const responseCurrentPage =
+                response.pagination?.current_page ?? currentPage;
+            const responseTotalPages = Math.max(
+                1,
+                response.pagination?.total_pages ?? 1,
+            );
+            const responseTotalCount =
+                response.pagination?.total_count ?? response.documents.length;
+            const responsePerPage = response.pagination?.per_page ?? perPage;
+
+            setPagination({
+                currentPage: responseCurrentPage,
+                totalPages: responseTotalPages,
+                totalCount: responseTotalCount,
+                perPage: responsePerPage,
+            });
+
+            if (responseCurrentPage !== currentPage) {
+                setCurrentPage(responseCurrentPage);
+            }
+        } catch (error) {
+            setLoadError(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo cargar el directorio de documentos.",
+            );
+            setDocuments([]);
+            setPagination({
+                currentPage: 1,
+                totalPages: 1,
+                totalCount: 0,
+                perPage,
+            });
+        } finally {
+            setIsLoading(false);
         }
-      >
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="archivo-adjunto">Archivo</Label>
-            <Input
-              id="archivo-adjunto"
-              type="file"
-              onChange={(event) =>
-                setAttachFile(event.target.files?.[0] ?? null)
-              }
-            />
-            {attachFile ? (
-              <p className="text-xs text-muted-foreground">
-                Archivo seleccionado: {attachFile.name}
-              </p>
-            ) : null}
-          </div>
+    }, [attachableTypeFilter, currentPage, debouncedAttachableIdFilter, perPage]);
 
-          <div className="space-y-2">
-            <Label htmlFor="bien-search">
-              Buscar bien por RPP o clave catastral
-            </Label>
-            <Input
-              id="bien-search"
-              placeholder="Ej. RPP-124-2024 o HMO-001-0001"
-              value={bienQuery}
-              onChange={(event) => setBienQuery(event.target.value)}
-            />
-          </div>
+    useEffect(() => {
+        void loadDocuments();
+    }, [loadDocuments]);
 
-          <div className="space-y-2">
-            <div className="text-xs font-medium text-muted-foreground">
-              Bienes encontrados
-            </div>
-            <div className="max-h-48 overflow-y-auto rounded-lg border border-border/60">
-              {filteredBienes.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-muted-foreground">
-                  Sin resultados.
+    const filteredDocuments = useMemo(() => {
+        const normalizedSearch = search.trim().toLowerCase();
+        if (!normalizedSearch) {
+            return documents;
+        }
+        return documents.filter((document) => {
+            const values = [
+                document.name,
+                document.kind,
+                document.file?.filename,
+                document.file?.content_type,
+                document.attachable_type,
+                typeof document.attachable_id === "number"
+                    ? String(document.attachable_id)
+                    : "",
+            ];
+            return values.some((value) =>
+                (value ?? "").toLowerCase().includes(normalizedSearch),
+            );
+        });
+    }, [documents, search]);
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            setDebouncedAssetSearch(assetSearch.trim());
+        }, ASSET_SEARCH_DEBOUNCE_MS);
+        return () => window.clearTimeout(timeoutId);
+    }, [assetSearch]);
+
+    useEffect(() => {
+        if (!isAssignOpen) {
+            return;
+        }
+
+        if (debouncedAssetSearch.length === 0) {
+            setAssetCandidates([]);
+            setAssetSearchError(null);
+            setIsSearchingAssets(false);
+            return;
+        }
+
+        let active = true;
+
+        const loadAssets = async () => {
+            setIsSearchingAssets(true);
+            setAssetSearchError(null);
+            try {
+                const response = await searchAssets({
+                    rpp_number: debouncedAssetSearch,
+                });
+                if (!active) {
+                    return;
+                }
+                setAssetCandidates(response.results ?? []);
+            } catch (error) {
+                if (!active) {
+                    return;
+                }
+                setAssetCandidates([]);
+                setAssetSearchError(
+                    error instanceof Error
+                        ? error.message
+                        : "No se pudo buscar bienes.",
+                );
+            } finally {
+                if (active) {
+                    setIsSearchingAssets(false);
+                }
+            }
+        };
+
+        void loadAssets();
+
+        return () => {
+            active = false;
+        };
+    }, [debouncedAssetSearch, isAssignOpen]);
+
+    const loadCurrentAttachableInfo = useCallback(
+        async (document: SystemDocument) => {
+            const attachableType = resolveAttachableType(document.attachable_type);
+            const attachableId =
+                typeof document.attachable_id === "number" &&
+                Number.isFinite(document.attachable_id) &&
+                document.attachable_id > 0
+                    ? Math.trunc(document.attachable_id)
+                    : null;
+
+            if (!attachableType || !attachableId) {
+                setCurrentAttachableInfo(null);
+                setCurrentAttachableError(null);
+                setIsLoadingCurrentAttachable(false);
+                return;
+            }
+
+            setIsLoadingCurrentAttachable(true);
+            setCurrentAttachableError(null);
+            try {
+                if (attachableType === "Registry") {
+                    const registry = await fetchRegistry(attachableId);
+                    if (!registry) {
+                        throw new Error("No se encontro el registro origen.");
+                    }
+                    const info = buildRegistryInfo(attachableId, registry);
+                    setCurrentAttachableInfo(info);
+                    if (info.rppNumber) {
+                        setAssetSearch(info.rppNumber);
+                        setDebouncedAssetSearch(info.rppNumber);
+                    }
+                    return;
+                }
+
+                const asset = await fetchAsset(attachableId);
+                if (!asset) {
+                    throw new Error("No se encontro el bien origen.");
+                }
+                const info = buildAssetInfo(attachableId, asset);
+                setCurrentAttachableInfo(info);
+                if (info.rppNumber) {
+                    setAssetSearch(info.rppNumber);
+                    setDebouncedAssetSearch(info.rppNumber);
+                }
+            } catch (error) {
+                setCurrentAttachableInfo(null);
+                setCurrentAttachableError(
+                    error instanceof Error
+                        ? error.message
+                        : "No se pudo cargar la informacion origen.",
+                );
+            } finally {
+                setIsLoadingCurrentAttachable(false);
+            }
+        },
+        [],
+    );
+
+    const handleOpenAssign = (document: SystemDocument) => {
+        if (isViewer) {
+            return;
+        }
+        setSelectedDocument(document);
+        setAssignError(null);
+        setCurrentAttachableInfo(null);
+        setCurrentAttachableError(null);
+        setIsLoadingCurrentAttachable(false);
+        setAssetSearch("");
+        setDebouncedAssetSearch("");
+        setAssetCandidates([]);
+        setAssetSearchError(null);
+        setTargetAssetId(
+            isAssetDocument(document) && typeof document.attachable_id === "number"
+                ? String(document.attachable_id)
+                : "",
+        );
+        setIsAssignOpen(true);
+        void loadCurrentAttachableInfo(document);
+    };
+
+    const handleCloseAssign = () => {
+        if (isAssigning) {
+            return;
+        }
+        setIsAssignOpen(false);
+        setSelectedDocument(null);
+        setAssignError(null);
+        setCurrentAttachableInfo(null);
+        setCurrentAttachableError(null);
+        setIsLoadingCurrentAttachable(false);
+        setAssetSearch("");
+        setDebouncedAssetSearch("");
+        setAssetCandidates([]);
+        setAssetSearchError(null);
+        setTargetAssetId("");
+    };
+
+    const handleAssignToAsset = async () => {
+        if (!selectedDocument) {
+            return;
+        }
+
+        const parsedAssetId = Number(targetAssetId.trim());
+        if (!Number.isFinite(parsedAssetId) || parsedAssetId <= 0) {
+            setAssignError("Ingresa un ID de bien valido.");
+            return;
+        }
+
+        setIsAssigning(true);
+        setAssignError(null);
+
+        try {
+            const assetId = Math.trunc(parsedAssetId);
+            await assignDocumentToAttachable(selectedDocument.id, {
+                attachable_id: assetId,
+            });
+
+            const documentName = getDocumentName(selectedDocument);
+            setNotice(`Documento \"${documentName}\" asignado al bien ${assetId}.`);
+            setIsAssignOpen(false);
+            setSelectedDocument(null);
+            setCurrentAttachableInfo(null);
+            setCurrentAttachableError(null);
+            setIsLoadingCurrentAttachable(false);
+            await loadDocuments();
+        } catch (error) {
+            setAssignError(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo asignar el documento al bien.",
+            );
+        } finally {
+            setIsAssigning(false);
+        }
+    };
+
+    const displayFrom =
+        pagination.totalCount === 0
+            ? 0
+            : (pagination.currentPage - 1) * pagination.perPage + 1;
+    const displayTo =
+        pagination.totalCount === 0
+            ? 0
+            : (pagination.currentPage - 1) * pagination.perPage + documents.length;
+
+    return (
+        <div className="space-y-4">
+            <section className="rounded-xl border border-border bg-card p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1">
+                        <h1 className="text-2xl font-semibold">
+                            Directorio de documentos
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Consulta documentos del sistema y reasignalos de
+                            registro a bien cuando sea necesario.
+                        </p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            setNotice(null);
+                            void loadDocuments();
+                        }}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                        )}
+                        Actualizar
+                    </Button>
                 </div>
-              ) : (
-                filteredBienes.map((bien) => (
-                  <button
-                    key={bien.id}
-                    type="button"
-                    onClick={() => setSelectedBienId(bien.id)}
-                    className={`w-full text-left px-4 py-3 border-b border-border/60 last:border-b-0 transition-colors ${
-                      selectedBienId === bien.id
-                        ? "bg-neutral-100"
-                        : "hover:bg-neutral-50"
-                    }`}
-                  >
-                    <div className="text-sm font-medium text-neutral-900">
-                      {bien.nombre}
-                    </div>
-                    <div className="text-xs text-neutral-500">
-                      RPP: {bien.rpp} · Clave: {bien.claveCatastral}
-                    </div>
-                    <div className="text-xs text-neutral-500">
-                      {bien.ubicacion}
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-            {selectedBien ? (
-              <div className="text-xs text-neutral-600">
-                Seleccionado: {selectedBien.nombre} ({selectedBien.id})
-              </div>
+            </section>
+
+            {isViewer ? (
+                <section className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
+                    Perfil de solo lectura: puedes consultar documentos, pero no
+                    reasignarlos.
+                </section>
             ) : null}
-          </div>
+
+            {notice ? (
+                <section className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
+                    {notice}
+                </section>
+            ) : null}
+
+            <section className="rounded-xl border border-border bg-card p-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="space-y-2">
+                        <Label>Vinculo actual</Label>
+                        <Select
+                            value={attachableTypeFilter}
+                            onValueChange={(value) => {
+                                const resolved = value as DocumentAttachableFilter;
+                                setAttachableTypeFilter(resolved);
+                                setCurrentPage(1);
+                                if (resolved === "all") {
+                                    setAttachableIdFilter("");
+                                }
+                            }}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Todos" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                <SelectItem value="Registry">Registry</SelectItem>
+                                <SelectItem value="Asset">Asset</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="attachable-id-filter">
+                            ID de vinculo (opcional)
+                        </Label>
+                        <Input
+                            id="attachable-id-filter"
+                            type="number"
+                            min={1}
+                            value={attachableIdFilter}
+                            onChange={(event) => {
+                                setAttachableIdFilter(event.target.value);
+                                setCurrentPage(1);
+                            }}
+                            placeholder={
+                                attachableTypeFilter === "all"
+                                    ? "Selecciona tipo"
+                                    : "Ej. 145"
+                            }
+                            disabled={attachableTypeFilter === "all"}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="document-search">Buscar en pagina</Label>
+                        <div className="relative">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                id="document-search"
+                                className="pl-9"
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                placeholder="Nombre, tipo o archivo"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Registros por pagina</Label>
+                        <Select
+                            value={String(perPage)}
+                            onValueChange={(value) => {
+                                const resolved = Number(value);
+                                if (!Number.isFinite(resolved)) {
+                                    return;
+                                }
+                                setPerPage(Math.trunc(resolved));
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="10" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {ITEMS_PER_PAGE_OPTIONS.map((option) => (
+                                    <SelectItem key={option} value={String(option)}>
+                                        {option}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="mt-3 text-xs text-muted-foreground">
+                    Usa la combinacion correcta de tipo + ID para consultar un
+                    vinculo especifico. Si el tipo no corresponde al ID, no habra
+                    resultados.
+                </div>
+            </section>
+
+            <section className="overflow-hidden rounded-xl border border-border bg-card">
+                <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                        Mostrando {filteredDocuments.length} de {documents.length} en
+                        pagina. Total del backend: {pagination.totalCount}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        {displayFrom}-{displayTo} de {pagination.totalCount}
+                    </p>
+                </div>
+
+                {loadError ? (
+                    <div className="px-4 py-6 text-sm text-destructive">
+                        {loadError}
+                    </div>
+                ) : null}
+
+                <div className="space-y-3 p-4 lg:hidden">
+                    {isLoading ? (
+                        <p className="rounded-md border border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                            Cargando documentos...
+                        </p>
+                    ) : filteredDocuments.length === 0 ? (
+                        <p className="rounded-md border border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                            No hay documentos para mostrar.
+                        </p>
+                    ) : (
+                        filteredDocuments.map((document) => {
+                            const viewUrl = getDocumentUrl(document, "view");
+                            const downloadUrl = getDocumentUrl(
+                                document,
+                                "download",
+                            );
+
+                            return (
+                                <div
+                                    key={document.id}
+                                    className="space-y-3 rounded-lg border border-border bg-background p-4"
+                                >
+                                    <div className="space-y-2">
+                                        <p className="font-medium leading-tight">
+                                            {getDocumentName(document)}
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                                            <Badge variant="secondary">
+                                                {document.kind || "sin kind"}
+                                            </Badge>
+                                            <Badge variant="outline">
+                                                {getAttachableLabel(document)}
+                                            </Badge>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1 text-xs text-muted-foreground">
+                                        <p>
+                                            Archivo: {document.file?.filename || "-"}
+                                        </p>
+                                        <p>
+                                            Tipo MIME: {document.file?.content_type || "-"}
+                                        </p>
+                                        <p>
+                                            Tamano: {formatBytes(document.file?.byte_size)}
+                                        </p>
+                                        <p>
+                                            Fecha: {formatDate(document.created_at)}
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        {viewUrl ? (
+                                            <Button size="sm" variant="outline" asChild>
+                                                <a
+                                                    href={viewUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                                                    Ver
+                                                </a>
+                                            </Button>
+                                        ) : (
+                                            <Button size="sm" variant="outline" disabled>
+                                                <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                                                Ver
+                                            </Button>
+                                        )}
+
+                                        {downloadUrl ? (
+                                            <Button size="sm" variant="outline" asChild>
+                                                <a
+                                                    href={downloadUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    <Download className="mr-1 h-3.5 w-3.5" />
+                                                    Descargar
+                                                </a>
+                                            </Button>
+                                        ) : (
+                                            <Button size="sm" variant="outline" disabled>
+                                                <Download className="mr-1 h-3.5 w-3.5" />
+                                                Descargar
+                                            </Button>
+                                        )}
+
+                                        <Button
+                                            size="sm"
+                                            disabled={isViewer}
+                                            onClick={() => handleOpenAssign(document)}
+                                        >
+                                            {isAssetDocument(document)
+                                                ? "Reasignar"
+                                                : "Asignar a bien"}
+                                        </Button>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                <div className="hidden lg:block">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                                <TableHead className="pl-4">Documento</TableHead>
+                                <TableHead>Kind</TableHead>
+                                <TableHead>Vinculo</TableHead>
+                                <TableHead>Archivo</TableHead>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead className="pr-4 text-right">
+                                    Acciones
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={6}
+                                        className="py-10 text-center text-sm text-muted-foreground"
+                                    >
+                                        Cargando documentos...
+                                    </TableCell>
+                                </TableRow>
+                            ) : filteredDocuments.length === 0 ? (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={6}
+                                        className="py-10 text-center text-sm text-muted-foreground"
+                                    >
+                                        No hay documentos para mostrar.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filteredDocuments.map((document) => {
+                                    const viewUrl = getDocumentUrl(document, "view");
+                                    const downloadUrl = getDocumentUrl(
+                                        document,
+                                        "download",
+                                    );
+
+                                    return (
+                                        <TableRow key={document.id}>
+                                            <TableCell className="pl-4">
+                                                <div className="max-w-[260px]">
+                                                    <p className="truncate font-medium">
+                                                        {getDocumentName(document)}
+                                                    </p>
+                                                    <p className="truncate text-xs text-muted-foreground">
+                                                        ID {document.id}
+                                                    </p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary">
+                                                    {document.kind || "sin kind"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">
+                                                    {getAttachableLabel(document)}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="max-w-[220px] text-sm">
+                                                    <p className="truncate">
+                                                        {document.file?.filename || "-"}
+                                                    </p>
+                                                    <p className="truncate text-xs text-muted-foreground">
+                                                        {document.file?.content_type || "-"}
+                                                        {" - "}
+                                                        {formatBytes(
+                                                            document.file?.byte_size,
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDate(document.created_at)}
+                                            </TableCell>
+                                            <TableCell className="pr-4">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {viewUrl ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            asChild
+                                                        >
+                                                            <a
+                                                                href={viewUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                            >
+                                                                <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                                                                Ver
+                                                            </a>
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled
+                                                        >
+                                                            <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                                                            Ver
+                                                        </Button>
+                                                    )}
+
+                                                    {downloadUrl ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            asChild
+                                                        >
+                                                            <a
+                                                                href={downloadUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                            >
+                                                                <Download className="mr-1 h-3.5 w-3.5" />
+                                                                Descargar
+                                                            </a>
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled
+                                                        >
+                                                            <Download className="mr-1 h-3.5 w-3.5" />
+                                                            Descargar
+                                                        </Button>
+                                                    )}
+
+                                                    <Button
+                                                        size="sm"
+                                                        disabled={isViewer}
+                                                        onClick={() =>
+                                                            handleOpenAssign(document)
+                                                        }
+                                                    >
+                                                        {isAssetDocument(document)
+                                                            ? "Reasignar"
+                                                            : "Asignar"}
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </section>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                    variant="outline"
+                    disabled={isLoading || currentPage <= 1}
+                    onClick={() =>
+                        setCurrentPage((previous) => Math.max(1, previous - 1))
+                    }
+                >
+                    Anterior
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                    Pagina {currentPage} de {pagination.totalPages}
+                </p>
+                <Button
+                    variant="outline"
+                    disabled={isLoading || currentPage >= pagination.totalPages}
+                    onClick={() =>
+                        setCurrentPage((previous) =>
+                            Math.min(pagination.totalPages, previous + 1),
+                        )
+                    }
+                >
+                    Siguiente
+                </Button>
+            </div>
+
+            <Dialog
+                open={isAssignOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        handleCloseAssign();
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Asignar documento a un bien</DialogTitle>
+                        <DialogDescription>
+                            Selecciona el bien destino para reasignar este
+                            documento.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        {selectedDocument ? (
+                            <div className="rounded-lg border border-border bg-muted/20 p-3">
+                                <p className="font-medium">
+                                    {getDocumentName(selectedDocument)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    ID {selectedDocument.id} - Vinculo actual:{" "}
+                                    {getAttachableLabel(selectedDocument)}
+                                </p>
+                            </div>
+                        ) : null}
+
+                        {isLoadingCurrentAttachable ? (
+                            <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2 text-sm text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Cargando informacion de origen...
+                            </div>
+                        ) : currentAttachableError ? (
+                            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                {currentAttachableError}
+                            </div>
+                        ) : currentAttachableInfo ? (
+                            <div className="rounded-lg border border-border bg-background p-3">
+                                <p className="text-xs text-muted-foreground">
+                                    Origen actual: {currentAttachableInfo.type} #
+                                    {currentAttachableInfo.id}
+                                </p>
+                                <p className="mt-1 font-medium">
+                                    {currentAttachableInfo.title}
+                                </p>
+                                <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
+                                    <p>RPP: {currentAttachableInfo.rpp}</p>
+                                    <p>
+                                        Clave catastral / convenio: {" "}
+                                        {currentAttachableInfo.catastral}
+                                    </p>
+                                    <p>{currentAttachableInfo.extra}</p>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {assignError ? (
+                            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                {assignError}
+                            </div>
+                        ) : null}
+
+                        <div className="space-y-2">
+                            <Label htmlFor="asset-target-id">
+                                ID de bien destino
+                            </Label>
+                            <Input
+                                id="asset-target-id"
+                                type="number"
+                                min={1}
+                                placeholder="Ej. 138"
+                                value={targetAssetId}
+                                onChange={(event) =>
+                                    setTargetAssetId(event.target.value)
+                                }
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="asset-search">
+                                Buscar bien por RPP
+                            </Label>
+                            <Input
+                                id="asset-search"
+                                value={assetSearch}
+                                onChange={(event) =>
+                                    setAssetSearch(event.target.value)
+                                }
+                                placeholder="Ej. RPP-412"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                El buscador usa /api/v1/assets/search con
+                                rpp_number.
+                            </p>
+
+                            <div className="max-h-48 overflow-y-auto rounded-md border border-border/70">
+                                {isSearchingAssets ? (
+                                    <div className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Buscando bienes...
+                                    </div>
+                                ) : assetSearchError ? (
+                                    <div className="px-3 py-3 text-sm text-destructive">
+                                        {assetSearchError}
+                                    </div>
+                                ) : debouncedAssetSearch.length === 0 ? (
+                                    <div className="px-3 py-3 text-sm text-muted-foreground">
+                                        Ingresa un RPP para buscar bienes.
+                                    </div>
+                                ) : assetCandidates.length === 0 ? (
+                                    <div className="px-3 py-3 text-sm text-muted-foreground">
+                                        Sin resultados para {debouncedAssetSearch}.
+                                    </div>
+                                ) : (
+                                    assetCandidates.map((result) => {
+                                        const asset = result.asset;
+                                        const numericId = Number(asset.id);
+                                        const canSelect =
+                                            Number.isFinite(numericId) &&
+                                            numericId > 0;
+                                        const isSelected =
+                                            canSelect &&
+                                            Number(targetAssetId) === numericId;
+                                        return (
+                                            <button
+                                                key={String(asset.id)}
+                                                type="button"
+                                                className={cn(
+                                                    "w-full border-b border-border/70 px-3 py-3 text-left last:border-b-0",
+                                                    "transition-colors hover:bg-muted/40",
+                                                    isSelected &&
+                                                        "bg-primary/10 hover:bg-primary/10",
+                                                )}
+                                                disabled={!canSelect}
+                                                onClick={() => {
+                                                    if (!canSelect) {
+                                                        return;
+                                                    }
+                                                    setTargetAssetId(
+                                                        String(Math.trunc(numericId)),
+                                                    );
+                                                }}
+                                            >
+                                                <p className="text-sm font-medium">
+                                                    {asset.colony ||
+                                                        asset.street ||
+                                                        `Bien ${asset.id}`}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    ID {asset.id} - RPP{" "}
+                                                    {asset.rpp_number || "-"} - C{" "}
+                                                    {asset.c_number || "-"}
+                                                </p>
+                                            </button>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleCloseAssign}
+                            disabled={isAssigning}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => void handleAssignToAsset()}
+                            disabled={isAssigning || isViewer}
+                        >
+                            {isAssigning ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                            )}
+                            Confirmar asignacion
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
-      </Modal>
-    </div>
-  );
-}
-
-type ActionCardProps = {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-};
-
-function ActionCard({ title, description, icon, onClick }: ActionCardProps) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center justify-center gap-3 rounded-xl bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 hover:border-neutral-300 transition-all p-6 text-center group"
-    >
-      <div className="text-neutral-600 group-hover:text-neutral-900 transition-colors">
-        {icon}
-      </div>
-      <div className="space-y-1">
-        <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
-        <p className="text-xs text-neutral-500 leading-relaxed">
-          {description}
-        </p>
-      </div>
-    </button>
-  );
-}
-
-function UploadIcon() {
-  return (
-    <svg
-      className="w-12 h-12"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.5}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-      />
-    </svg>
-  );
-}
-
-function PrinterIcon() {
-  return (
-    <svg
-      className="w-12 h-12"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.5}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"
-      />
-    </svg>
-  );
-}
-
-function MobileIcon() {
-  return (
-    <svg
-      className="w-12 h-12"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.5}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"
-      />
-    </svg>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg
-      className="w-5 h-5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-      />
-    </svg>
-  );
-}
-
-function EditIcon() {
-  return (
-    <svg
-      className="w-5 h-5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
-      />
-    </svg>
-  );
-}
-
-function DeleteIcon() {
-  return (
-    <svg
-      className="w-5 h-5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-      />
-    </svg>
-  );
-}
-
-function ToggleIcon() {
-  return (
-    <svg
-      className="w-5 h-5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M5.636 5.636a9 9 0 1012.728 0M12 3v9"
-      />
-    </svg>
-  );
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg
-      className="w-5 h-5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M19.5 8.25l-7.5 7.5-7.5-7.5"
-      />
-    </svg>
-  );
+    );
 }

@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createAssetDocument } from "@/lib/api/assets";
 import {
     createBajaInventoryProcess,
     createInventoryProcess,
@@ -114,6 +115,7 @@ export default function BienDetail({
     const [showBajaDialog, setShowBajaDialog] = useState(false);
     const [isBajaSubmitting, setIsBajaSubmitting] = useState(false);
     const [bajaReason, setBajaReason] = useState("");
+    const [bajaDocument, setBajaDocument] = useState<File | null>(null);
     const [bajaError, setBajaError] = useState<string | null>(null);
     const [isReactivating, setIsReactivating] = useState(false);
     const [showReactivateDialog, setShowReactivateDialog] = useState(false);
@@ -145,6 +147,10 @@ export default function BienDetail({
             setBajaError("Indica el motivo de la baja.");
             return;
         }
+        if (!bajaDocument) {
+            setBajaError("Adjunta el documento de motivo de baja.");
+            return;
+        }
         setActionNotice(null);
         setActionError(null);
         setBajaError(null);
@@ -152,6 +158,11 @@ export default function BienDetail({
         try {
             setIsBajaSubmitting(true);
             const now = new Date().toISOString();
+            await createAssetDocument(Number(bien.id), {
+                file: bajaDocument,
+                name: bajaDocument.name,
+                kind: "baja",
+            });
             await createBajaInventoryProcess(Number(bien.id), {
                 opened_at: now,
                 notes: bajaReason.trim(),
@@ -165,7 +176,7 @@ export default function BienDetail({
                 reason: bajaReason.trim(),
             });
             setActionNotice(
-                "Proceso de baja enviado correctamente. Actualizando vista...",
+                "Proceso de baja enviado correctamente con su documento. Actualizando vista...",
             );
             window.setTimeout(() => {
                 window.location.reload();
@@ -179,6 +190,7 @@ export default function BienDetail({
         } finally {
             setIsBajaSubmitting(false);
             setBajaReason("");
+            setBajaDocument(null);
         }
     };
 
@@ -268,6 +280,7 @@ export default function BienDetail({
                     setShowBajaDialog(open);
                     if (!open) {
                         setBajaReason("");
+                        setBajaDocument(null);
                         setBajaError(null);
                     }
                 }}
@@ -276,6 +289,13 @@ export default function BienDetail({
                 reason={bajaReason}
                 onReasonChange={(value) => {
                     setBajaReason(value);
+                    if (bajaError) {
+                        setBajaError(null);
+                    }
+                }}
+                file={bajaDocument}
+                onFileChange={(file) => {
+                    setBajaDocument(file);
                     if (bajaError) {
                         setBajaError(null);
                     }

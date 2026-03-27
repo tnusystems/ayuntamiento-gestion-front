@@ -9,6 +9,7 @@ import {
     Map,
     Users,
     File,
+    FolderOpen,
     ClipboardList,
     ShieldCheck,
     Activity,
@@ -70,6 +71,11 @@ export default function AppSidebar({
             label: "Registros",
             icon: File,
             path: "/registry",
+        },
+        {
+            label: "Documentos",
+            icon: FolderOpen,
+            path: "/archivos",
         },
         ...(canAccessReports(roleKeys)
             ? [

@@ -20,6 +20,8 @@ type AttachDocumentModalProps = {
   onConfirm: () => void;
 };
 
+const attachmentAccept = ".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.dwg,.dwf";
+
 export default function AttachDocumentModal({
   open,
   row,
@@ -61,8 +63,12 @@ export default function AttachDocumentModal({
         <Input
           id="attachment"
           type="file"
+          accept={attachmentAccept}
           onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
         />
+        <p className="text-xs text-muted-foreground">
+          Formatos aceptados: PDF, JPG, PNG, XLS, XLSX, DWG, DWF.
+        </p>
         {file ? (
           <p className="text-xs text-muted-foreground">
             Archivo seleccionado: {file.name}

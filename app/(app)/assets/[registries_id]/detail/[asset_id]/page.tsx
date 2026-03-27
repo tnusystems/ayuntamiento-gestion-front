@@ -6,14 +6,17 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowLeft, AlertTriangle, Check, Loader2 } from "lucide-react";
 import BienDetail from "@/components/bienes/bien-detail";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { WizardStep3 } from "@/components/bienes-inmuebles/wizard/wizard-step-3";
 import { createAssetDocument, fetchAsset } from "@/lib/api/assets";
 import { fetchRegistry } from "@/lib/api/registries";
@@ -53,6 +56,8 @@ function getRoleKeys(role?: string | null, roles?: Array<{ name?: string }>) {
     }
     return keys;
 }
+
+const requiredUploadDocTypeIds = ["escritura", "fotos", "oficio"] as const;
 
 export default function AssetDetailPage() {
     const params = useParams<{ registries_id: string; asset_id: string }>();
@@ -550,6 +555,51 @@ export default function AssetDetailPage() {
         }
     };
 
+    const selectedDocumentsCount = useMemo(
+        () =>
+            uploadForm.documentosDetalle.reduce(
+                (total, group) => total + group.files.length,
+                0,
+            ),
+        [uploadForm.documentosDetalle],
+    );
+
+    const completedRequiredCount = useMemo(() => {
+        const uploadedDocTypes = new Set(
+            uploadForm.documentosDetalle
+                .filter((group) => group.files.length > 0)
+                .map((group) => group.docTypeId),
+        );
+
+        return requiredUploadDocTypeIds.filter((docTypeId) =>
+            uploadedDocTypes.has(docTypeId),
+        ).length;
+    }, [uploadForm.documentosDetalle]);
+
+    const uploadStats = useMemo(
+        () =>
+            uploadItems.reduce(
+                (acc, item) => {
+                    acc.total += 1;
+                    acc[item.status] += 1;
+                    return acc;
+                },
+                {
+                    total: 0,
+                    pending: 0,
+                    uploading: 0,
+                    success: 0,
+                    error: 0,
+                },
+            ),
+        [uploadItems],
+    );
+
+    const uploadProgress =
+        uploadStats.total > 0
+            ? Math.round((uploadStats.success / uploadStats.total) * 100)
+            : 0;
+
     if (isLoading) {
         return (
             <div className="container mx-auto py-8">
@@ -618,122 +668,156 @@ export default function AssetDetailPage() {
                     }
                 }}
             >
-                <DialogContent className="max-h-[85vh] w-full max-w-[calc(100%-2rem)] overflow-y-auto sm:max-w-5xl">
-                    <DialogHeader>
-                        <DialogTitle>Subir documentos</DialogTitle>
-                    </DialogHeader>
-                    <WizardStep3
-                        formData={uploadForm}
-                        updateFormData={(data) =>
-                            setUploadForm((prev) => ({ ...prev, ...data }))
-                        }
-                    />
-                    {uploadItems.length > 0 ? (
-                        <div className="space-y-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                                <span>
-                                    {
-                                        uploadItems.filter(
-                                            (item) => item.status === "success",
-                                        ).length
-                                    }{" "}
-                                    de {uploadItems.length} documentos subidos
-                                </span>
-                                {uploadItems.some(
-                                    (item) => item.status === "error",
-                                ) ? (
-                                    <span className="text-destructive">
-                                        Hay errores en la carga
-                                    </span>
+                <DialogContent className="w-full max-w-[calc(100%-2rem)] p-0 sm:max-w-5xl">
+                    <div className="flex max-h-[85vh] flex-col">
+                        <DialogHeader className="space-y-3 border-b px-5 py-4 sm:px-6">
+                            <div className="space-y-1">
+                                <DialogTitle>Subir documentos</DialogTitle>
+                                <DialogDescription>
+                                    Selecciona los archivos por tipo y despues
+                                    confirma la carga.
+                                </DialogDescription>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline">
+                                    {selectedDocumentsCount} seleccionado(s)
+                                </Badge>
+                                <Badge
+                                    variant={
+                                        completedRequiredCount ===
+                                        requiredUploadDocTypeIds.length
+                                            ? "secondary"
+                                            : "outline"
+                                    }
+                                >
+                                    Obligatorios: {completedRequiredCount}/
+                                    {requiredUploadDocTypeIds.length}
+                                </Badge>
+                                {uploadStats.total > 0 ? (
+                                    <Badge variant="outline">
+                                        Progreso: {uploadProgress}%
+                                    </Badge>
                                 ) : null}
                             </div>
-                            <div className="space-y-2">
-                                {uploadItems.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
-                                    >
-                                        <div className="min-w-0">
-                                            <p className="truncate text-sm font-medium">
-                                                {item.name}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {item.typeLabel}
-                                            </p>
-                                            {item.status === "error" &&
-                                            item.error ? (
-                                                <p className="text-xs text-destructive">
-                                                    {item.error}
-                                                </p>
-                                            ) : null}
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs">
-                                            {item.status === "uploading" ? (
-                                                <>
-                                                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                                    <span className="text-primary">
-                                                        Subiendo
-                                                    </span>
-                                                </>
-                                            ) : item.status === "success" ? (
-                                                <>
-                                                    <Check className="h-4 w-4 text-emerald-600" />
-                                                    <span className="text-emerald-600">
-                                                        Listo
-                                                    </span>
-                                                </>
-                                            ) : item.status === "error" ? (
-                                                <>
-                                                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                                                    <span className="text-destructive">
-                                                        Error
-                                                    </span>
-                                                </>
-                                            ) : (
-                                                <span className="text-muted-foreground">
-                                                    En espera
-                                                </span>
-                                            )}
-                                        </div>
+                            {uploadStats.total > 0 ? (
+                                <div className="space-y-1">
+                                    <Progress value={uploadProgress} />
+                                    <p className="text-xs text-muted-foreground">
+                                        {uploadStats.success} de {uploadStats.total} documentos subidos
+                                    </p>
+                                </div>
+                            ) : null}
+                        </DialogHeader>
+
+                        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
+                            <WizardStep3
+                                formData={uploadForm}
+                                updateFormData={(data) =>
+                                    setUploadForm((prev) => ({ ...prev, ...data }))
+                                }
+                            />
+
+                            {uploadItems.length > 0 ? (
+                                <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-3 sm:p-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                        <span className="text-muted-foreground">
+                                            {uploadStats.success} de {uploadStats.total} completados
+                                        </span>
+                                        {uploadStats.error > 0 ? (
+                                            <span className="text-destructive">
+                                                {uploadStats.error} con error
+                                            </span>
+                                        ) : null}
                                     </div>
-                                ))}
-                            </div>
+                                    <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                                        {uploadItems.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2"
+                                            >
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-medium">
+                                                        {item.name}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {item.typeLabel}
+                                                    </p>
+                                                    {item.status === "error" && item.error ? (
+                                                        <p className="text-xs text-destructive">
+                                                            {item.error}
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs">
+                                                    {item.status === "uploading" ? (
+                                                        <>
+                                                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                                            <span className="text-primary">Subiendo</span>
+                                                        </>
+                                                    ) : item.status === "success" ? (
+                                                        <>
+                                                            <Check className="h-4 w-4 text-emerald-600" />
+                                                            <span className="text-emerald-600">Listo</span>
+                                                        </>
+                                                    ) : item.status === "error" ? (
+                                                        <>
+                                                            <AlertTriangle className="h-4 w-4 text-destructive" />
+                                                            <span className="text-destructive">Error</span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">En espera</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {uploadError ? (
+                                <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                                    {uploadError}
+                                </p>
+                            ) : null}
+                            {uploadNotice ? (
+                                <p className="rounded-md border border-emerald-300/40 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                                    {uploadNotice}
+                                </p>
+                            ) : null}
                         </div>
-                    ) : null}
-                    {uploadError ? (
-                        <p className="text-sm text-destructive">
-                            {uploadError}
-                        </p>
-                    ) : null}
-                    {uploadNotice ? (
-                        <p className="text-sm text-muted-foreground">
-                            {uploadNotice}
-                        </p>
-                    ) : null}
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={handleCloseUpload}
-                            disabled={isUploading}
-                        >
-                            Cancelar
-                        </Button>
-                        {uploadItems.some((item) => item.status === "error") ? (
+
+                        <DialogFooter className="border-t px-5 py-4 sm:px-6">
                             <Button
-                                variant="secondary"
-                                onClick={handleRetryFailed}
+                                variant="outline"
+                                onClick={handleCloseUpload}
                                 disabled={isUploading}
                             >
-                                Reintentar fallidos
+                                Cancelar
                             </Button>
-                        ) : null}
-                        <Button
-                            onClick={handleUploadDocuments}
-                            disabled={isUploading}
-                        >
-                            Subir
-                        </Button>
-                    </DialogFooter>
+                            {uploadStats.error > 0 ? (
+                                <Button
+                                    variant="secondary"
+                                    onClick={handleRetryFailed}
+                                    disabled={isUploading}
+                                >
+                                    Reintentar fallidos ({uploadStats.error})
+                                </Button>
+                            ) : null}
+                            <Button
+                                onClick={handleUploadDocuments}
+                                disabled={isUploading || selectedDocumentsCount === 0}
+                            >
+                                {isUploading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Subiendo...
+                                    </>
+                                ) : (
+                                    `Subir ${selectedDocumentsCount} documento(s)`
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

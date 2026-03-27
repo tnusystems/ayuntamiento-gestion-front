@@ -10,6 +10,7 @@ import {
   fetchAssetDocument,
   fetchAssetDocuments,
 } from "@/lib/api/files/fileByAsset";
+import { getApiBaseUrl } from "@/lib/api/baseUrl";
 import type { ArchivoApi } from "@/types";
 
 const formatBytes = (bytes?: number | null) => {
@@ -31,9 +32,34 @@ const formatBytes = (bytes?: number | null) => {
 const getDocumentType = (document: ArchivoApi) =>
   document.document_type?.name || document.file?.content_type || "Sin tipo";
 
+const apiBaseUrl = getApiBaseUrl().replace(/\/$/, "");
+
+const withApiBase = (path?: string | null) => {
+  if (!path) {
+    return "";
+  }
+  const value = path.trim();
+  if (!value) {
+    return "";
+  }
+  if (!apiBaseUrl) {
+    return value;
+  }
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const parsed = new URL(value);
+      const relativePath = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+      return `${apiBaseUrl}${relativePath.startsWith("/") ? "" : "/"}${relativePath}`;
+    } catch {
+      return value;
+    }
+  }
+  return `${apiBaseUrl}${value.startsWith("/") ? "" : "/"}${value}`;
+};
+
 const getDocumentUrl = (document: ArchivoApi, mode: "view" | "download") => {
-  const viewUrl = document.file?.url || "";
-  const downloadUrl = document.file?.download_url || "";
+  const viewUrl = withApiBase(document.file?.url);
+  const downloadUrl = withApiBase(document.file?.download_url);
   if (mode === "download") {
     return downloadUrl || viewUrl;
   }
