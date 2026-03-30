@@ -247,6 +247,7 @@ export function ProcesoWizard({
     };
 
     const createAssetRequest = async (now: string) => {
+        const verificationDocument = formData.verificationDocument?.file;
         const { newRegistryId, oldRegistryId, resolvedRegistryId } =
             resolveRegistryIds({
                 bienId,
@@ -276,6 +277,8 @@ export function ProcesoWizard({
                 },
                 baja_notes: REPLACE_BAJA_NOTES,
                 reason: REPLACE_BAJA_REASON,
+            }, {
+                verificationDocument,
             });
         }
 
@@ -316,6 +319,8 @@ export function ProcesoWizard({
                 },
                 baja_notes: ANTECEDENTE_BAJA_NOTES,
                 reason: ANTECEDENTE_BAJA_REASON,
+            }, {
+                verificationDocument,
             });
         }
 
@@ -324,7 +329,9 @@ export function ProcesoWizard({
             registryId: resolvedRegistryId,
             now,
         });
-        return createAsset(createAssetPayload);
+        return createAsset(createAssetPayload, {
+            verificationDocument,
+        });
     };
 
     const createProcessForAsset = async (assetId: number, now: string) => {

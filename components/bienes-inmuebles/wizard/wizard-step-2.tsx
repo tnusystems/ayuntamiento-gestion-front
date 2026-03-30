@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 import { Map as MapIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
@@ -39,6 +39,13 @@ interface WizardStep2Props {
         stageDefinition: string;
         operacionU: string;
         verificationStatus: string;
+        verificationDocument: {
+            name: string;
+            type: string;
+            size: number;
+            lastModified: number;
+            file: File;
+        } | null;
         valorCatastral: string;
         valorComercial: string;
         lat: string;
@@ -58,6 +65,26 @@ interface WizardStep2Props {
 const DEFAULT_MAP_CENTER = {
     lat: 29.072967,
     lng: -110.955919,
+};
+
+const verificationDocumentAccept = ".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.dwg,.dwf";
+
+const isVerificationStatusForDocument = (labelValue: string) => {
+    const label = labelValue
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase();
+
+    if (!label) {
+        return false;
+    }
+
+    if (/\bno\s+verifica(?:do|da|dos|das)?\b/.test(label)) {
+        return false;
+    }
+
+    return /\bverifica(?:do|da|dos|das)?\b/.test(label);
 };
 
 export function WizardStep2({
@@ -115,6 +142,57 @@ export function WizardStep2({
 
         return Array.from(uniqueByLabel.values());
     }, [catalogs?.situation, formData.operacionU]);
+
+    const shouldShowVerificationDocument = useMemo(() => {
+        const selected = (catalogs?.verification_status ?? []).find(
+            (item) => String(item.id) === formData.verificationStatus,
+        );
+        if (!selected) {
+            return false;
+        }
+
+        return isVerificationStatusForDocument(
+            String(selected.name ?? selected.key ?? selected.id),
+        );
+    }, [catalogs?.verification_status, formData.verificationStatus]);
+
+    const handleVerificationStatusChange = (value: string) => {
+        const selected = (catalogs?.verification_status ?? []).find(
+            (item) => String(item.id) === value,
+        );
+        const shouldKeepDocument = selected
+            ? isVerificationStatusForDocument(
+                  String(selected.name ?? selected.key ?? selected.id),
+              )
+            : false;
+
+        updateFormData({
+            verificationStatus: value,
+            verificationDocument: shouldKeepDocument
+                ? formData.verificationDocument
+                : null,
+        });
+    };
+
+    const handleVerificationDocumentChange = (
+        event: ChangeEvent<HTMLInputElement>,
+    ) => {
+        const file = event.target.files?.[0] ?? null;
+        if (!file) {
+            updateFormData({ verificationDocument: null });
+            return;
+        }
+
+        updateFormData({
+            verificationDocument: {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                lastModified: file.lastModified,
+                file,
+            },
+        });
+    };
 
     const parsedCoordinates = useMemo(() => {
         const latValue = formData.lat.trim();
@@ -536,9 +614,7 @@ export function WizardStep2({
                             </Label>
                             <Select
                                 value={formData.verificationStatus}
-                                onValueChange={(value) =>
-                                    updateFormData({ verificationStatus: value })
-                                }
+                                onValueChange={handleVerificationStatusChange}
                             >
                                 <SelectTrigger
                                     id="verificationStatus"
@@ -570,6 +646,29 @@ export function WizardStep2({
                                 <p className="text-xs text-red-600">
                                     {errors.verificationStatus}
                                 </p>
+                            ) : null}
+                            {shouldShowVerificationDocument ? (
+                                <div className="space-y-2 pt-2">
+                                    <Label htmlFor="verificationDocument">
+                                        Documento de verificación
+                                    </Label>
+                                    <Input
+                                        id="verificationDocument"
+                                        type="file"
+                                        accept={verificationDocumentAccept}
+                                        onChange={handleVerificationDocumentChange}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Formatos aceptados: PDF, JPG, PNG, XLS,
+                                        XLSX, DWG, DWF.
+                                    </p>
+                                    {formData.verificationDocument ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            Archivo seleccionado: {" "}
+                                            {formData.verificationDocument.name}
+                                        </p>
+                                    ) : null}
+                                </div>
                             ) : null}
                         </div>
                     </div>

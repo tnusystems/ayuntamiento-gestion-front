@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardList } from "lucide-react";
 import {
     Card,
     CardContent,
@@ -10,6 +10,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
@@ -147,6 +148,14 @@ export default function AdminChangeRequestsPage() {
     const [requests, setRequests] = useState<ApprovalItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 25;
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        totalPages: 1,
+        totalCount: 0,
+        perPage: itemsPerPage,
+    });
 
     useEffect(() => {
         let active = true;
@@ -155,9 +164,25 @@ export default function AdminChangeRequestsPage() {
             setIsLoading(true);
             setLoadError(null);
             try {
-                const response = await fetchApprovalRequests();
+                const response = await fetchApprovalRequests({
+                    page: currentPage,
+                    per_page: itemsPerPage,
+                });
                 if (!active) return;
                 setRequests(response.data.map(mapApprovalToItem));
+                const responsePage = response.pagination?.current_page ?? currentPage;
+                const totalPages = Math.max(
+                    1,
+                    response.pagination?.total_pages ?? 1,
+                );
+                const totalCount = response.pagination?.total_count ?? response.data.length;
+                const perPage = response.pagination?.per_page ?? itemsPerPage;
+                setPagination({
+                    currentPage: responsePage,
+                    totalPages,
+                    totalCount,
+                    perPage,
+                });
             } catch (error) {
                 if (!active) return;
                 setLoadError(
@@ -166,6 +191,12 @@ export default function AdminChangeRequestsPage() {
                         : "Error al cargar aprobaciones.",
                 );
                 setRequests([]);
+                setPagination({
+                    currentPage,
+                    totalPages: 1,
+                    totalCount: 0,
+                    perPage: itemsPerPage,
+                });
             } finally {
                 if (active) {
                     setIsLoading(false);
@@ -177,7 +208,18 @@ export default function AdminChangeRequestsPage() {
         return () => {
             active = false;
         };
-    }, []);
+    }, [currentPage]);
+
+    const totalPages = Math.max(1, pagination.totalPages || 1);
+    const activePage = pagination.currentPage || currentPage;
+    const displayFrom =
+        pagination.totalCount === 0
+            ? 0
+            : (activePage - 1) * pagination.perPage + 1;
+    const displayTo =
+        pagination.totalCount === 0
+            ? 0
+            : Math.min(displayFrom + requests.length - 1, pagination.totalCount);
 
     return (
         <div className="container mx-auto py-8 space-y-6">
@@ -300,6 +342,40 @@ export default function AdminChangeRequestsPage() {
                             )}
                         </TableBody>
                     </Table>
+                    <div className="flex items-center justify-between border-t border-border px-4 py-3">
+                        <p className="text-sm text-muted-foreground">
+                            Mostrando {displayFrom} a {displayTo} de {pagination.totalCount} solicitudes
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                    setCurrentPage((page) => Math.max(1, page - 1))
+                                }
+                                disabled={activePage <= 1 || isLoading}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Anterior
+                            </Button>
+                            <span className="text-sm text-muted-foreground">
+                                Página {activePage} de {totalPages}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                    setCurrentPage((page) =>
+                                        Math.min(totalPages, page + 1),
+                                    )
+                                }
+                                disabled={activePage >= totalPages || isLoading}
+                            >
+                                Siguiente
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
         </div>

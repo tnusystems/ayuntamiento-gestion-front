@@ -55,6 +55,7 @@ export type WizardFormData = {
     stageDefinition: string;
     operacionU: string;
     verificationStatus: string;
+    verificationDocument: WizardDocumentFile | null;
     valorCatastral: string;
     valorComercial: string;
     lat: string;
@@ -142,6 +143,7 @@ export const createInitialFormData = (tipoProceso = ""): WizardFormData => ({
     stageDefinition: "",
     operacionU: "",
     verificationStatus: "",
+    verificationDocument: null,
     valorCatastral: "",
     valorComercial: "",
     lat: "",

@@ -80,19 +80,29 @@ export default function RegistryPage() {
     useEffect(() => {
         let active = true;
         const loadRegistry = async () => {
-            const isLikelyCNumber =
-                debouncedSearch.length > 0 && /\d/.test(debouncedSearch) && !/\s/.test(debouncedSearch);
+            const hasSearch = debouncedSearch.length > 0;
+            const isCompactNumericSearch =
+                hasSearch && /\d/.test(debouncedSearch) && !/\s/.test(debouncedSearch);
+            const commonParams = {
+                page: currentPage,
+                per_page: itemsPerPage,
+                status: statusFilter !== "todos" ? statusFilter : undefined,
+            };
 
             setIsLoading(true);
             setLoadError(null);
             try {
-                const response = await fetchRegistries({
-                    page: currentPage,
-                    per_page: itemsPerPage,
-                    q: !isLikelyCNumber && debouncedSearch ? debouncedSearch : undefined,
-                    c_number: isLikelyCNumber ? debouncedSearch : undefined,
-                    status: statusFilter !== "todos" ? statusFilter : undefined,
+                let response = await fetchRegistries({
+                    ...commonParams,
+                    q: hasSearch ? debouncedSearch : undefined,
                 });
+
+                if (isCompactNumericSearch && response.data.length === 0) {
+                    response = await fetchRegistries({
+                        ...commonParams,
+                        c_number: debouncedSearch,
+                    });
+                }
 
                 if (!active) return;
                 setData(response.data ?? []);

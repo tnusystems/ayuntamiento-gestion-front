@@ -109,6 +109,10 @@ type AssetDocumentPayload = {
     metadata?: Record<string, unknown>;
 };
 
+type CreateAssetOptions = {
+    verificationDocument?: File;
+};
+
 const DOCUMENT_UPLOAD_TIMEOUT_MS = 30 * 60 * 1000;
 
 export type AssetListParams = {
@@ -222,6 +226,49 @@ function parseCreateAssetResponse(data: unknown) {
     }
 
     return data;
+}
+
+function appendFormValue(formData: FormData, key: string, value: unknown) {
+    if (value === undefined || value === null) {
+        return;
+    }
+
+    if (typeof value === "object") {
+        if (value instanceof Blob) {
+            formData.append(key, value);
+            return;
+        }
+
+        if (Array.isArray(value)) {
+            formData.append(key, JSON.stringify(value));
+            return;
+        }
+
+        const entries = Object.entries(value as Record<string, unknown>);
+        if (entries.length === 0) {
+            formData.append(key, JSON.stringify(value));
+            return;
+        }
+
+        for (const [nestedKey, nestedValue] of entries) {
+            appendFormValue(formData, `${key}[${nestedKey}]`, nestedValue);
+        }
+        return;
+    }
+
+    formData.append(key, String(value));
+}
+
+function buildMultipartBody(
+    payload: Record<string, unknown>,
+    verificationDocument: File,
+) {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries(payload)) {
+        appendFormValue(formData, key, value);
+    }
+    formData.append("document", verificationDocument);
+    return formData;
 }
 
 export async function fetchAsset(id: number | string) {
@@ -345,20 +392,40 @@ export async function searchAssets(params?: AssetSearchParams) {
     return parseAssetSearchResults(data);
 }
 
-export async function createAsset(payload: AssetPayload) {
+export async function createAsset(
+    payload: AssetPayload,
+    options?: CreateAssetOptions,
+) {
+    const verificationDocument = options?.verificationDocument;
+    const body = verificationDocument
+        ? buildMultipartBody({ asset: payload }, verificationDocument)
+        : JSON.stringify(payload);
+
     const data = await api<unknown>("/api/v1/assets", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        ...(verificationDocument
+            ? {}
+            : { headers: { "Content-Type": "application/json" } }),
+        body,
     });
     return parseCreateAssetResponse(data);
 }
 
-export async function createAssetRegistryReassign(payload: AssetReassignPayload) {
+export async function createAssetRegistryReassign(
+    payload: AssetReassignPayload,
+    options?: CreateAssetOptions,
+) {
+    const verificationDocument = options?.verificationDocument;
+    const body = verificationDocument
+        ? buildMultipartBody(payload as Record<string, unknown>, verificationDocument)
+        : JSON.stringify(payload);
+
     const data = await api<unknown>("/api/v1/assets/registry_reassign", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        ...(verificationDocument
+            ? {}
+            : { headers: { "Content-Type": "application/json" } }),
+        body,
     });
     return parseCreateAssetResponse(data);
 }
@@ -366,11 +433,19 @@ export async function createAssetRegistryReassign(payload: AssetReassignPayload)
 export async function createAssetReplace(
     id: number,
     payload: AssetReplacePayload,
+    options?: CreateAssetOptions,
 ) {
+    const verificationDocument = options?.verificationDocument;
+    const body = verificationDocument
+        ? buildMultipartBody(payload as Record<string, unknown>, verificationDocument)
+        : JSON.stringify(payload);
+
     const data = await api<unknown>(`/api/v1/assets/${id}/replace`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        ...(verificationDocument
+            ? {}
+            : { headers: { "Content-Type": "application/json" } }),
+        body,
     });
     return parseCreateAssetResponse(data);
 }
