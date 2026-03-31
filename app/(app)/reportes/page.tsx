@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, RefreshCw } from "lucide-react";
+import { CalendarDays, Download, RefreshCw } from "lucide-react";
 import {
     Card,
     CardContent,
@@ -26,6 +26,17 @@ import {
     downloadReportFile,
 } from "@/lib/api/reports";
 import type { Report } from "@/types";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 type ReportRow = {
     id: number;
@@ -34,6 +45,200 @@ type ReportRow = {
     createdAt: string;
     filename?: string | null;
 };
+
+type ReportType = "assets" | "registries" | "inventory_processes";
+
+type DateFieldProps = {
+    id: string;
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    minDate?: Date;
+    maxDate?: Date;
+};
+
+const monthOptions = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+];
+
+const toISODate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+
+const parseISODate = (value: string) => {
+    if (!value) return undefined;
+    const [year, month, day] = value.split("-").map(Number);
+    if (!year || !month || !day) return undefined;
+    return new Date(year, month - 1, day);
+};
+
+const formatPickerDate = (value: string) => {
+    const parsed = parseISODate(value);
+    if (!parsed) return "Seleccionar fecha";
+    return parsed.toLocaleDateString("es-MX", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+    });
+};
+
+function DateField({
+    id,
+    label,
+    value,
+    onChange,
+    minDate,
+    maxDate,
+}: DateFieldProps) {
+    const selectedDate = parseISODate(value);
+    const getMonthFloor = () => {
+        if (!minDate) return undefined;
+        return new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    };
+    const getMonthCeil = () => {
+        if (!maxDate) return undefined;
+        return new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+    };
+    const monthFloor = getMonthFloor();
+    const monthCeil = getMonthCeil();
+    const clampMonth = (date: Date) => {
+        const normalized = new Date(date.getFullYear(), date.getMonth(), 1);
+        if (monthFloor && normalized < monthFloor) return monthFloor;
+        if (monthCeil && normalized > monthCeil) return monthCeil;
+        return normalized;
+    };
+    const [rawVisibleMonth, setRawVisibleMonth] = useState<Date>(() =>
+        selectedDate ?? new Date(),
+    );
+    const visibleMonth = clampMonth(selectedDate ?? rawVisibleMonth);
+    const minYear = monthFloor?.getFullYear() ?? new Date().getFullYear() - 20;
+    const maxYear = monthCeil?.getFullYear() ?? new Date().getFullYear() + 10;
+    const yearOptions = Array.from(
+        { length: maxYear - minYear + 1 },
+        (_, index) => minYear + index,
+    );
+
+    const disabled: React.ComponentProps<typeof Calendar>["disabled"] =
+        minDate && maxDate
+            ? [{ before: minDate }, { after: maxDate }]
+            : minDate
+              ? { before: minDate }
+              : maxDate
+                ? { after: maxDate }
+                : undefined;
+
+    return (
+        <div className="space-y-2">
+            <Label htmlFor={id}>{label}</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                        id={id}
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !value && "text-muted-foreground",
+                        )}
+                    >
+                        <CalendarDays className="mr-2 h-4 w-4" />
+                        {formatPickerDate(value)}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                    <div className="flex items-center gap-2 border-b p-3">
+                        <Select
+                            value={String(visibleMonth.getMonth())}
+                            onValueChange={(month) => {
+                                const parsedMonth = Number(month);
+                                setRawVisibleMonth((current) =>
+                                    clampMonth(
+                                        new Date(
+                                            current.getFullYear(),
+                                            parsedMonth,
+                                            1,
+                                        ),
+                                    ),
+                                );
+                            }}
+                        >
+                            <SelectTrigger className="h-8 w-[140px]">
+                                <SelectValue placeholder="Mes" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {monthOptions.map((monthLabel, monthIndex) => (
+                                    <SelectItem
+                                        key={monthLabel}
+                                        value={String(monthIndex)}
+                                    >
+                                        {monthLabel}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <Select
+                            value={String(visibleMonth.getFullYear())}
+                            onValueChange={(year) => {
+                                const parsedYear = Number(year);
+                                setRawVisibleMonth((current) =>
+                                    clampMonth(
+                                        new Date(
+                                            parsedYear,
+                                            current.getMonth(),
+                                            1,
+                                        ),
+                                    ),
+                                );
+                            }}
+                        >
+                            <SelectTrigger className="h-8 w-[110px]">
+                                <SelectValue placeholder="Año" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {yearOptions.map((year) => (
+                                    <SelectItem key={year} value={String(year)}>
+                                        {year}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <Calendar
+                        mode="single"
+                        month={visibleMonth}
+                        onMonthChange={(month) =>
+                            setRawVisibleMonth(clampMonth(month))
+                        }
+                        selected={selectedDate}
+                        onSelect={(date) => onChange(date ? toISODate(date) : "")}
+                        disabled={disabled}
+                        initialFocus
+                        classNames={{
+                            month_caption: "hidden",
+                            nav: "hidden",
+                        }}
+                    />
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+}
 
 const formatDate = (value?: string | null) => {
     if (!value) return "—";
@@ -61,7 +266,11 @@ export default function ReportsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
-    const [isGenerating, setIsGenerating] = useState<string | null>(null);
+    const [isGenerating, setIsGenerating] = useState<ReportType | null>(null);
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const startDateValue = parseISODate(startDate);
+    const endDateValue = parseISODate(endDate);
 
     const loadReports = async () => {
         setIsLoading(true);
@@ -85,17 +294,34 @@ export default function ReportsPage() {
         void loadReports();
     }, []);
 
-    const handleGenerate = async (type: string) => {
+    const handleGenerate = async (type: ReportType) => {
         setNotice(null);
         setLoadError(null);
+
+        if (!startDate || !endDate) {
+            setLoadError(
+                "Debes seleccionar start_date y end_date para generar el reporte.",
+            );
+            return;
+        }
+
+        if (startDate > endDate) {
+            setLoadError(
+                "start_date no puede ser mayor que end_date.",
+            );
+            return;
+        }
+
         setIsGenerating(type);
+        const params = { start_date: startDate, end_date: endDate };
+
         try {
             if (type === "assets") {
-                await generateAssetsReport();
+                await generateAssetsReport(params);
             } else if (type === "registries") {
-                await generateRegistriesReport();
+                await generateRegistriesReport(params);
             } else {
-                await generateInventoryProcessesReport();
+                await generateInventoryProcessesReport(params);
             }
             setNotice("Reporte solicitado. Se generará en unos momentos.");
             await loadReports();
@@ -142,6 +368,33 @@ export default function ReportsPage() {
                 </Button>
             </div>
 
+            <Card>
+                <CardHeader>
+                    <CardTitle>Rango de fechas</CardTitle>
+                    <CardDescription>
+                        Se enviará como parámetros start_date y end_date (YYYY-MM-DD).
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <DateField
+                            id="report-start-date"
+                            label="Fecha inicio"
+                            value={startDate}
+                            onChange={setStartDate}
+                            maxDate={endDateValue}
+                        />
+                        <DateField
+                            id="report-end-date"
+                            label="Fecha fin"
+                            value={endDate}
+                            onChange={setEndDate}
+                            minDate={startDateValue}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+
             <div className="grid gap-4 md:grid-cols-3">
                 <Card>
                     <CardHeader>
@@ -153,7 +406,9 @@ export default function ReportsPage() {
                     <CardContent>
                         <Button
                             onClick={() => handleGenerate("assets")}
-                            disabled={isGenerating !== null}
+                            disabled={
+                                isGenerating !== null || !startDate || !endDate
+                            }
                         >
                             {isGenerating === "assets"
                                 ? "Generando..."
@@ -171,7 +426,9 @@ export default function ReportsPage() {
                     <CardContent>
                         <Button
                             onClick={() => handleGenerate("registries")}
-                            disabled={isGenerating !== null}
+                            disabled={
+                                isGenerating !== null || !startDate || !endDate
+                            }
                         >
                             {isGenerating === "registries"
                                 ? "Generando..."
@@ -191,7 +448,9 @@ export default function ReportsPage() {
                             onClick={() =>
                                 handleGenerate("inventory_processes")
                             }
-                            disabled={isGenerating !== null}
+                            disabled={
+                                isGenerating !== null || !startDate || !endDate
+                            }
                         >
                             {isGenerating === "inventory_processes"
                                 ? "Generando..."

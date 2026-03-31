@@ -9,6 +9,11 @@ export type ReportListParams = {
     per_page?: number;
 };
 
+export type ReportGenerationParams = {
+    start_date?: string;
+    end_date?: string;
+};
+
 function buildReportsQuery(params?: ReportListParams) {
     if (!params) return "";
     const search = new URLSearchParams();
@@ -30,6 +35,19 @@ function parseReportsList(data: unknown) {
     return parsed.data;
 }
 
+function buildReportGenerationQuery(params?: ReportGenerationParams) {
+    if (!params) return "";
+    const search = new URLSearchParams();
+    if (params.start_date) {
+        search.set("start_date", params.start_date);
+    }
+    if (params.end_date) {
+        search.set("end_date", params.end_date);
+    }
+    const query = search.toString();
+    return query ? `?${query}` : "";
+}
+
 export async function fetchReports(params?: ReportListParams) {
     const normalizedParams = {
         ...params,
@@ -42,16 +60,24 @@ export async function fetchReports(params?: ReportListParams) {
     return parseReportsList(data);
 }
 
-export async function generateAssetsReport() {
-    return api<unknown>("/api/v1/reports/assets");
+export async function generateAssetsReport(params?: ReportGenerationParams) {
+    return api<unknown>(
+        `/api/v1/reports/assets${buildReportGenerationQuery(params)}`,
+    );
 }
 
-export async function generateRegistriesReport() {
-    return api<unknown>("/api/v1/reports/registries");
+export async function generateRegistriesReport(params?: ReportGenerationParams) {
+    return api<unknown>(
+        `/api/v1/reports/registries${buildReportGenerationQuery(params)}`,
+    );
 }
 
-export async function generateInventoryProcessesReport() {
-    return api<unknown>("/api/v1/reports/inventory_processes");
+export async function generateInventoryProcessesReport(
+    params?: ReportGenerationParams,
+) {
+    return api<unknown>(
+        `/api/v1/reports/inventory_processes${buildReportGenerationQuery(params)}`,
+    );
 }
 
 function extractFilenameFromDisposition(header: string | null) {

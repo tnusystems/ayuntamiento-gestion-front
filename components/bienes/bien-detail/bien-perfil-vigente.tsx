@@ -43,7 +43,7 @@ export default function BienPerfilVigente({
     const [formValues, setFormValues] = useState({
         colony: bien.colony ?? "",
         street: bien.street ?? "",
-        numero: bien.numero ?? "",
+        numero: bien.numero ?? bien.cNumero ?? "",
         lot: bien.lot ?? "",
         block: bien.block ?? "",
         zone: bien.zone ?? "",
@@ -63,7 +63,7 @@ export default function BienPerfilVigente({
         setFormValues({
             colony: bien.colony ?? "",
             street: bien.street ?? "",
-            numero: bien.numero ?? "",
+            numero: bien.numero ?? bien.cNumero ?? "",
             lot: bien.lot ?? "",
             block: bien.block ?? "",
             zone: bien.zone ?? "",
@@ -164,7 +164,7 @@ export default function BienPerfilVigente({
             const payload = {
                 colony: formValues.colony || undefined,
                 street: formValues.street || undefined,
-                c_number: formValues.numero || undefined,
+                c_number: formValues.numero.trim() || undefined,
                 lot: formValues.lot || undefined,
                 block: formValues.block || undefined,
                 zone_id: formValues.zone || undefined,
@@ -193,7 +193,9 @@ export default function BienPerfilVigente({
                 ...prev,
                 colony: formValues.colony || undefined,
                 street: formValues.street || undefined,
-                numero: formValues.numero || undefined,
+                numero: formValues.numero.trim() || undefined,
+                cNumero: formValues.numero.trim() || undefined,
+                categoria: formValues.numero.trim() || prev.categoria,
                 lot: formValues.lot || undefined,
                 block: formValues.block || undefined,
                 zone: formValues.zone || undefined,
@@ -228,7 +230,7 @@ export default function BienPerfilVigente({
         setFormValues({
             colony: currentBien.colony ?? "",
             street: currentBien.street ?? "",
-            numero: currentBien.numero ?? "",
+            numero: currentBien.numero ?? currentBien.cNumero ?? "",
             lot: currentBien.lot ?? "",
             block: currentBien.block ?? "",
             zone: currentBien.zone ?? "",
@@ -349,7 +351,9 @@ export default function BienPerfilVigente({
                         )}
                     </div>
                     <div>
-                        <p className="text-sm text-muted-foreground">Número</p>
+                        <p className="text-sm text-muted-foreground">
+                            Clave catastral
+                        </p>
                         {isEditing ? (
                             <Input
                                 value={formValues.numero}

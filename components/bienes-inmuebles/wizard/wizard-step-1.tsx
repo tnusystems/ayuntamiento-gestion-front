@@ -618,9 +618,7 @@ export function WizardStep1({
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <Input
                                 id="claveCatastral"
-                                type="number"
-                                inputMode="numeric"
-                                step="1"
+                                type="text"
                                 placeholder="Clave catastral"
                                 value={formData.claveCatastral}
                                 onChange={(e) =>
