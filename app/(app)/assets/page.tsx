@@ -16,6 +16,8 @@ import {
     BienesTableContent,
     type BienRow,
 } from "@/components/assets/bienes-table-content";
+import { mockAssets, mockPagination, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
+import { cn } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 10;
 const ORDER_BY = "created_at";
@@ -115,12 +117,17 @@ function AssetsGlobalPageContent() {
         },
     );
 
-    const assets = data?.data ?? [];
-    const totalPages = data?.pagination?.total_pages
-        ? Math.max(data.pagination.total_pages, 1)
-        : 1;
-    const totalCount = data?.pagination?.total_count ?? assets.length;
-    const loadError = error instanceof Error ? error.message : null;
+    const hasError = Boolean(error);
+    const assets = hasError ? mockAssets : (data?.data ?? []);
+    const totalPages = hasError
+        ? mockPagination.total_pages
+        : data?.pagination?.total_pages
+          ? Math.max(data.pagination.total_pages, 1)
+          : 1;
+    const totalCount = hasError
+        ? mockPagination.total_count
+        : (data?.pagination?.total_count ?? assets.length);
+    const loadError = hasError ? MOCK_FALLBACK_MESSAGE : null;
 
     const normalizedAssets = useMemo<BienRow[]>(
         () =>
@@ -227,15 +234,21 @@ function AssetsGlobalPageContent() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {loadError ? (
+                        <p
+                            className={cn(
+                                "mb-4 rounded-md border px-4 py-3 text-sm",
+                                "border-border bg-muted/40 text-muted-foreground",
+                            )}
+                        >
+                            {loadError}
+                        </p>
+                    ) : null}
                     {isLoading ? (
                         <div className="text-center py-8">
                             <p className="text-muted-foreground">
                                 Cargando bienes...
                             </p>
-                        </div>
-                    ) : loadError ? (
-                        <div className="text-center py-8">
-                            <p className="text-destructive">{loadError}</p>
                         </div>
                     ) : normalizedAssets.length === 0 ? (
                         <div className="text-center py-8">

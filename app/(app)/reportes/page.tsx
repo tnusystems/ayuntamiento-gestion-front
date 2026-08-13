@@ -26,6 +26,7 @@ import {
     downloadReportFile,
 } from "@/lib/api/reports";
 import type { Report } from "@/types";
+import { mockReports, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -279,12 +280,8 @@ export default function ReportsPage() {
             const response = await fetchReports({ page: 1, per_page: 20 });
             setReports(response.data.map(mapReportRow));
         } catch (error) {
-            setLoadError(
-                error instanceof Error
-                    ? error.message
-                    : "No se pudieron cargar los reportes.",
-            );
-            setReports([]);
+            setReports(mockReports.map(mapReportRow));
+            setLoadError(MOCK_FALLBACK_MESSAGE);
         } finally {
             setIsLoading(false);
         }

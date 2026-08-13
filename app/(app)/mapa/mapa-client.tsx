@@ -12,6 +12,11 @@ import { FileText, Navigation, Search, X } from "lucide-react";
 import Image from "next/image";
 import { fetchRegistries, fetchRegistry } from "@/lib/api/registries";
 import { fetchAssets } from "@/lib/api/assets";
+import {
+    mockRegistries,
+    mockAssets,
+    MOCK_FALLBACK_MESSAGE,
+} from "@/lib/mock-fallbacks";
 
 const center = {
     lat: 29.072967,
@@ -28,6 +33,26 @@ type AssetMarker = {
     rpp_number?: string | null;
     name?: string | null;
 };
+
+function mockAssetsToMarkers(): AssetMarker[] {
+    return mockAssets
+        .map((asset, index) => {
+            const lat = Number(asset.latitude);
+            const lng = Number(asset.longitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                return null;
+            }
+            return {
+                id: asset.id ?? `${lat}-${lng}-${index}`,
+                lat,
+                lng,
+                c_number: asset.c_number ?? null,
+                rpp_number: asset.rpp_number ?? null,
+                name: asset.description ?? asset.colony ?? null,
+            } as AssetMarker;
+        })
+        .filter((asset): asset is AssetMarker => Boolean(asset));
+}
 
 export default function MapaClient({
     initialRegistryId,
@@ -104,15 +129,11 @@ export default function MapaClient({
                 if (!isActive) return;
                 setSuggestions(response.data ?? []);
                 setShowSuggestions(true);
-            } catch (error) {
+            } catch {
                 if (!isActive) return;
-                setSuggestions([]);
+                setSuggestions(mockRegistries);
                 setShowSuggestions(true);
-                setSearchError(
-                    error instanceof Error
-                        ? error.message
-                        : "Error al buscar registros.",
-                );
+                setSearchError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 if (isActive) {
                     setIsSearching(false);
@@ -143,7 +164,14 @@ export default function MapaClient({
                 setRegistryName(label);
                 setQuery(label);
             } catch {
-                // ignore
+                if (!isActive) return;
+                const fallbackRegistry = mockRegistries[0];
+                const label =
+                    fallbackRegistry?.name ??
+                    fallbackRegistry?.rpp_number ??
+                    String(registryIdParam);
+                setRegistryName(label);
+                setQuery(label);
             }
             if (selectedAssetId) {
                 setAssetQuery("");
@@ -222,15 +250,12 @@ export default function MapaClient({
                     setSelectedAssetPosition(null);
                 }
                 setSelectedAsset(null);
-            } catch (error) {
+            } catch {
                 if (!isActive) return;
-                setAssets([]);
+                const fallbackAssets = mockAssetsToMarkers();
+                setAssets(fallbackAssets);
                 setSelectedAsset(null);
-                setAssetError(
-                    error instanceof Error
-                        ? error.message
-                        : "Error al buscar bienes.",
-                );
+                setAssetError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 if (isActive) {
                     setIsAssetSearching(false);
@@ -377,8 +402,33 @@ export default function MapaClient({
                                     Buscando registros...
                                 </div>
                             ) : searchError ? (
-                                <div className="px-4 py-3 text-sm text-red-600">
-                                    {searchError}
+                                <div className="space-y-2">
+                                    <div
+                                        className={`px-4 py-2 text-xs ${
+                                            searchError === MOCK_FALLBACK_MESSAGE
+                                                ? "text-neutral-500"
+                                                : "text-red-600"
+                                        }`}
+                                    >
+                                        {searchError}
+                                    </div>
+                                    {suggestions.map((registry) => (
+                                        <button
+                                            key={String(registry.id)}
+                                            onClick={() =>
+                                                handleSelectRegistry(registry)
+                                            }
+                                            className="w-full text-left px-4 py-3 hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0"
+                                        >
+                                            <div className="font-medium text-sm text-neutral-900">
+                                                {registry.name ?? "Registro"}
+                                            </div>
+                                            <div className="text-xs text-neutral-500 mt-0.5">
+                                                {registry.rpp_number ?? "RPP"} ·
+                                                ID {String(registry.id)}
+                                            </div>
+                                        </button>
+                                    ))}
                                 </div>
                             ) : suggestions.length === 0 ? (
                                 <div className="px-4 py-3 text-sm text-neutral-500">
@@ -427,7 +477,13 @@ export default function MapaClient({
                                 Buscando bienes...
                             </div>
                         ) : assetError ? (
-                            <div className="text-xs text-red-600">
+                            <div
+                                className={`text-xs ${
+                                    assetError === MOCK_FALLBACK_MESSAGE
+                                        ? "text-neutral-500"
+                                        : "text-red-600"
+                                }`}
+                            >
                                 {assetError}
                             </div>
                         ) : (

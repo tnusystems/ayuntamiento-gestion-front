@@ -26,6 +26,12 @@ import { fetchAssets } from "@/lib/api/assets";
 import { fetchRegistries } from "@/lib/api/registries";
 import { fetchActivities } from "@/lib/api/activities";
 import type { Activity, BienApi, RegistryApi } from "@/types";
+import {
+    mockAssets,
+    mockRegistries,
+    mockActivities,
+    MOCK_FALLBACK_MESSAGE,
+} from "@/lib/mock-fallbacks";
 
 type DashboardAsset = {
     id: number;
@@ -350,13 +356,19 @@ export default function DashboardPage() {
                         bajaResponse.pagination?.total_count ?? null,
                     ),
                 );
-            } catch (error) {
+            } catch {
                 if (!active) return;
-                setLoadError(
-                    error instanceof Error
-                        ? error.message
-                        : "No se pudo cargar el dashboard.",
+                const mockAssetRows = mockAssets.map(mapAssetRow);
+                setAssets(mockAssetRows);
+                setRegistries(mockRegistries.map(mapRegistryRow));
+                setActivities(
+                    isAdmin ? mockActivities.map(mapActivityToLog) : [],
                 );
+                setAltaAssets(mockAssetRows);
+                setBajaAssets(mockAssetRows);
+                setAltaTotal(resolveTotalCount(mockAssetRows));
+                setBajaTotal(resolveTotalCount(mockAssetRows));
+                setLoadError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 if (active) setIsLoading(false);
             }
@@ -381,7 +393,14 @@ export default function DashboardPage() {
 
             {loadError ? (
                 <Card>
-                    <CardContent className="py-6 text-sm text-destructive">
+                    <CardContent
+                        className={cn(
+                            "py-6 text-sm",
+                            loadError === MOCK_FALLBACK_MESSAGE
+                                ? "text-muted-foreground"
+                                : "text-destructive",
+                        )}
+                    >
                         {loadError}
                     </CardContent>
                 </Card>

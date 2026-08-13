@@ -19,6 +19,7 @@ import {
     assignUserRole,
     updateUser,
 } from "@/lib/api/users";
+import { mockRoles, mockUsers, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
 import type { Rol, Usuario } from "@/types";
 
 type UserRecord = {
@@ -168,11 +169,9 @@ export default function UsersManager() {
                 setRoles(rolesData);
             } catch (error) {
                 if (!isMounted) return;
-                setLoadError(
-                    error instanceof Error
-                        ? error.message
-                        : "Error al cargar usuarios.",
-                );
+                setUsers(mockUsers.map(toUserRecord));
+                setRoles(mockRoles);
+                setLoadError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 if (isMounted) {
                     setIsLoading(false);

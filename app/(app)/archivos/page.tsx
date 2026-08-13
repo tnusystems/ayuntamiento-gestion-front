@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import {
     Download,
     ExternalLink,
+    FileText,
     Loader2,
     RefreshCw,
     Search,
@@ -46,6 +47,12 @@ import {
 import { getApiBaseUrl } from "@/lib/api/baseUrl";
 import { fetchRegistry } from "@/lib/api/registries";
 import { cn } from "@/lib/utils";
+import {
+    mockAssets,
+    mockRegistries,
+    mockSystemDocuments,
+    MOCK_FALLBACK_MESSAGE,
+} from "@/lib/mock-fallbacks";
 
 type DocumentAttachableFilter = "all" | DocumentAttachableType;
 type AssetCandidate = Awaited<ReturnType<typeof searchAssets>>["results"][number];
@@ -178,11 +185,18 @@ function getDocumentUrl(document: SystemDocument, mode: "view" | "download") {
 function getAttachableLabel(document: SystemDocument) {
     const attachableType = document.attachable_type?.trim();
     const attachableId = document.attachable_id;
+    const typeLabel =
+        attachableType?.toLowerCase() === "registry"
+            ? "Registro"
+            : attachableType?.toLowerCase() === "asset"
+              ? "Bien"
+              : attachableType;
+
     if (attachableType && typeof attachableId === "number") {
-        return `${attachableType} #${attachableId}`;
+        return `${typeLabel} #${attachableId}`;
     }
     if (attachableType) {
-        return attachableType;
+        return typeLabel;
     }
     return "Sin asignar";
 }
@@ -352,18 +366,14 @@ export default function ArchivosPage() {
                 setCurrentPage(responseCurrentPage);
             }
         } catch (error) {
-            setLoadError(
-                error instanceof Error
-                    ? error.message
-                    : "No se pudo cargar el directorio de documentos.",
-            );
-            setDocuments([]);
+            setDocuments(mockSystemDocuments);
             setPagination({
                 currentPage: 1,
                 totalPages: 1,
-                totalCount: 0,
+                totalCount: mockSystemDocuments.length,
                 perPage,
             });
+            setLoadError(MOCK_FALLBACK_MESSAGE);
         } finally {
             setIsLoading(false);
         }
@@ -431,12 +441,8 @@ export default function ArchivosPage() {
                 if (!active) {
                     return;
                 }
-                setAssetCandidates([]);
-                setAssetSearchError(
-                    error instanceof Error
-                        ? error.message
-                        : "No se pudo buscar bienes.",
-                );
+                setAssetCandidates(mockAssets.map((asset) => ({ asset })));
+                setAssetSearchError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 if (active) {
                     setIsSearchingAssets(false);
@@ -496,12 +502,22 @@ export default function ArchivosPage() {
                     setDebouncedAssetSearch(info.rppNumber);
                 }
             } catch (error) {
-                setCurrentAttachableInfo(null);
-                setCurrentAttachableError(
-                    error instanceof Error
-                        ? error.message
-                        : "No se pudo cargar la informacion origen.",
-                );
+                if (attachableType === "Registry") {
+                    const fallbackRegistry =
+                        mockRegistries.find((item) => item.id === attachableId) ??
+                        mockRegistries[0];
+                    setCurrentAttachableInfo(
+                        buildRegistryInfo(attachableId, fallbackRegistry),
+                    );
+                } else {
+                    const fallbackAsset =
+                        mockAssets.find((item) => item.id === attachableId) ??
+                        mockAssets[0];
+                    setCurrentAttachableInfo(
+                        buildAssetInfo(attachableId, fallbackAsset),
+                    );
+                }
+                setCurrentAttachableError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 setIsLoadingCurrentAttachable(false);
             }
@@ -597,16 +613,17 @@ export default function ArchivosPage() {
             : (pagination.currentPage - 1) * pagination.perPage + documents.length;
 
     return (
-        <div className="space-y-4">
-            <section className="rounded-xl border border-border bg-card p-5">
+        <div className="mx-auto w-full max-w-7xl space-y-5">
+            <section className="rounded-xl border border-border bg-gradient-to-r from-card via-card to-muted/20 p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-1">
-                        <h1 className="text-2xl font-semibold">
+                        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+                            <FileText className="h-6 w-6 text-primary" />
                             Directorio de documentos
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Consulta documentos del sistema y reasignalos de
-                            registro a bien cuando sea necesario.
+                            Consulta documentos del sistema y reasignalos entre
+                            registros y bienes cuando sea necesario.
                         </p>
                     </div>
                     <Button
@@ -640,7 +657,14 @@ export default function ArchivosPage() {
                 </section>
             ) : null}
 
-            <section className="rounded-xl border border-border bg-card p-4">
+            <section className="space-y-4 rounded-xl border border-border bg-card p-4">
+                <div>
+                    <h2 className="text-sm font-medium">Filtros</h2>
+                    <p className="text-xs text-muted-foreground">
+                        Ajusta el listado por vinculo y busca rapidamente en los
+                        resultados cargados.
+                    </p>
+                </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div className="space-y-2">
                         <Label>Vinculo actual</Label>
@@ -689,7 +713,9 @@ export default function ArchivosPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="document-search">Buscar en pagina</Label>
+                        <Label htmlFor="document-search">
+                            Buscar en la pagina actual
+                        </Label>
                         <div className="relative">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -729,7 +755,7 @@ export default function ArchivosPage() {
                     </div>
                 </div>
 
-                <div className="mt-3 text-xs text-muted-foreground">
+                <div className="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
                     Usa la combinacion correcta de tipo + ID para consultar un
                     vinculo especifico. Si el tipo no corresponde al ID, no habra
                     resultados.
@@ -739,11 +765,12 @@ export default function ArchivosPage() {
             <section className="overflow-hidden rounded-xl border border-border bg-card">
                 <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
-                        Mostrando {filteredDocuments.length} de {documents.length} en
-                        pagina. Total del backend: {pagination.totalCount}
+                        Mostrando {filteredDocuments.length} de {documents.length}
+                        en pagina
                     </p>
                     <p className="text-xs text-muted-foreground">
-                        {displayFrom}-{displayTo} de {pagination.totalCount}
+                        {displayFrom}-{displayTo} de {pagination.totalCount} en
+                        total
                     </p>
                 </div>
 
@@ -806,7 +833,12 @@ export default function ArchivosPage() {
 
                                     <div className="flex flex-wrap gap-2">
                                         {viewUrl ? (
-                                            <Button size="sm" variant="outline" asChild>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1 sm:flex-none"
+                                                asChild
+                                            >
                                                 <a
                                                     href={viewUrl}
                                                     target="_blank"
@@ -817,14 +849,24 @@ export default function ArchivosPage() {
                                                 </a>
                                             </Button>
                                         ) : (
-                                            <Button size="sm" variant="outline" disabled>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1 sm:flex-none"
+                                                disabled
+                                            >
                                                 <ExternalLink className="mr-1 h-3.5 w-3.5" />
                                                 Ver
                                             </Button>
                                         )}
 
                                         {downloadUrl ? (
-                                            <Button size="sm" variant="outline" asChild>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1 sm:flex-none"
+                                                asChild
+                                            >
                                                 <a
                                                     href={downloadUrl}
                                                     target="_blank"
@@ -835,7 +877,12 @@ export default function ArchivosPage() {
                                                 </a>
                                             </Button>
                                         ) : (
-                                            <Button size="sm" variant="outline" disabled>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1 sm:flex-none"
+                                                disabled
+                                            >
                                                 <Download className="mr-1 h-3.5 w-3.5" />
                                                 Descargar
                                             </Button>
@@ -843,6 +890,7 @@ export default function ArchivosPage() {
 
                                         <Button
                                             size="sm"
+                                            className="w-full sm:w-auto"
                                             disabled={isViewer}
                                             onClick={() => handleOpenAssign(document)}
                                         >
@@ -1013,31 +1061,37 @@ export default function ArchivosPage() {
                 </div>
             </section>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <Button
-                    variant="outline"
-                    disabled={isLoading || currentPage <= 1}
-                    onClick={() =>
-                        setCurrentPage((previous) => Math.max(1, previous - 1))
-                    }
-                >
-                    Anterior
-                </Button>
-                <p className="text-sm text-muted-foreground">
-                    Pagina {currentPage} de {pagination.totalPages}
-                </p>
-                <Button
-                    variant="outline"
-                    disabled={isLoading || currentPage >= pagination.totalPages}
-                    onClick={() =>
-                        setCurrentPage((previous) =>
-                            Math.min(pagination.totalPages, previous + 1),
-                        )
-                    }
-                >
-                    Siguiente
-                </Button>
-            </div>
+            <section className="rounded-xl border border-border bg-card p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <Button
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        disabled={isLoading || currentPage <= 1}
+                        onClick={() =>
+                            setCurrentPage((previous) =>
+                                Math.max(1, previous - 1),
+                            )
+                        }
+                    >
+                        Anterior
+                    </Button>
+                    <p className="text-center text-sm text-muted-foreground">
+                        Pagina {currentPage} de {pagination.totalPages}
+                    </p>
+                    <Button
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        disabled={isLoading || currentPage >= pagination.totalPages}
+                        onClick={() =>
+                            setCurrentPage((previous) =>
+                                Math.min(pagination.totalPages, previous + 1),
+                            )
+                        }
+                    >
+                        Siguiente
+                    </Button>
+                </div>
+            </section>
 
             <Dialog
                 open={isAssignOpen}

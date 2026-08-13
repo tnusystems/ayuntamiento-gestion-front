@@ -23,6 +23,12 @@ import { fetchRegistry } from "@/lib/api/registries";
 import { fetchAssetDocuments } from "@/lib/api/files/fileByAsset";
 import { fetchInventoryProcesses } from "@/lib/api/inventory-processes";
 import { getApiBaseUrl } from "@/lib/api/baseUrl";
+import {
+    mockAssets,
+    mockRegistries,
+    mockSystemDocuments,
+    MOCK_FALLBACK_MESSAGE,
+} from "@/lib/mock-fallbacks";
 
 type AssetDetail = Awaited<ReturnType<typeof fetchAsset>>;
 type RegistryItem = Awaited<ReturnType<typeof fetchRegistry>>;
@@ -137,17 +143,15 @@ export default function AssetDetailPage() {
                 setRegistry(registryResponse ?? null);
                 setDocuments(docsResponse ?? []);
                 setProcesses(procResponse ?? null);
-            } catch (error) {
+            } catch {
                 if (!active) return;
-                setLoadError(
-                    error instanceof Error
-                        ? error.message
-                        : "No se pudo cargar el bien.",
+                setLoadError(MOCK_FALLBACK_MESSAGE);
+                setAsset(mockAssets[0] ?? null);
+                setRegistry(mockRegistries[0] ?? null);
+                setDocuments(
+                    mockSystemDocuments as unknown as AssetDocumentItem[],
                 );
-                setAsset(null);
-                setRegistry(null);
-                setDocuments([]);
-                setProcesses(null);
+                setProcesses([]);
             } finally {
                 if (active) {
                     setIsLoading(false);
@@ -610,23 +614,6 @@ export default function AssetDetailPage() {
         );
     }
 
-    if (loadError) {
-        return (
-            <div className="container mx-auto py-8">
-                <div className="text-center space-y-4">
-                    <p className="text-destructive">{loadError}</p>
-                    <Button
-                        onClick={() => router.push(`/assets/${registryId}`)}
-                        variant="outline"
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver al expediente
-                    </Button>
-                </div>
-            </div>
-        );
-    }
-
     if (!bien) {
         return (
             <div className="container mx-auto py-8">
@@ -646,6 +633,11 @@ export default function AssetDetailPage() {
 
     return (
         <div className="max-w-7xl mx-auto">
+            {loadError ? (
+                <p className="mb-4 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                    {loadError}
+                </p>
+            ) : null}
             <BienDetail
                 bien={bien}
                 registry={registry}

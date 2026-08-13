@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { fetchChangeLogs } from "@/lib/api/changelogs";
+import { mockChangeLogs, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
 import type { ChangeLog } from "@/types";
 
 type AuditLevel = "info" | "advertencia" | "critico";
@@ -166,12 +167,8 @@ export default function AdminAuditPage() {
                 setLogs(response.data.map(mapChangeLogToLog));
             } catch (error) {
                 if (!active) return;
-                setLoadError(
-                    error instanceof Error
-                        ? error.message
-                        : "Error al cargar auditoría.",
-                );
-                setLogs([]);
+                setLogs(mockChangeLogs.map(mapChangeLogToLog));
+                setLoadError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 if (active) {
                     setIsLoading(false);
@@ -204,6 +201,11 @@ export default function AdminAuditPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {loadError ? (
+                        <div className="mb-4 text-sm text-destructive">
+                            {loadError}
+                        </div>
+                    ) : null}
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -220,14 +222,6 @@ export default function AdminAuditPage() {
                                     <TableCell colSpan={5}>
                                         <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted-foreground">
                                             Cargando actividades...
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ) : loadError ? (
-                                <TableRow>
-                                    <TableCell colSpan={5}>
-                                        <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-sm text-destructive">
-                                            {loadError}
                                         </div>
                                     </TableCell>
                                 </TableRow>

@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fetchChangeLogDetail } from "@/lib/api/changelogs";
+import { mockChangeLogs, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
 import type { ChangeLog } from "@/types";
 
 type AuditLevel = "info" | "advertencia" | "critico";
@@ -181,12 +182,8 @@ export default function AuditDetailPage() {
                 setChange(response);
             } catch (error) {
                 if (!active) return;
-                setLoadError(
-                    error instanceof Error
-                        ? error.message
-                        : "Error al cargar el detalle.",
-                );
-                setChange(null);
+                setChange(mockChangeLogs[0]);
+                setLoadError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 if (active) {
                     setIsLoading(false);
@@ -249,15 +246,12 @@ export default function AuditDetailPage() {
                         Cargando auditoría...
                     </CardContent>
                 </Card>
-            ) : loadError ? (
-                <Card>
-                    <CardContent className="py-10 text-center text-sm text-destructive">
-                        {loadError}
-                    </CardContent>
-                </Card>
             ) : !change ? (
                 <Card>
                     <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                        {loadError ? (
+                            <p className="mb-3 text-destructive">{loadError}</p>
+                        ) : null}
                         <div className="flex flex-col items-center justify-center gap-3">
                             <ClipboardList className="h-10 w-10 text-muted-foreground/60" />
                             Sin información disponible.
@@ -266,6 +260,11 @@ export default function AuditDetailPage() {
                 </Card>
             ) : (
                 <>
+                    {loadError ? (
+                        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                            {loadError}
+                        </div>
+                    ) : null}
                     <Card>
                         <CardHeader>
                             <CardTitle>Resumen</CardTitle>

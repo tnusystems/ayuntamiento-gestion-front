@@ -22,6 +22,12 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { fetchRegistries } from "@/lib/api/registries";
+import {
+    mockRegistries,
+    mockPagination,
+    MOCK_FALLBACK_MESSAGE,
+} from "@/lib/mock-fallbacks";
+import { cn } from "@/lib/utils";
 
 type RegistryItem = Awaited<ReturnType<typeof fetchRegistries>>["data"][number];
 
@@ -121,15 +127,13 @@ export default function RegistryPage() {
                 if (error instanceof Error && error.name === "AbortError") {
                     return;
                 }
-                setLoadError(
-                    error instanceof Error ? error.message : "Error al cargar registros.",
-                );
-                setData([]);
+                setLoadError(MOCK_FALLBACK_MESSAGE);
+                setData(mockRegistries);
                 setPagination({
-                    currentPage: 1,
-                    totalPages: 1,
-                    totalCount: 0,
-                    perPage: itemsPerPage,
+                    currentPage: mockPagination.current_page,
+                    totalPages: mockPagination.total_pages,
+                    totalCount: mockPagination.total_count,
+                    perPage: mockPagination.per_page,
                 });
             } finally {
                 if (active) {
@@ -199,13 +203,26 @@ export default function RegistryPage() {
                 </Button>
             </div>
 
+            {loadError ? (
+                <p
+                    className={cn(
+                        "rounded-md border px-4 py-3 text-sm",
+                        loadError === MOCK_FALLBACK_MESSAGE
+                            ? "border-border bg-muted/40 text-muted-foreground"
+                            : "border-destructive/20 bg-destructive/10 text-destructive",
+                    )}
+                >
+                    {loadError}
+                </p>
+            ) : null}
+
             <div className="overflow-hidden rounded-lg border border-border bg-card">
                 <div className="space-y-3 p-4 lg:hidden">
                     {shouldShowLoadingState ? (
                         <p className="rounded-md border border-border px-4 py-6 text-center text-sm text-muted-foreground">
                             Cargando registros...
                         </p>
-                    ) : loadError ? (
+                    ) : data.length === 0 && loadError ? (
                         <p className="rounded-md border border-destructive/20 bg-destructive/10 px-4 py-6 text-center text-sm text-destructive">
                             {loadError}
                         </p>
@@ -295,7 +312,7 @@ export default function RegistryPage() {
                                         Cargando registros...
                                     </TableCell>
                                 </TableRow>
-                            ) : loadError ? (
+                            ) : data.length === 0 && loadError ? (
                                 <TableRow>
                                     <TableCell
                                         colSpan={7}

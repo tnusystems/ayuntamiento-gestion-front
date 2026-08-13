@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { fetchApprovalRequests } from "@/lib/api/approval-requests";
+import { mockApprovalRequests, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
 import type { ApprovalRequest } from "@/types";
 
 type ApprovalStatus =
@@ -92,6 +93,11 @@ const formatDate = (value?: string | null) => {
 const formatAction = (value?: string | null) => {
     if (!value) return "—";
     return value.replace(/\./g, " ");
+};
+
+const getStatusConfig = (status?: string | null) => {
+    if (!status) return statusConfig.pending;
+    return statusConfig[status as ApprovalStatus] ?? statusConfig.pending;
 };
 
 const buildDetails = (approval: ApprovalRequest) => {
@@ -185,18 +191,14 @@ export default function AdminChangeRequestsPage() {
                 });
             } catch (error) {
                 if (!active) return;
-                setLoadError(
-                    error instanceof Error
-                        ? error.message
-                        : "Error al cargar aprobaciones.",
-                );
-                setRequests([]);
+                setRequests(mockApprovalRequests.map(mapApprovalToItem));
                 setPagination({
-                    currentPage,
+                    currentPage: 1,
                     totalPages: 1,
-                    totalCount: 0,
+                    totalCount: mockApprovalRequests.length,
                     perPage: itemsPerPage,
                 });
+                setLoadError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 if (active) {
                     setIsLoading(false);
@@ -222,7 +224,7 @@ export default function AdminChangeRequestsPage() {
             : Math.min(displayFrom + requests.length - 1, pagination.totalCount);
 
     return (
-        <div className="container mx-auto py-8 space-y-6">
+        <div className="container mx-auto space-y-6 px-4 py-6 sm:px-6 sm:py-8">
             <div>
                 <h1 className="text-2xl font-semibold">
                     Solicitudes de aprobación
@@ -239,114 +241,207 @@ export default function AdminChangeRequestsPage() {
                         Listado de solicitudes de aprobación del sistema.
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Solicitud</TableHead>
-                                <TableHead>Entidad</TableHead>
-                                <TableHead>Acción</TableHead>
-                                <TableHead>Detalle</TableHead>
-                                <TableHead>Solicitante</TableHead>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Estado</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={7}>
-                                        <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted-foreground">
-                                            Cargando aprobaciones...
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ) : loadError ? (
-                                <TableRow>
-                                    <TableCell colSpan={7}>
-                                        <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-sm text-destructive">
-                                            {loadError}
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ) : requests.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={7}>
-                                        <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
-                                            <ClipboardList className="h-10 w-10 text-muted-foreground/60" />
+                <CardContent className="space-y-4">
+                    {loadError ? (
+                        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                            {loadError}
+                        </div>
+                    ) : null}
+                    <div className="space-y-3 lg:hidden">
+                        {isLoading ? (
+                            <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                                Cargando aprobaciones...
+                            </div>
+                        ) : requests.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center">
+                                <ClipboardList className="h-10 w-10 text-muted-foreground/60" />
+                                <div>
+                                    <p className="font-medium">
+                                        Sin aprobaciones por ahora
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Aún no hay solicitudes de aprobación
+                                        para revisar.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            requests.map((request) => {
+                                const status = getStatusConfig(request.status);
+
+                                return (
+                                    <button
+                                        key={request.id}
+                                        type="button"
+                                        className="w-full rounded-lg border bg-card p-4 text-left transition-colors hover:bg-muted/40"
+                                        onClick={() =>
+                                            router.push(
+                                                `/admin/solicitudes-cambio/${request.id}`,
+                                            )
+                                        }
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
                                             <div>
-                                                <p className="font-medium">
-                                                    Sin aprobaciones por ahora
-                                                </p>
                                                 <p className="text-sm text-muted-foreground">
-                                                    Aún no hay solicitudes de
-                                                    aprobación para revisar.
+                                                    Solicitud #{request.id}
+                                                </p>
+                                                <p className="font-medium">
+                                                    {request.subject}
                                                 </p>
                                             </div>
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(status.className)}
+                                            >
+                                                {status.label}
+                                            </Badge>
                                         </div>
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                requests.map((request) => {
-                                    const statusKey =
-                                        request.status || "pending";
-                                    const status =
-                                        statusConfig[statusKey] ||
-                                        statusConfig.pending;
 
-                                    return (
-                                        <TableRow
-                                            key={request.id}
-                                            className="cursor-pointer hover:bg-muted/50"
-                                            onClick={() =>
-                                                router.push(
-                                                    `/admin/solicitudes-cambio/${request.id}`,
-                                                )
-                                            }
-                                        >
-                                            <TableCell className="font-medium">
-                                                {request.id}
-                                            </TableCell>
-                                            <TableCell>
-                                                {request.subject}
-                                            </TableCell>
-                                            <TableCell>
+                                        <div className="mt-3 space-y-1.5 text-sm">
+                                            <p className="break-words">
+                                                <span className="text-muted-foreground">
+                                                    Acción:
+                                                </span>{" "}
                                                 {request.action}
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="text-sm">
-                                                    {request.details}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>
+                                            </p>
+                                            <p className="break-words">
+                                                <span className="text-muted-foreground">
+                                                    Solicitante:
+                                                </span>{" "}
                                                 {request.requested_by}
-                                            </TableCell>
-                                            <TableCell>
-                                                {formatDate(
-                                                    request.requested_at,
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(
-                                                        status.className,
+                                            </p>
+                                            <p>
+                                                <span className="text-muted-foreground">
+                                                    Fecha:
+                                                </span>{" "}
+                                                {formatDate(request.requested_at)}
+                                            </p>
+                                            <p className="break-words text-muted-foreground">
+                                                {request.details}
+                                            </p>
+                                        </div>
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    <div className="hidden lg:block">
+                        <Table className="table-fixed">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-20 whitespace-normal">
+                                        Solicitud
+                                    </TableHead>
+                                    <TableHead className="w-[14%] whitespace-normal">
+                                        Entidad
+                                    </TableHead>
+                                    <TableHead className="w-[12%] whitespace-normal">
+                                        Acción
+                                    </TableHead>
+                                    <TableHead className="w-[28%] whitespace-normal">
+                                        Detalle
+                                    </TableHead>
+                                    <TableHead className="w-[22%] whitespace-normal">
+                                        Solicitante
+                                    </TableHead>
+                                    <TableHead className="w-[12%] whitespace-normal">
+                                        Fecha
+                                    </TableHead>
+                                    <TableHead className="w-[10%] whitespace-normal">
+                                        Estado
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={7}>
+                                            <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted-foreground">
+                                                Cargando aprobaciones...
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : requests.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={7}>
+                                            <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+                                                <ClipboardList className="h-10 w-10 text-muted-foreground/60" />
+                                                <div>
+                                                    <p className="font-medium">
+                                                        Sin aprobaciones por
+                                                        ahora
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        Aún no hay solicitudes
+                                                        de aprobación para
+                                                        revisar.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    requests.map((request) => {
+                                        const status = getStatusConfig(
+                                            request.status,
+                                        );
+
+                                        return (
+                                            <TableRow
+                                                key={request.id}
+                                                className="cursor-pointer hover:bg-muted/50"
+                                                onClick={() =>
+                                                    router.push(
+                                                        `/admin/solicitudes-cambio/${request.id}`,
+                                                    )
+                                                }
+                                            >
+                                                <TableCell className="font-medium whitespace-normal align-top">
+                                                    {request.id}
+                                                </TableCell>
+                                                <TableCell className="whitespace-normal break-words align-top">
+                                                    {request.subject}
+                                                </TableCell>
+                                                <TableCell className="whitespace-normal break-words align-top">
+                                                    {request.action}
+                                                </TableCell>
+                                                <TableCell className="whitespace-normal break-words align-top">
+                                                    <span className="text-sm break-words">
+                                                        {request.details}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="whitespace-normal break-all align-top">
+                                                    {request.requested_by}
+                                                </TableCell>
+                                                <TableCell className="whitespace-normal align-top">
+                                                    {formatDate(
+                                                        request.requested_at,
                                                     )}
-                                                >
-                                                    {status.label}
-                                                </Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })
-                            )}
-                        </TableBody>
-                    </Table>
-                    <div className="flex items-center justify-between border-t border-border px-4 py-3">
-                        <p className="text-sm text-muted-foreground">
+                                                </TableCell>
+                                                <TableCell className="whitespace-normal align-top">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn(
+                                                            status.className,
+                                                        )}
+                                                    >
+                                                        {status.label}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    <div className="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between sm:pt-4">
+                        <p className="text-center text-sm text-muted-foreground sm:text-left">
                             Mostrando {displayFrom} a {displayTo} de {pagination.totalCount} solicitudes
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -356,7 +451,9 @@ export default function AdminChangeRequestsPage() {
                                 disabled={activePage <= 1 || isLoading}
                             >
                                 <ChevronLeft className="h-4 w-4" />
-                                Anterior
+                                <span className="hidden sm:inline">
+                                    Anterior
+                                </span>
                             </Button>
                             <span className="text-sm text-muted-foreground">
                                 Página {activePage} de {totalPages}
@@ -371,7 +468,9 @@ export default function AdminChangeRequestsPage() {
                                 }
                                 disabled={activePage >= totalPages || isLoading}
                             >
-                                Siguiente
+                                <span className="hidden sm:inline">
+                                    Siguiente
+                                </span>
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>

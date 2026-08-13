@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Download, ExternalLink, Loader2, RefreshCw, Search } from "lucide-react";
 
 import AppCard from "@/components/app-card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
   fetchAssetDocuments,
 } from "@/lib/api/files/fileByAsset";
 import { getApiBaseUrl } from "@/lib/api/baseUrl";
+import { mockSystemDocuments, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
 import type { ArchivoApi } from "@/types";
 
 const formatBytes = (bytes?: number | null) => {
@@ -89,12 +91,8 @@ export default function FileByAssetsPage() {
       const data = await fetchAssetDocuments(assetId);
       setDocuments(data);
     } catch (error) {
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : "No se pudieron cargar los documentos."
-      );
-      setDocuments([]);
+      setDocuments(mockSystemDocuments as unknown as ArchivoApi[]);
+      setLoadError(MOCK_FALLBACK_MESSAGE);
     } finally {
       setIsLoading(false);
     }
@@ -133,11 +131,14 @@ export default function FileByAssetsPage() {
         }
         window.open(url, "_blank", "noopener,noreferrer");
       } catch (error) {
-        setLoadError(
-          error instanceof Error
-            ? error.message
-            : "No se pudo abrir el documento."
-        );
+        const fallbackDocument =
+          (mockSystemDocuments.find((item) => item.id === documentId) ??
+            mockSystemDocuments[0]) as unknown as ArchivoApi;
+        const fallbackUrl = getDocumentUrl(fallbackDocument, mode);
+        setLoadError(MOCK_FALLBACK_MESSAGE);
+        if (fallbackUrl) {
+          window.open(fallbackUrl, "_blank", "noopener,noreferrer");
+        }
       } finally {
         setActiveDocumentId(null);
       }
@@ -146,12 +147,12 @@ export default function FileByAssetsPage() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       <AppCard
         title={`Documentos del bien ${Number.isFinite(assetId) ? assetId : ""}`}
         description="Archivos asociados al bien inmueble seleccionado."
         headerAction={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"
@@ -160,6 +161,11 @@ export default function FileByAssetsPage() {
               Volver
             </Button>
             <Button type="button" onClick={loadDocuments} disabled={isLoading}>
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
               Actualizar
             </Button>
           </div>
@@ -167,22 +173,89 @@ export default function FileByAssetsPage() {
       >
         <div className="space-y-4">
           {loadError ? (
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {loadError}
             </div>
           ) : null}
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <Input
-              placeholder="Buscar por nombre o tipo..."
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              disabled={isLoading}
-            />
+            <div className="relative w-full md:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Buscar por nombre o tipo..."
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                disabled={isLoading}
+              />
+            </div>
             <div className="text-sm text-muted-foreground">
               {filteredDocuments.length} de {documents.length} documentos
             </div>
           </div>
-          <div className="overflow-x-auto rounded-lg border border-border/60">
+
+          <div className="space-y-3 md:hidden">
+            {isLoading ? (
+              <div className="rounded-lg border border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                Cargando documentos...
+              </div>
+            ) : filteredDocuments.length === 0 ? (
+              <div className="rounded-lg border border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                Sin documentos para este bien.
+              </div>
+            ) : (
+              filteredDocuments.map((document) => (
+                <div
+                  key={document.id}
+                  className="space-y-3 rounded-lg border border-border/60 bg-card p-4"
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium">{document.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {getDocumentType(document)}
+                    </p>
+                  </div>
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p>Posicion: {document.position ?? "-"}</p>
+                    <p>Tamano: {formatBytes(document.file?.byte_size)}</p>
+                    <p>Formato: {document.file?.content_type ?? "-"}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      disabled={activeDocumentId === document.id}
+                      onClick={() => handleOpenDocument(document.id, "view")}
+                    >
+                      {activeDocumentId === document.id ? (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      Ver
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="flex-1"
+                      disabled={activeDocumentId === document.id}
+                      onClick={() => handleOpenDocument(document.id, "download")}
+                    >
+                      {activeDocumentId === document.id ? (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Download className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      Descargar
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-lg border border-border/60 md:block">
             <table className="w-full text-sm border-collapse">
               <thead className="bg-muted/40">
                 <tr>
@@ -255,6 +328,11 @@ export default function FileByAssetsPage() {
                                 handleOpenDocument(document.id, "view")
                               }
                             >
+                              {activeDocumentId === document.id ? (
+                                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                              )}
                               Ver
                             </Button>
                             <Button
@@ -265,6 +343,11 @@ export default function FileByAssetsPage() {
                                 handleOpenDocument(document.id, "download")
                               }
                             >
+                              {activeDocumentId === document.id ? (
+                                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Download className="mr-1 h-3.5 w-3.5" />
+                              )}
                               Descargar
                             </Button>
                           </div>

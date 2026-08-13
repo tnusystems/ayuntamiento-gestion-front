@@ -18,6 +18,7 @@ import {
     BienesTableContent,
     type BienRow,
 } from "@/components/assets/bienes-table-content";
+import { mockRegistries, mockAssets, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
 
 type RegistryItem = Awaited<ReturnType<typeof fetchRegistry>>;
 type AssetItem = AssetSearchResult["asset"] & {
@@ -195,15 +196,11 @@ export default function AssetsPage() {
                         is_active: result.is_active,
                     })),
                 );
-            } catch (error) {
+            } catch {
                 if (!active) return;
-                setLoadError(
-                    error instanceof Error
-                        ? error.message
-                        : "Error al cargar bienes del expediente.",
-                );
-                setExpediente(null);
-                setBienes([]);
+                setLoadError(MOCK_FALLBACK_MESSAGE);
+                setExpediente(mockRegistries[0] ?? null);
+                setBienes(mockAssets);
             } finally {
                 if (active) {
                     setIsLoading(false);
@@ -300,23 +297,6 @@ export default function AssetsPage() {
         );
     }
 
-    if (loadError) {
-        return (
-            <div className="container mx-auto py-8">
-                <div className="text-center space-y-4">
-                    <p className="text-destructive">{loadError}</p>
-                    <Button
-                        onClick={() => router.push("/registry")}
-                        variant="outline"
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver a expedientes
-                    </Button>
-                </div>
-            </div>
-        );
-    }
-
     if (!expediente) {
         return (
             <div className="container mx-auto py-8">
@@ -389,6 +369,11 @@ export default function AssetsPage() {
 
     return (
         <div className="container mx-auto py-8 space-y-6">
+            {loadError ? (
+                <p className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                    {loadError}
+                </p>
+            ) : null}
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>

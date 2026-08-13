@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { fetchActivities } from "@/lib/api/activities";
+import { mockActivities, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
 import type { Activity } from "@/types";
 
 type AuditLevel = "info" | "advertencia" | "critico";
@@ -181,12 +182,14 @@ export default function AdminActivitiesPage() {
                 });
             } catch (error) {
                 if (!active) return;
-                setLoadError(
-                    error instanceof Error
-                        ? error.message
-                        : "Error al cargar actividades.",
-                );
-                setLogs([]);
+                setLogs(mockActivities.map(mapActivityToLog));
+                setPagination({
+                    currentPage: 1,
+                    totalPages: 1,
+                    totalCount: mockActivities.length,
+                    perPage: itemsPerPage,
+                });
+                setLoadError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 if (active) {
                     setIsLoading(false);
@@ -226,6 +229,11 @@ export default function AdminActivitiesPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {loadError ? (
+                        <div className="mb-4 text-sm text-destructive">
+                            {loadError}
+                        </div>
+                    ) : null}
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -242,14 +250,6 @@ export default function AdminActivitiesPage() {
                                     <TableCell colSpan={5}>
                                         <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted-foreground">
                                             Cargando actividades...
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ) : loadError ? (
-                                <TableRow>
-                                    <TableCell colSpan={5}>
-                                        <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-sm text-destructive">
-                                            {loadError}
                                         </div>
                                     </TableCell>
                                 </TableRow>

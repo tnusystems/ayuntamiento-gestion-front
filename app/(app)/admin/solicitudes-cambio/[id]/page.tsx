@@ -25,17 +25,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
     approveApprovalRequest,
-    cancelApprovalRequest,
     fetchApprovalRequest,
     rejectApprovalRequest,
-    retryApprovalRequest,
 } from "@/lib/api/approval-requests";
 import {
     fetchCatalogs,
+    LOOKUP_KINDS,
     type LookupCatalogs,
     type LookupKind,
 } from "@/lib/api/lookup-values";
 import { fetchOperationTypes } from "@/lib/api/operation-types";
+import {
+    mockApprovalRequests,
+    mockLookupValues,
+    mockOperationTypes,
+    MOCK_FALLBACK_MESSAGE,
+} from "@/lib/mock-fallbacks";
 import type { ApprovalRequest, OperationType } from "@/types";
 
 type ApprovalStatus =
@@ -275,7 +280,7 @@ export default function ApprovalRequestDetailPage() {
     const [actionError, setActionError] = useState<string | null>(null);
     const [actionNotice, setActionNotice] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState<
-        "approve" | "reject" | "retry" | "cancel" | null
+        "approve" | "reject" | null
     >(null);
     const [catalogs, setCatalogs] = useState<LookupCatalogs | null>(null);
     const [operationTypes, setOperationTypes] = useState<OperationType[]>([]);
@@ -292,8 +297,12 @@ export default function ApprovalRequestDetailPage() {
                 setOperationTypes(operationTypesResponse);
             } catch {
                 if (!active) return;
-                setCatalogs(null);
-                setOperationTypes([]);
+                const fallbackCatalogs = LOOKUP_KINDS.reduce((acc, kind) => {
+                    acc[kind] = mockLookupValues;
+                    return acc;
+                }, {} as LookupCatalogs);
+                setCatalogs(fallbackCatalogs);
+                setOperationTypes(mockOperationTypes);
             }
         };
 
@@ -316,12 +325,8 @@ export default function ApprovalRequestDetailPage() {
                 setRequest(response);
             } catch (error) {
                 if (!active) return;
-                setLoadError(
-                    error instanceof Error
-                        ? error.message
-                        : "Error al cargar la solicitud.",
-                );
-                setRequest(null);
+                setRequest(mockApprovalRequests[0]);
+                setLoadError(MOCK_FALLBACK_MESSAGE);
             } finally {
                 if (active) {
                     setIsLoading(false);
@@ -388,46 +393,6 @@ export default function ApprovalRequestDetailPage() {
                 error instanceof Error
                     ? error.message
                     : "No se pudo rechazar la solicitud.",
-            );
-        } finally {
-            setActionLoading(null);
-        }
-    };
-
-    const handleRetry = async () => {
-        if (!requestId) return;
-        setActionError(null);
-        setActionNotice(null);
-        setActionLoading("retry");
-        try {
-            await retryApprovalRequest(requestId);
-            await refreshRequest(requestId);
-            setActionNotice("Reintento enviado.");
-        } catch (error) {
-            setActionError(
-                error instanceof Error
-                    ? error.message
-                    : "No se pudo reintentar la solicitud.",
-            );
-        } finally {
-            setActionLoading(null);
-        }
-    };
-
-    const handleCancel = async () => {
-        if (!requestId) return;
-        setActionError(null);
-        setActionNotice(null);
-        setActionLoading("cancel");
-        try {
-            await cancelApprovalRequest(requestId);
-            await refreshRequest(requestId);
-            setActionNotice("Solicitud cancelada.");
-        } catch (error) {
-            setActionError(
-                error instanceof Error
-                    ? error.message
-                    : "No se pudo cancelar la solicitud.",
             );
         } finally {
             setActionLoading(null);
@@ -562,15 +527,12 @@ export default function ApprovalRequestDetailPage() {
                         Cargando solicitud...
                     </CardContent>
                 </Card>
-            ) : loadError ? (
-                <Card>
-                    <CardContent className="py-10 text-center text-sm text-destructive">
-                        {loadError}
-                    </CardContent>
-                </Card>
             ) : !request ? (
                 <Card>
                     <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                        {loadError ? (
+                            <p className="mb-3 text-destructive">{loadError}</p>
+                        ) : null}
                         <div className="flex flex-col items-center justify-center gap-3">
                             <ClipboardList className="h-10 w-10 text-muted-foreground/60" />
                             Sin información disponible.
@@ -579,6 +541,11 @@ export default function ApprovalRequestDetailPage() {
                 </Card>
             ) : (
                 <>
+                    {loadError ? (
+                        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                            {loadError}
+                        </div>
+                    ) : null}
                     {statusKey !== "executed" && statusKey !== "rejected" ? (
                         <Card>
                             <CardHeader>
@@ -624,24 +591,6 @@ export default function ApprovalRequestDetailPage() {
                                         {actionLoading === "reject"
                                             ? "Rechazando..."
                                             : "Rechazar"}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleRetry}
-                                        disabled={isBusy}
-                                    >
-                                        {actionLoading === "retry"
-                                            ? "Reintentando..."
-                                            : "Reintentar"}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleCancel}
-                                        disabled={isBusy}
-                                    >
-                                        {actionLoading === "cancel"
-                                            ? "Cancelando..."
-                                            : "Cancelar"}
                                     </Button>
                                 </div>
                             </CardContent>

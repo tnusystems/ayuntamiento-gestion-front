@@ -36,6 +36,7 @@ import {
 } from "@/lib/api/assets";
 import { fetchRegistry } from "@/lib/api/registries";
 import { createInventoryProcess } from "@/lib/api/inventory-processes";
+import { mockRegistries, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -183,6 +184,14 @@ export function ProcesoWizard({
             } catch (error) {
                 if (isMounted) {
                     console.error("Registry load error:", error);
+                    console.warn(MOCK_FALLBACK_MESSAGE);
+                    setFormData((previous) => ({
+                        ...previous,
+                        rppNumber:
+                            previous.rppNumber ||
+                            mockRegistries[0].rpp_number ||
+                            "",
+                    }));
                 }
             }
         };

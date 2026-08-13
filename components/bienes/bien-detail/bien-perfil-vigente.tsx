@@ -20,7 +20,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { fetchCatalogs, type LookupCatalogs } from "@/lib/api/lookup-values";
+import {
+    fetchCatalogs,
+    LOOKUP_KINDS,
+    type LookupCatalogs,
+} from "@/lib/api/lookup-values";
+import { mockLookupValues, MOCK_FALLBACK_MESSAGE } from "@/lib/mock-fallbacks";
 import type { LookupValue } from "@/types";
 
 interface BienPerfilVigenteProps {
@@ -90,12 +95,12 @@ export default function BienPerfilVigente({
                 setCatalogs(data);
             } catch (catalogError) {
                 if (!isMounted) return;
-                setCatalogs(null);
-                setCatalogsError(
-                    catalogError instanceof Error
-                        ? catalogError.message
-                        : "No se pudieron cargar los catalogos.",
-                );
+                const fallbackCatalogs = LOOKUP_KINDS.reduce((acc, kind) => {
+                    acc[kind] = mockLookupValues;
+                    return acc;
+                }, {} as LookupCatalogs);
+                setCatalogs(fallbackCatalogs);
+                setCatalogsError(MOCK_FALLBACK_MESSAGE);
             }
         };
 
